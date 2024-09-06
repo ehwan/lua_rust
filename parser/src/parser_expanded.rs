@@ -6,6 +6,7 @@
 use crate::expression;
 use crate::statement;
 use crate::Expression;
+use crate::IntType;
 use crate::Statement;
 use lua_tokenizer::IntOrFloat;
 use lua_tokenizer::Token;
@@ -377,16 +378,16 @@ pub enum ChunkNodeEnum {
     Variant3(Statement),
     Variant4(statement::ReturnStatement),
     Variant5(Expression),
-    Variant6(expression::FunctionCall),
+    Variant6((Expression, Vec<Expression>)),
     Variant7(Vec<Expression>),
     Variant8(Vec<String>),
     Variant9(statement::AttName),
     Variant10(Vec<statement::AttName>),
     Variant11(Option<statement::Attrib>),
-    Variant12(expression::TableConstructor),
-    Variant13(Vec<expression::TableConstructorField>),
-    Variant14(expression::TableConstructorField),
-    Variant15(expression::FunctionBody),
+    Variant12(expression::ExprTable),
+    Variant13(Vec<expression::TableConstructorFieldBuilder>),
+    Variant14(expression::TableConstructorFieldBuilder),
+    Variant15(expression::ExprFunction),
     Variant16(statement::FunctionName),
     Variant17(expression::ParameterList),
     Variant18(Vec<Statement>),
@@ -471,7 +472,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant3({
-            Statement::Assignment(statement::Assignment::new(VarList, ExpList1))
+            Statement::Assignment(statement::StmtAssignment::new(VarList, ExpList1))
         }))
     }
     fn reduce_Statement_2(
@@ -487,7 +488,10 @@ impl ChunkNodeEnum {
                 unreachable!()
             };
         Ok(ChunkNodeEnum::Variant3({
-            Statement::FunctionCall(FunctionCall)
+            Statement::FunctionCall(statement::StmtFunctionCall::new(
+                FunctionCall.0,
+                FunctionCall.1,
+            ))
         }))
     }
     fn reduce_Statement_3(
@@ -504,11 +508,9 @@ impl ChunkNodeEnum {
         };
         __rustylr_args.pop();
         Ok(ChunkNodeEnum::Variant3({
-            if let TokenType::Ident(s) = ident.token_type {
-                Statement::Label(statement::Label::new(s))
-            } else {
-                unreachable!("m");
-            }
+            Statement::Label(statement::StmtLabel::new(
+                ident.token_type.into_ident().unwrap(),
+            ))
         }))
     }
     fn reduce_Statement_4(
@@ -518,7 +520,9 @@ impl ChunkNodeEnum {
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
         __rustylr_args.pop();
-        Ok(ChunkNodeEnum::Variant3({ Statement::Break }))
+        Ok(ChunkNodeEnum::Variant3({
+            Statement::Break(statement::StmtBreak {})
+        }))
     }
     fn reduce_Statement_5(
         __rustylr_args: &mut Vec<Self>,
@@ -533,11 +537,9 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant3({
-            if let TokenType::Ident(s) = ident.token_type {
-                Statement::Goto(statement::Goto::new(s))
-            } else {
-                unreachable!("n");
-            }
+            Statement::Goto(statement::StmtGoto::new(
+                ident.token_type.into_ident().unwrap(),
+            ))
         }))
     }
     fn reduce_Statement_6(
@@ -554,7 +556,7 @@ impl ChunkNodeEnum {
         };
         __rustylr_args.pop();
         Ok(ChunkNodeEnum::Variant3({
-            Statement::Do(statement::Do::new(Block))
+            Statement::Do(statement::StmtDo::new(Block))
         }))
     }
     fn reduce_Statement_7(
@@ -577,7 +579,7 @@ impl ChunkNodeEnum {
         };
         __rustylr_args.pop();
         Ok(ChunkNodeEnum::Variant3({
-            Statement::While(statement::While::new(Exp, Block))
+            Statement::While(statement::StmtWhile::new(Exp, Block))
         }))
     }
     fn reduce_Statement_8(
@@ -599,7 +601,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant3({
-            Statement::Repeat(statement::Repeat::new(Block, Exp))
+            Statement::Repeat(statement::StmtRepeat::new(Block, Exp))
         }))
     }
     fn reduce_Statement_9(
@@ -632,7 +634,7 @@ impl ChunkNodeEnum {
         };
         __rustylr_args.pop();
         Ok(ChunkNodeEnum::Variant3({
-            Statement::If(statement::If::new(Exp, Block, elseifs, else_))
+            Statement::If(statement::StmtIf::new(Exp, Block, elseifs, else_))
         }))
     }
     fn reduce_Statement_10(
@@ -672,11 +674,13 @@ impl ChunkNodeEnum {
         };
         __rustylr_args.pop();
         Ok(ChunkNodeEnum::Variant3({
-            if let TokenType::Ident(s) = ident.token_type {
-                Statement::For(statement::For::new(s, start, end, step, Block))
-            } else {
-                unreachable!("o");
-            }
+            Statement::For(statement::StmtFor::new(
+                ident.token_type.into_ident().unwrap(),
+                start,
+                end,
+                step.unwrap_or_else(|| Expression::from(1)),
+                Block,
+            ))
         }))
     }
     fn reduce_Statement_11(
@@ -707,7 +711,7 @@ impl ChunkNodeEnum {
         };
         __rustylr_args.pop();
         Ok(ChunkNodeEnum::Variant3({
-            Statement::ForGeneric(statement::ForGeneric::new(NameList, ExpList1, Block))
+            Statement::ForGeneric(statement::StmtForGeneric::new(NameList, ExpList1, Block))
         }))
     }
     fn reduce_Statement_12(
@@ -730,7 +734,9 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant3({
-            Statement::FunctionDefinition(statement::FunctionDefinition::new(FuncName, FuncBody))
+            Statement::FunctionDefinition(statement::StmtFunctionDefinition::new(
+                FuncName, FuncBody,
+            ))
         }))
     }
     fn reduce_Statement_13(
@@ -753,13 +759,10 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant3({
-            if let TokenType::Ident(s) = ident.token_type {
-                Statement::FunctionDefinitionLocal(statement::FunctionDefinitionLocal::new(
-                    s, FuncBody,
-                ))
-            } else {
-                unreachable!("p");
-            }
+            Statement::FunctionDefinitionLocal(statement::StmtFunctionDefinitionLocal::new(
+                ident.token_type.into_ident().unwrap(),
+                FuncBody,
+            ))
         }))
     }
     fn reduce_Statement_14(
@@ -782,7 +785,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant3({
-            Statement::LocalDeclaration(statement::LocalDeclaration::new(AttNameList, rhs_list))
+            Statement::LocalDeclaration(statement::StmtLocalDeclaration::new(AttNameList, rhs_list))
         }))
     }
     fn reduce_ReturnStatement_0(
@@ -820,11 +823,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant5({
-            if let TokenType::Ident(s) = ident.token_type {
-                Expression::Ident(expression::Ident { name: s })
-            } else {
-                unreachable!("i");
-            }
+            Expression::new_ident(ident.token_type.into_ident().unwrap())
         }))
     }
     fn reduce_Var_1(
@@ -847,7 +846,7 @@ impl ChunkNodeEnum {
         };
         __rustylr_args.pop();
         Ok(ChunkNodeEnum::Variant5({
-            Expression::TableIndex(expression::TableIndex {
+            Expression::TableIndex(expression::ExprTableIndex {
                 table: Box::new(PrefixExp),
                 index: Box::new(Exp),
             })
@@ -872,16 +871,10 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant5({
-            let member = if let TokenType::Ident(s) = ident.token_type {
-                s
-            } else {
-                unreachable!("j");
-            };
-            Expression::TableIndex(expression::TableIndex {
+            let member = ident.token_type.into_ident().unwrap();
+            Expression::TableIndex(expression::ExprTableIndex {
                 table: Box::new(PrefixExp),
-                index: Box::new(Expression::String(expression::StringLiteral {
-                    value: member,
-                })),
+                index: Box::new(Expression::from(member)),
             })
         }))
     }
@@ -911,7 +904,10 @@ impl ChunkNodeEnum {
                 unreachable!()
             };
         Ok(ChunkNodeEnum::Variant5({
-            Expression::FunctionCall(FunctionCall)
+            Expression::FunctionCall(expression::ExprFunctionCall::new(
+                FunctionCall.0,
+                FunctionCall.1,
+            ))
         }))
     }
     fn reduce_PrefixExp_2(
@@ -946,9 +942,7 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant6({
-            expression::FunctionCall::new(PrefixExp, Args)
-        }))
+        Ok(ChunkNodeEnum::Variant6({ (PrefixExp, Args) }))
     }
     fn reduce_FunctionCall_1(
         __rustylr_args: &mut Vec<Self>,
@@ -974,19 +968,15 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant6({
-            if let TokenType::Ident(s) = ident.token_type {
-                let arg0 = PrefixExp.clone();
-                let mut args = Vec::with_capacity(Args.len() + 1);
-                args.push(arg0);
-                args.extend(Args);
-                let member = Expression::TableIndex(expression::TableIndex::new(
-                    PrefixExp,
-                    Expression::String(expression::StringLiteral::new(s)),
-                ));
-                expression::FunctionCall::new(member, args)
-            } else {
-                unreachable!("k");
-            }
+            let arg0 = PrefixExp.clone();
+            let mut args = Vec::with_capacity(Args.len() + 1);
+            args.push(arg0);
+            args.extend(Args);
+            let member = Expression::TableIndex(expression::ExprTableIndex::new(
+                PrefixExp,
+                Expression::from(ident.token_type.into_ident().unwrap()),
+            ));
+            (member, args)
         }))
     }
     fn reduce_Args_0(
@@ -1018,7 +1008,7 @@ impl ChunkNodeEnum {
                 unreachable!()
             };
         Ok(ChunkNodeEnum::Variant7({
-            let table_expr = Expression::TableConstructor(TableConstructor);
+            let table_expr = Expression::Table(TableConstructor);
             vec![table_expr]
         }))
     }
@@ -1035,12 +1025,9 @@ impl ChunkNodeEnum {
                 unreachable!()
             };
         Ok(ChunkNodeEnum::Variant7({
-            if let TokenType::String(s) = string_literal.token_type {
-                let string_expr = Expression::String(expression::StringLiteral::new(s));
-                vec![string_expr]
-            } else {
-                unreachable!("k");
-            }
+            vec![Expression::from(
+                string_literal.token_type.into_string().unwrap(),
+            )]
         }))
     }
     fn reduce_VarList_0(
@@ -1163,12 +1150,8 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant8({
-            if let TokenType::Ident(s) = ident.token_type {
-                NameList.push(s);
-                NameList
-            } else {
-                unreachable!("l");
-            }
+            NameList.push(ident.token_type.into_ident().unwrap());
+            NameList
         }))
     }
     fn reduce_NameList_1(
@@ -1183,11 +1166,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant8({
-            if let TokenType::Ident(s) = ident.token_type {
-                vec![s]
-            } else {
-                unreachable!("l");
-            }
+            vec![ident.token_type.into_ident().unwrap()]
         }))
     }
     fn reduce_AttName_0(
@@ -1207,11 +1186,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant9({
-            if let TokenType::Ident(s) = ident.token_type {
-                statement::AttName::new(s, Attrib)
-            } else {
-                unreachable!("m");
-            }
+            statement::AttName::new(ident.token_type.into_ident().unwrap(), Attrib)
         }))
     }
     fn reduce_AttNameList_0(
@@ -1264,14 +1239,11 @@ impl ChunkNodeEnum {
         };
         __rustylr_args.pop();
         Ok(ChunkNodeEnum::Variant11({
-            if let TokenType::Ident(s) = ident.token_type {
-                match s.as_str() {
-                    "const" => Some(statement::Attrib::Const),
-                    "close" => Some(statement::Attrib::Close),
-                    _ => Some(statement::Attrib::Const),
-                }
-            } else {
-                unreachable!("m");
+            let s = ident.token_type.into_ident().unwrap();
+            match s.as_str() {
+                "const" => Some(statement::Attrib::Const),
+                "close" => Some(statement::Attrib::Close),
+                _ => Some(statement::Attrib::Const),
             }
         }))
     }
@@ -1309,11 +1281,7 @@ impl ChunkNodeEnum {
                 unreachable!()
             };
         Ok(ChunkNodeEnum::Variant5({
-            if let TokenType::Numeric(iorf) = numeric_literal.token_type {
-                Expression::Numeric(expression::Numeric { value: iorf })
-            } else {
-                unreachable!("0");
-            }
+            Expression::from(numeric_literal.token_type.into_numeric().unwrap())
         }))
     }
     fn reduce_Exp0_1(
@@ -1327,7 +1295,9 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5({ Expression::Nil }))
+        Ok(ChunkNodeEnum::Variant5({
+            Expression::Nil(expression::ExprNil)
+        }))
     }
     fn reduce_Exp0_2(
         __rustylr_args: &mut Vec<Self>,
@@ -1342,11 +1312,7 @@ impl ChunkNodeEnum {
                 unreachable!()
             };
         Ok(ChunkNodeEnum::Variant5({
-            if let TokenType::String(s) = string_literal.token_type {
-                Expression::String(expression::StringLiteral { value: s })
-            } else {
-                unreachable!("1");
-            }
+            Expression::from(string_literal.token_type.into_string().unwrap())
         }))
     }
     fn reduce_Exp0_3(
@@ -1361,11 +1327,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant5({
-            if let TokenType::Bool(b) = bool_.token_type {
-                Expression::Bool(expression::Bool { value: b })
-            } else {
-                unreachable!("2");
-            }
+            Expression::from(bool_.token_type.into_bool().unwrap())
         }))
     }
     fn reduce_Exp0_4(
@@ -1395,7 +1357,7 @@ impl ChunkNodeEnum {
                 unreachable!()
             };
         Ok(ChunkNodeEnum::Variant5({
-            Expression::FunctionDef(FunctionDef)
+            Expression::Function(FunctionDef)
         }))
     }
     fn reduce_Exp0_6(
@@ -1425,7 +1387,7 @@ impl ChunkNodeEnum {
                 unreachable!()
             };
         Ok(ChunkNodeEnum::Variant5({
-            Expression::TableConstructor(TableConstructor)
+            Expression::Table(TableConstructor)
         }))
     }
     fn reduce_Exp1_0(
@@ -1450,7 +1412,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::Binary::Pow(Box::new(Exp0), Box::new(Exp1)))
+            Expression::Binary(expression::ExprBinary::Pow(Box::new(Exp0), Box::new(Exp1)))
         }))
     }
     fn reduce_Exp1_1(
@@ -1483,7 +1445,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant5({
-            Expression::Unary(expression::Unary::LogicalNot(Box::new(Exp2)))
+            Expression::Unary(expression::ExprUnary::LogicalNot(Box::new(Exp2)))
         }))
     }
     fn reduce_Exp2_1(
@@ -1503,7 +1465,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant5({
-            Expression::Unary(expression::Unary::Length(Box::new(Exp2)))
+            Expression::Unary(expression::ExprUnary::Length(Box::new(Exp2)))
         }))
     }
     fn reduce_Exp2_2(
@@ -1523,7 +1485,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant5({
-            Expression::Unary(expression::Unary::Minus(Box::new(Exp2)))
+            Expression::Unary(expression::ExprUnary::Minus(Box::new(Exp2)))
         }))
     }
     fn reduce_Exp2_3(
@@ -1543,7 +1505,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant5({
-            Expression::Unary(expression::Unary::BitwiseNot(Box::new(Exp2)))
+            Expression::Unary(expression::ExprUnary::BitwiseNot(Box::new(Exp2)))
         }))
     }
     fn reduce_Exp2_4(
@@ -1582,7 +1544,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::Binary::Mul(Box::new(Exp3), Box::new(Exp2)))
+            Expression::Binary(expression::ExprBinary::Mul(Box::new(Exp3), Box::new(Exp2)))
         }))
     }
     fn reduce_Exp3_1(
@@ -1607,7 +1569,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::Binary::Div(Box::new(Exp3), Box::new(Exp2)))
+            Expression::Binary(expression::ExprBinary::Div(Box::new(Exp3), Box::new(Exp2)))
         }))
     }
     fn reduce_Exp3_2(
@@ -1633,7 +1595,10 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::Binary::FloorDiv(Box::new(Exp3), Box::new(Exp2)))
+            Expression::Binary(expression::ExprBinary::FloorDiv(
+                Box::new(Exp3),
+                Box::new(Exp2),
+            ))
         }))
     }
     fn reduce_Exp3_3(
@@ -1658,7 +1623,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::Binary::Mod(Box::new(Exp3), Box::new(Exp2)))
+            Expression::Binary(expression::ExprBinary::Mod(Box::new(Exp3), Box::new(Exp2)))
         }))
     }
     fn reduce_Exp3_4(
@@ -1696,7 +1661,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::Binary::Add(Box::new(Exp4), Box::new(Exp3)))
+            Expression::Binary(expression::ExprBinary::Add(Box::new(Exp4), Box::new(Exp3)))
         }))
     }
     fn reduce_Exp4_1(
@@ -1721,7 +1686,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::Binary::Sub(Box::new(Exp4), Box::new(Exp3)))
+            Expression::Binary(expression::ExprBinary::Sub(Box::new(Exp4), Box::new(Exp3)))
         }))
     }
     fn reduce_Exp4_2(
@@ -1759,7 +1724,10 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::Binary::Concat(Box::new(Exp4), Box::new(Exp5)))
+            Expression::Binary(expression::ExprBinary::Concat(
+                Box::new(Exp4),
+                Box::new(Exp5),
+            ))
         }))
     }
     fn reduce_Exp5_1(
@@ -1798,7 +1766,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::Binary::ShiftLeft(
+            Expression::Binary(expression::ExprBinary::ShiftLeft(
                 Box::new(Exp6),
                 Box::new(Exp5),
             ))
@@ -1827,7 +1795,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::Binary::ShiftRight(
+            Expression::Binary(expression::ExprBinary::ShiftRight(
                 Box::new(Exp6),
                 Box::new(Exp5),
             ))
@@ -1869,7 +1837,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::Binary::BitwiseAnd(
+            Expression::Binary(expression::ExprBinary::BitwiseAnd(
                 Box::new(Exp7),
                 Box::new(Exp6),
             ))
@@ -1910,7 +1878,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::Binary::BitwiseXor(
+            Expression::Binary(expression::ExprBinary::BitwiseXor(
                 Box::new(Exp8),
                 Box::new(Exp7),
             ))
@@ -1951,7 +1919,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::Binary::BitwiseOr(
+            Expression::Binary(expression::ExprBinary::BitwiseOr(
                 Box::new(Exp9),
                 Box::new(Exp8),
             ))
@@ -1992,7 +1960,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::Binary::LessThan(
+            Expression::Binary(expression::ExprBinary::LessThan(
                 Box::new(Exp10),
                 Box::new(Exp9),
             ))
@@ -2021,7 +1989,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::Binary::LessEqual(
+            Expression::Binary(expression::ExprBinary::LessEqual(
                 Box::new(Exp10),
                 Box::new(Exp9),
             ))
@@ -2049,7 +2017,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::Binary::GreaterThan(
+            Expression::Binary(expression::ExprBinary::GreaterThan(
                 Box::new(Exp10),
                 Box::new(Exp9),
             ))
@@ -2078,7 +2046,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::Binary::GreaterEqual(
+            Expression::Binary(expression::ExprBinary::GreaterEqual(
                 Box::new(Exp10),
                 Box::new(Exp9),
             ))
@@ -2107,7 +2075,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::Binary::NotEqual(
+            Expression::Binary(expression::ExprBinary::NotEqual(
                 Box::new(Exp10),
                 Box::new(Exp9),
             ))
@@ -2136,7 +2104,10 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::Binary::Equal(Box::new(Exp10), Box::new(Exp9)))
+            Expression::Binary(expression::ExprBinary::Equal(
+                Box::new(Exp10),
+                Box::new(Exp9),
+            ))
         }))
     }
     fn reduce_Exp10_6(
@@ -2174,7 +2145,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::Binary::LogicalAnd(
+            Expression::Binary(expression::ExprBinary::LogicalAnd(
                 Box::new(Exp11),
                 Box::new(Exp10),
             ))
@@ -2215,7 +2186,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::Binary::LogicalOr(
+            Expression::Binary(expression::ExprBinary::LogicalOr(
                 Box::new(Exp12),
                 Box::new(Exp11),
             ))
@@ -2249,9 +2220,26 @@ impl ChunkNodeEnum {
             };
         __rustylr_args.pop();
         Ok(ChunkNodeEnum::Variant12({
-            let mut table = expression::TableConstructor::new();
+            let mut table = expression::ExprTable::new();
+            let mut consecutive: IntType = 1;
             for field in FieldList.into_iter() {
-                table.insert(field);
+                match field {
+                    expression::TableConstructorFieldBuilder::KeyValue(k, v) => {
+                        table.fields.push(expression::TableField::new(k, v));
+                    }
+                    expression::TableConstructorFieldBuilder::NameValue(name, v) => {
+                        table
+                            .fields
+                            .push(expression::TableField::new(name.into(), v));
+                    }
+                    expression::TableConstructorFieldBuilder::Value(v) => {
+                        let idx = consecutive;
+                        consecutive += 1;
+                        table
+                            .fields
+                            .push(expression::TableField::new(idx.into(), v));
+                    }
+                }
             }
             table
         }))
@@ -2335,7 +2323,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant14({
-            expression::TableConstructorField::KeyValue(k, v)
+            expression::TableConstructorFieldBuilder::KeyValue(k, v)
         }))
     }
     fn reduce_Field_1(
@@ -2356,12 +2344,8 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant14({
-            let name = if let TokenType::Ident(s) = ident.token_type {
-                s
-            } else {
-                unreachable!("k");
-            };
-            expression::TableConstructorField::NameValue(name, Exp)
+            let name = ident.token_type.into_ident().unwrap();
+            expression::TableConstructorFieldBuilder::NameValue(name, Exp)
         }))
     }
     fn reduce_Field_2(
@@ -2376,7 +2360,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant14({
-            expression::TableConstructorField::Value(Exp)
+            expression::TableConstructorFieldBuilder::Value(Exp)
         }))
     }
     fn reduce_FieldSep_0(
@@ -2432,7 +2416,7 @@ impl ChunkNodeEnum {
         };
         __rustylr_args.pop();
         Ok(ChunkNodeEnum::Variant15({
-            expression::FunctionBody::new(ParList, Block)
+            expression::ExprFunction::new(ParList, Block)
         }))
     }
     fn reduce_FuncName1_0(
@@ -2458,12 +2442,8 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant8({
-            if let TokenType::Ident(s) = ident.token_type {
-                FuncName1.push(s);
-                FuncName1
-            } else {
-                unreachable!("l");
-            }
+            FuncName1.push(ident.token_type.into_ident().unwrap());
+            FuncName1
         }))
     }
     fn reduce_FuncName1_1(
@@ -2478,11 +2458,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant8({
-            if let TokenType::Ident(s) = ident.token_type {
-                vec![s]
-            } else {
-                unreachable!("l");
-            }
+            vec![ident.token_type.into_ident().unwrap()]
         }))
     }
     fn reduce_FuncName_0(
@@ -2504,11 +2480,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant16({
-            if let TokenType::Ident(s) = ident.token_type {
-                statement::FunctionName::new(FuncName1, Some(s))
-            } else {
-                unreachable!("m");
-            }
+            statement::FunctionName::new(FuncName1, Some(ident.token_type.into_ident().unwrap()))
         }))
     }
     fn reduce_FuncName_1(

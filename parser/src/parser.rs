@@ -6,6 +6,7 @@ use crate::expression;
 use crate::Expression;
 use crate::statement;
 use crate::Statement;
+use crate::IntType;
 
 %%
 
@@ -92,40 +93,37 @@ Block(statement::Block)
 Statement(Statement)
     : semicolon! { Statement::None }
     | VarList equal! ExpList1 {
-        Statement::Assignment( statement::Assignment::new(VarList, ExpList1) )
+        Statement::Assignment( statement::StmtAssignment::new(VarList, ExpList1) )
     }
     | FunctionCall {
-        Statement::FunctionCall(FunctionCall)
+        Statement::FunctionCall(
+            statement::StmtFunctionCall::new(
+                FunctionCall.0,
+                FunctionCall.1
+            )
+        )
     }
     | coloncolon! ident coloncolon! {
-        if let TokenType::Ident(s) = ident.token_type {
-            Statement::Label( statement::Label::new(s) )
-        } else {
-            unreachable!( "m" );
-        }
+        Statement::Label( statement::StmtLabel::new(ident.token_type.into_ident().unwrap()) )
     }
     | break_! {
-        Statement::Break
+        Statement::Break( statement::StmtBreak{} )
     }
     | goto_! ident {
-        if let TokenType::Ident(s) = ident.token_type {
-            Statement::Goto( statement::Goto::new(s) )
-        } else {
-            unreachable!( "n" );
-        }
+        Statement::Goto( statement::StmtGoto::new(ident.token_type.into_ident().unwrap()) )
     }
     | do_! Block end_! {
-        Statement::Do( statement::Do::new(Block) )
+        Statement::Do( statement::StmtDo::new(Block) )
     }
     | while_! Exp do_! Block end_! {
-        Statement::While( statement::While::new(Exp, Block) )
+        Statement::While( statement::StmtWhile::new(Exp, Block) )
     }
     | repeat_! Block until_! Exp {
-        Statement::Repeat( statement::Repeat::new(Block, Exp) )
+        Statement::Repeat( statement::StmtRepeat::new(Block, Exp) )
     }
     | if_! Exp then_! Block elseifs=(elseif_! Exp then_! Block)* else_=(else_! Block)? end_! {
         Statement::If(
-            statement::If::new(
+            statement::StmtIf::new(
                 Exp,
                 Block,
                 elseifs,
@@ -134,39 +132,31 @@ Statement(Statement)
         )
     }
     | for_! ident equal! start=Exp comma! end=Exp step=(comma! Exp)? do_! Block end_! {
-        if let TokenType::Ident(s) = ident.token_type {
-            Statement::For(
-                statement::For::new(
-                    s,
-                    start,
-                    end,
-                    step,
-                    Block
-                )
+        Statement::For(
+            statement::StmtFor::new(
+                ident.token_type.into_ident().unwrap(),
+                start,
+                end,
+                step.unwrap_or_else(|| Expression::from(1)),
+                Block
             )
-        } else {
-            unreachable!( "o" );
-        }
+        )
     }
     | for_! NameList in_! ExpList1 do_! Block end_! {
-        Statement::ForGeneric( statement::ForGeneric::new(NameList, ExpList1, Block) )
+        Statement::ForGeneric( statement::StmtForGeneric::new(NameList, ExpList1, Block) )
     }
     | function_! FuncName FuncBody {
         Statement::FunctionDefinition(
-            statement::FunctionDefinition::new(FuncName, FuncBody)
+            statement::StmtFunctionDefinition::new(FuncName, FuncBody)
         )
     }
     | local_! function_! ident FuncBody {
-        if let TokenType::Ident(s) = ident.token_type {
-            Statement::FunctionDefinitionLocal(
-                statement::FunctionDefinitionLocal::new(s, FuncBody)
-            )
-        } else {
-            unreachable!( "p" );
-        }
+        Statement::FunctionDefinitionLocal(
+            statement::StmtFunctionDefinitionLocal::new(ident.token_type.into_ident().unwrap(), FuncBody)
+        )
     }
     | local_! AttNameList rhs_list=(equal! ExpList1)? {
-        Statement::LocalDeclaration( statement::LocalDeclaration::new(AttNameList, rhs_list) )
+        Statement::LocalDeclaration( statement::StmtLocalDeclaration::new(AttNameList, rhs_list) )
     }
     ;
 
@@ -178,28 +168,20 @@ ReturnStatement(statement::ReturnStatement)
 
 Var(Expression)
     : ident {
-        if let TokenType::Ident(s) = ident.token_type {
-            Expression::Ident( expression::Ident{ name:s } )
-        } else {
-            unreachable!( "i" );
-        }
+        Expression::new_ident(ident.token_type.into_ident().unwrap())
     }
     | PrefixExp lbracket! Exp rbracket! {
-        Expression::TableIndex( expression::TableIndex{ table:Box::new(PrefixExp), index:Box::new(Exp) } )
+        Expression::TableIndex( expression::ExprTableIndex{ table:Box::new(PrefixExp), index:Box::new(Exp) } )
     }
     | PrefixExp dot! ident {
-        let member = if let TokenType::Ident(s) = ident.token_type {
-            s
-        } else {
-            unreachable!( "j" );
-        };
+        let member = ident.token_type.into_ident().unwrap();
         // a.b => a["b"]
 
         Expression::TableIndex(
-            expression::TableIndex{
+            expression::ExprTableIndex{
                 table:Box::new(PrefixExp),
                 index:Box::new(
-                    Expression::String( expression::StringLiteral{ value:member } )
+                    Expression::from(member)
                 )
             }
         )
@@ -209,56 +191,45 @@ Var(Expression)
 PrefixExp(Expression)
     : Var
     | FunctionCall {
-        Expression::FunctionCall( FunctionCall )
+        Expression::FunctionCall(
+            expression::ExprFunctionCall::new( FunctionCall.0, FunctionCall.1 )
+        )
     }
     | lparen! Exp rparen!
     ;
 
 
-FunctionCall(expression::FunctionCall)
+FunctionCall((Expression, Vec<Expression>))
     : PrefixExp Args {
-        expression::FunctionCall::new(
-            PrefixExp,
-            Args
-        )
+        (PrefixExp, Args)
     }
     | PrefixExp colon! ident Args {
         // v:name(args) => v.name(v,args)
-        if let TokenType::Ident(s) = ident.token_type {
-            // copy PrefixExp for arg0
-            let arg0 = PrefixExp.clone();
-            let mut args = Vec::with_capacity( Args.len() + 1 );
-            args.push( arg0 );
-            args.extend( Args );
+        // copy PrefixExp for arg0
+        let arg0 = PrefixExp.clone();
+        let mut args = Vec::with_capacity( Args.len() + 1 );
+        args.push( arg0 );
+        args.extend( Args );
 
-            // get v.name
-            let member = Expression::TableIndex(
-                expression::TableIndex::new( PrefixExp, Expression::String( expression::StringLiteral::new(s) ) )
-            );
+        // get v.name
+        let member = Expression::TableIndex(
+            expression::ExprTableIndex::new( PrefixExp, Expression::from(ident.token_type.into_ident().unwrap()) )
+        );
 
-            expression::FunctionCall::new(
-                member,
-                args
-            )
-        } else {
-            unreachable!( "k" );
-        }
+        (member, args)
     }
     ;
 
 Args(Vec<Expression>)
     : lparen! ExpList0 rparen!
     | TableConstructor {
-        let table_expr = Expression::TableConstructor( TableConstructor );
+        let table_expr = Expression::Table( TableConstructor );
         vec![table_expr]
     }
     | string_literal {
-        if let TokenType::String(s) = string_literal.token_type {
-            let string_expr = Expression::String( expression::StringLiteral::new(s) );
-            vec![string_expr]
-        } else {
-            unreachable!( "k" );
-        }
+        vec![Expression::from(
+            string_literal.token_type.into_string().unwrap()
+        )]
     }
     ;
 
@@ -294,29 +265,17 @@ ExpList0(Vec<Expression>)
 // one or more comma-separated names
 NameList(Vec<String>)
     : NameList comma! ident {
-        if let TokenType::Ident(s) = ident.token_type {
-            NameList.push(s);
-            NameList
-        } else {
-            unreachable!( "l" );
-        }
+        NameList.push(ident.token_type.into_ident().unwrap());
+        NameList
     }
     | ident {
-        if let TokenType::Ident(s) = ident.token_type {
-            vec![s]
-        } else {
-            unreachable!( "l" );
-        }
+        vec![ident.token_type.into_ident().unwrap()]
     }
     ;
 
 AttName(statement::AttName)
     : ident Attrib {
-        if let TokenType::Ident(s) = ident.token_type {
-            statement::AttName::new( s, Attrib )
-        } else {
-            unreachable!( "m" );
-        }
+        statement::AttName::new( ident.token_type.into_ident().unwrap(), Attrib )
     }
     ;
 AttNameList(Vec<statement::AttName>)
@@ -331,17 +290,14 @@ AttNameList(Vec<statement::AttName>)
 
 Attrib(Option<statement::Attrib>)
     : less! ident greater! {
-        if let TokenType::Ident(s) = ident.token_type {
-            match s.as_str() {
-                "const" => Some(statement::Attrib::Const),
-                "close" => Some(statement::Attrib::Close),
-                _ => {
-                    // @TODO error
-                    Some(statement::Attrib::Const)
-                }
+        let s = ident.token_type.into_ident().unwrap();
+        match s.as_str() {
+            "const" => Some(statement::Attrib::Const),
+            "close" => Some(statement::Attrib::Close),
+            _ => {
+                // @TODO error
+                Some(statement::Attrib::Const)
             }
-        } else {
-            unreachable!( "m" );
         }
     }
     | { None }
@@ -355,38 +311,32 @@ Exp(Expression)
 
 Exp0(Expression)
     : numeric_literal {
-        if let TokenType::Numeric(iorf) = numeric_literal.token_type {
-            Expression::Numeric( expression::Numeric{ value:iorf } )
-        } else {
-            unreachable!( "0" );
-        }
+        Expression::from(
+            numeric_literal.token_type.into_numeric().unwrap()
+        )
     }
     | nil {
-        Expression::Nil
+        Expression::Nil( expression::ExprNil )
     }
     | string_literal {
-        if let TokenType::String(s) = string_literal.token_type {
-            Expression::String( expression::StringLiteral{ value:s } )
-        } else {
-            unreachable!( "1" );
-        }
+        Expression::from(
+            string_literal.token_type.into_string().unwrap()
+        )
     }
     | bool_ {
-        if let TokenType::Bool(b) = bool_.token_type {
-            Expression::Bool( expression::Bool{ value:b } )
-        } else {
-            unreachable!( "2" );
-        }
+        Expression::from(
+            bool_.token_type.into_bool().unwrap()
+        )
     }
     | dotdotdot {
         Expression::Variadic
     }
     | FunctionDef {
-        Expression::FunctionDef( FunctionDef )
+        Expression::Function( FunctionDef )
     }
     | PrefixExp
     | TableConstructor {
-        Expression::TableConstructor( TableConstructor )
+        Expression::Table( TableConstructor )
     }
     ;
 
@@ -395,7 +345,7 @@ Exp0(Expression)
 Exp1(Expression)
     : Exp0 caret Exp1 {
         Expression::Binary(
-            expression::Binary::Pow(
+            expression::ExprBinary::Pow(
                 Box::new(Exp0),
                 Box::new(Exp1)
             )
@@ -407,28 +357,28 @@ Exp1(Expression)
 Exp2(Expression)
     : not_ Exp2 {
         Expression::Unary(
-            expression::Unary::LogicalNot(
+            expression::ExprUnary::LogicalNot(
                 Box::new(Exp2)
             )
         )
     }
     | hash Exp2 {
         Expression::Unary(
-            expression::Unary::Length(
+            expression::ExprUnary::Length(
                 Box::new(Exp2)
             )
         )
     }
     | minus Exp2 {
         Expression::Unary(
-            expression::Unary::Minus(
+            expression::ExprUnary::Minus(
                 Box::new(Exp2)
             )
         )
     }
     | tilde Exp2 {
         Expression::Unary(
-            expression::Unary::BitwiseNot(
+            expression::ExprUnary::BitwiseNot(
                 Box::new(Exp2)
             )
         )
@@ -439,7 +389,7 @@ Exp2(Expression)
 Exp3(Expression)
     : Exp3 asterisk Exp2 {
         Expression::Binary(
-            expression::Binary::Mul(
+            expression::ExprBinary::Mul(
                 Box::new(Exp3),
                 Box::new(Exp2)
             )
@@ -447,7 +397,7 @@ Exp3(Expression)
     }
     | Exp3 slash Exp2 {
         Expression::Binary(
-            expression::Binary::Div(
+            expression::ExprBinary::Div(
                 Box::new(Exp3),
                 Box::new(Exp2)
             )
@@ -455,7 +405,7 @@ Exp3(Expression)
     }
     | Exp3 slashslash Exp2 {
         Expression::Binary(
-            expression::Binary::FloorDiv(
+            expression::ExprBinary::FloorDiv(
                 Box::new(Exp3),
                 Box::new(Exp2)
             )
@@ -463,7 +413,7 @@ Exp3(Expression)
     }
     | Exp3 percent Exp2 {
         Expression::Binary(
-            expression::Binary::Mod(
+            expression::ExprBinary::Mod(
                 Box::new(Exp3),
                 Box::new(Exp2)
             )
@@ -475,7 +425,7 @@ Exp3(Expression)
 Exp4(Expression)
     : Exp4 plus Exp3 {
         Expression::Binary(
-            expression::Binary::Add(
+            expression::ExprBinary::Add(
                 Box::new(Exp4),
                 Box::new(Exp3)
             )
@@ -483,7 +433,7 @@ Exp4(Expression)
     }
     | Exp4 minus Exp3 {
         Expression::Binary(
-            expression::Binary::Sub(
+            expression::ExprBinary::Sub(
                 Box::new(Exp4),
                 Box::new(Exp3)
             )
@@ -496,7 +446,7 @@ Exp5(Expression)
     // right associative for concat '..'
     : Exp4 dotdot Exp5 {
         Expression::Binary(
-            expression::Binary::Concat(
+            expression::ExprBinary::Concat(
                 Box::new(Exp4),
                 Box::new(Exp5)
             )
@@ -508,7 +458,7 @@ Exp5(Expression)
 Exp6(Expression)
     : Exp6 lessless Exp5 {
         Expression::Binary(
-            expression::Binary::ShiftLeft(
+            expression::ExprBinary::ShiftLeft(
                 Box::new(Exp6),
                 Box::new(Exp5)
             )
@@ -516,7 +466,7 @@ Exp6(Expression)
     }
     | Exp6 greatergreater Exp5 {
         Expression::Binary(
-            expression::Binary::ShiftRight(
+            expression::ExprBinary::ShiftRight(
                 Box::new(Exp6),
                 Box::new(Exp5)
             )
@@ -528,7 +478,7 @@ Exp6(Expression)
 Exp7(Expression)
     : Exp7 ampersand Exp6 {
         Expression::Binary(
-            expression::Binary::BitwiseAnd(
+            expression::ExprBinary::BitwiseAnd(
                 Box::new(Exp7),
                 Box::new(Exp6)
             )
@@ -540,7 +490,7 @@ Exp7(Expression)
 Exp8(Expression)
     : Exp8 tilde Exp7 {
         Expression::Binary(
-            expression::Binary::BitwiseXor(
+            expression::ExprBinary::BitwiseXor(
                 Box::new(Exp8),
                 Box::new(Exp7)
             )
@@ -552,7 +502,7 @@ Exp8(Expression)
 Exp9(Expression)
     : Exp9 pipe Exp8 {
         Expression::Binary(
-            expression::Binary::BitwiseOr(
+            expression::ExprBinary::BitwiseOr(
                 Box::new(Exp9),
                 Box::new(Exp8)
             )
@@ -564,7 +514,7 @@ Exp9(Expression)
 Exp10(Expression)
     : Exp10 less Exp9 {
         Expression::Binary(
-            expression::Binary::LessThan(
+            expression::ExprBinary::LessThan(
                 Box::new(Exp10),
                 Box::new(Exp9)
             )
@@ -572,7 +522,7 @@ Exp10(Expression)
     }
     | Exp10 lessequal Exp9 {
         Expression::Binary(
-            expression::Binary::LessEqual(
+            expression::ExprBinary::LessEqual(
                 Box::new(Exp10),
                 Box::new(Exp9)
             )
@@ -580,7 +530,7 @@ Exp10(Expression)
     }
     | Exp10 greater Exp9 {
         Expression::Binary(
-            expression::Binary::GreaterThan(
+            expression::ExprBinary::GreaterThan(
                 Box::new(Exp10),
                 Box::new(Exp9)
             )
@@ -588,7 +538,7 @@ Exp10(Expression)
     }
     | Exp10 greaterequal Exp9 {
         Expression::Binary(
-            expression::Binary::GreaterEqual(
+            expression::ExprBinary::GreaterEqual(
                 Box::new(Exp10),
                 Box::new(Exp9)
             )
@@ -596,7 +546,7 @@ Exp10(Expression)
     }
     | Exp10 tildeequal Exp9 {
         Expression::Binary(
-            expression::Binary::NotEqual(
+            expression::ExprBinary::NotEqual(
                 Box::new(Exp10),
                 Box::new(Exp9)
             )
@@ -604,7 +554,7 @@ Exp10(Expression)
     }
     | Exp10 equalequal Exp9 {
         Expression::Binary(
-            expression::Binary::Equal(
+            expression::ExprBinary::Equal(
                 Box::new(Exp10),
                 Box::new(Exp9)
             )
@@ -616,7 +566,7 @@ Exp10(Expression)
 Exp11(Expression)
     : Exp11 and_ Exp10 {
         Expression::Binary(
-            expression::Binary::LogicalAnd(
+            expression::ExprBinary::LogicalAnd(
                 Box::new(Exp11),
                 Box::new(Exp10)
             )
@@ -628,7 +578,7 @@ Exp11(Expression)
 Exp12(Expression)
     : Exp12 or_ Exp11 {
         Expression::Binary(
-            expression::Binary::LogicalOr(
+            expression::ExprBinary::LogicalOr(
                 Box::new(Exp12),
                 Box::new(Exp11)
             )
@@ -637,11 +587,34 @@ Exp12(Expression)
     | Exp11
     ;
 
-TableConstructor(expression::TableConstructor)
+TableConstructor(expression::ExprTable)
     : lbrace! FieldList rbrace! {
-        let mut table = expression::TableConstructor::new();
+        let mut table = expression::ExprTable::new();
+        // for no-key value in FieldList
+        let mut consecutive:IntType = 1;
         for field in FieldList.into_iter() {
-            table.insert(field);
+            match field {
+                // [k] = v
+                expression::TableConstructorFieldBuilder::KeyValue(k, v) => {
+                    table.fields.push(
+                        expression::TableField::new(k, v)
+                    );
+                }
+                // 'k' = v
+                expression::TableConstructorFieldBuilder::NameValue(name, v) => {
+                    table.fields.push(
+                        expression::TableField::new(name.into(), v)
+                    );
+                }
+                // v
+                expression::TableConstructorFieldBuilder::Value(v) => {
+                    let idx = consecutive;
+                    consecutive += 1;
+                    table.fields.push(
+                        expression::TableField::new(idx.into(), v)
+                    );
+                }
+            }
         }
         table
     }
@@ -649,7 +622,7 @@ TableConstructor(expression::TableConstructor)
 
 
 // one or more separated Fields
-FieldList1(Vec<expression::TableConstructorField>)
+FieldList1(Vec<expression::TableConstructorFieldBuilder>)
     : FieldList1 FieldSep Field {
         FieldList1.push(Field);
         FieldList1
@@ -660,7 +633,7 @@ FieldList1(Vec<expression::TableConstructorField>)
     ;
 
 // zero or more separated Fields, with optional trailing separator
-FieldList(Vec<expression::TableConstructorField>)
+FieldList(Vec<expression::TableConstructorFieldBuilder>)
     : FieldList1 FieldSep? {
         FieldList1
     }
@@ -669,62 +642,46 @@ FieldList(Vec<expression::TableConstructorField>)
     }
     ;
 
-Field(expression::TableConstructorField)
+Field(expression::TableConstructorFieldBuilder)
     : lbracket! k=Exp rbracket! equal! v=Exp {
-        expression::TableConstructorField::KeyValue(k, v)
+        expression::TableConstructorFieldBuilder::KeyValue(k, v)
     }
     | ident equal! Exp {
-        let name = if let TokenType::Ident(s) = ident.token_type {
-            s
-        } else {
-            unreachable!( "k" );
-        };
-        expression::TableConstructorField::NameValue(name, Exp)
+        let name = ident.token_type.into_ident().unwrap();
+        expression::TableConstructorFieldBuilder::NameValue(name, Exp)
     }
     | Exp {
-        expression::TableConstructorField::Value(Exp)
+        expression::TableConstructorFieldBuilder::Value(Exp)
     }
     ;
 
 FieldSep: comma | semicolon ;
 
 
-FunctionDef(expression::FunctionBody)
+FunctionDef(expression::ExprFunction)
     : function_! FuncBody
     ;
 
-FuncBody(expression::FunctionBody)
+FuncBody(expression::ExprFunction)
     : lparen! ParList? rparen! Block end_! {
-        expression::FunctionBody::new(ParList, Block)
+        expression::ExprFunction::new(ParList, Block)
     }
     ;
 
 // dot chained ident
 FuncName1(Vec<String>)
     : FuncName1 dot ident {
-        if let TokenType::Ident(s) = ident.token_type {
-            FuncName1.push( s );
-            FuncName1
-        } else {
-            unreachable!( "l" );
-        }
+        FuncName1.push( ident.token_type.into_ident().unwrap() );
+        FuncName1
     }
     | ident {
-        if let TokenType::Ident(s) = ident.token_type {
-            vec![s]
-        } else {
-            unreachable!( "l" );
-        }
+        vec![ident.token_type.into_ident().unwrap()]
     }
     ;
 
 FuncName(statement::FunctionName)
     : FuncName1 colon! ident {
-        if let TokenType::Ident(s) = ident.token_type {
-            statement::FunctionName::new( FuncName1, Some(s) )
-        } else {
-            unreachable!( "m" );
-        }
+        statement::FunctionName::new( FuncName1, Some(ident.token_type.into_ident().unwrap()) )
     }
     | FuncName1 {
         statement::FunctionName::new( FuncName1, None )

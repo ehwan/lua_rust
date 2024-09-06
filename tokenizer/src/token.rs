@@ -1,3 +1,4 @@
+use crate::Span;
 use crate::TokenType;
 
 /// Token classification and metadata.
@@ -6,18 +7,19 @@ pub struct Token {
     /// token classification
     pub token_type: TokenType,
 
-    /// byte offset of start position
-    pub byte_start: usize,
-    pub byte_end: usize,
+    /// range of the token in the source code
+    pub span: Span,
 }
 
 impl Token {
     pub fn new_type(token_type: TokenType) -> Self {
         Self {
             token_type,
-            byte_start: 0,
-            byte_end: 0,
+            span: Span::new(0, 0),
         }
+    }
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 

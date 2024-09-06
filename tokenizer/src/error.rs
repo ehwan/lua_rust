@@ -96,13 +96,66 @@ pub enum TokenizeError {
         pos: usize,
     },
 }
-
 impl Display for TokenizeError {
+    #[allow(unused_variables)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "TokenizeError: ")?;
-        write!(f, "{:?}", self)
+        match self {
+            Self::ShortStringNewline { start, pos } => {
+                write!(f, "Newline in short string at position {}", pos)
+            }
+            Self::ShortStringNotClosed { delim, start, end } => {
+                write!(
+                    f,
+                    "Short string not closed. Expected closing delimiter '{}'",
+                    delim
+                )
+            }
+            Self::ShortStringInvalidEscape { start, pos, escape } => {
+                write!(f, "Invalid escape sequence: {}", escape)
+            }
+            Self::ShortStringNotHex { start, pos } => {
+                write!(f, "Invalid hex escape sequence")
+            }
+            Self::ShortStringNotDecimal { start, pos } => {
+                write!(f, "Invalid digit escape sequence")
+            }
+            Self::ShortStringNoOpenBrace { start, pos } => {
+                write!(f, "Open brace expected")
+            }
+            Self::ShortStringOverflow { start, pos } => {
+                write!(f, "Unicode codepoint overflowed")
+            }
+            Self::ShortStringEmptyCodepoint {
+                start,
+                escape_start,
+                escape_end,
+            } => {
+                write!(f, "Empty unicode codepoint")
+            }
+            Self::LongStringNotClosed {
+                start,
+                end,
+                equal_count,
+            } => {
+                write!(f, "Long string literal not closed")
+            }
+            Self::InvalidUtf8 { start, end, error } => {
+                write!(f, "Invalid UTF-8 string")
+            }
+            Self::InvalidPunct { pos, punct } => {
+                write!(f, "Invalid punctuation: '{}'", punct)
+            }
+            Self::MultilineCommentNotClosed { start, end } => {
+                write!(f, "Multiline comment not closed")
+            }
+            Self::NumericEmpty { start, pos } => {
+                write!(f, "Empty numeric literal")
+            }
+        }
     }
 }
+impl std::error::Error for TokenizeError {}
 
 #[cfg(feature = "diag")]
 use codespan_reporting::diagnostic::Diagnostic;

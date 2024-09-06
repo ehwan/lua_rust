@@ -69,6 +69,33 @@ pub enum TokenType {
     Eof,
 }
 
+impl TokenType {
+    pub fn into_ident(self) -> Option<String> {
+        match self {
+            Self::Ident(ident) => Some(ident),
+            _ => None,
+        }
+    }
+    pub fn into_string(self) -> Option<String> {
+        match self {
+            Self::String(string) => Some(string),
+            _ => None,
+        }
+    }
+    pub fn into_bool(self) -> Option<bool> {
+        match self {
+            Self::Bool(boolean) => Some(boolean),
+            _ => None,
+        }
+    }
+    pub fn into_numeric(self) -> Option<IntOrFloat> {
+        match self {
+            Self::Numeric(num) => Some(num),
+            _ => None,
+        }
+    }
+}
+
 impl std::hash::Hash for TokenType {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         std::mem::discriminant(self).hash(state);

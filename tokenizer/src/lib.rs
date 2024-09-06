@@ -1,47 +1,50 @@
-pub(crate) mod error;
-pub(crate) mod iorf;
-pub(crate) mod token;
-pub(crate) mod tokentype;
+mod error;
+mod iorf;
+mod span;
+mod token;
+mod tokentype;
 
 #[cfg(test)]
-pub(crate) mod test;
+mod test;
 
 pub use error::TokenizeError;
 pub use iorf::IntOrFloat;
+pub use span::Span;
 pub use token::Token;
 pub use tokentype::TokenType;
 
+/// type alias for lua integer type.
 #[cfg(not(feature = "32bit"))]
 pub type IntType = i64;
+/// type alias for lua float type.
 #[cfg(not(feature = "32bit"))]
 pub type FloatType = f64;
+
+/// type alias for lua integer type.
 #[cfg(feature = "32bit")]
 pub type IntType = i32;
+/// type alias for lua float type.
 #[cfg(feature = "32bit")]
 pub type FloatType = f32;
 
 use core::str;
 use std::collections::HashMap;
 
-pub(crate) struct Tokenizer<'a> {
+/// lazy tokenize iterator.
+#[derive(Clone)]
+pub struct Tokenizer<'a> {
     /// source code to tokenize
     pub(crate) source: &'a [u8],
-    /// byte offset in source
+    /// current byte offset in source
     pub(crate) byte_offset: usize,
-
-    /// result of tokenization
-    pub(crate) tokens: Vec<Token>,
-
-    /// whether we are in multi-line comment
-    pub(crate) is_in_multiline_comment: Option<usize>,
-    pub(crate) multiline_comment_begin: (usize, usize),
 
     pub(crate) keyword_map: HashMap<&'static str, TokenType>,
 }
 
 impl<'a> Tokenizer<'a> {
-    pub fn new(source: &'a [u8]) -> Self {
-        let mut keyword_map = HashMap::new();
+    /// create new tokenizer iterator from source code.
+    pub fn new(source: &'a str) -> Self {
+        let mut keyword_map = HashMap::with_capacity(25);
         keyword_map.insert("and", TokenType::And);
         keyword_map.insert("break", TokenType::Break);
         keyword_map.insert("do", TokenType::Do);
@@ -66,16 +69,10 @@ impl<'a> Tokenizer<'a> {
         keyword_map.insert("while", TokenType::While);
 
         Self {
-            source,
+            source: source.as_bytes(),
             byte_offset: 0,
-            tokens: Vec::new(),
-            is_in_multiline_comment: None,
-            multiline_comment_begin: (0, 0),
             keyword_map,
         }
-    }
-    fn push(&mut self, token: Token) {
-        self.tokens.push(token);
     }
     fn get_cursor(&self) -> usize {
         self.byte_offset
@@ -94,7 +91,7 @@ impl<'a> Tokenizer<'a> {
     fn peek(&self) -> Option<u8> {
         self.source.get(self.byte_offset).copied()
     }
-    pub fn ignore_whitespace(&mut self) {
+    pub(crate) fn ignore_whitespace(&mut self) {
         while let Some(ch) = self.peek() {
             match ch {
                 b' ' | b'\t' | b'\r' | b'\n' => {
@@ -106,8 +103,8 @@ impl<'a> Tokenizer<'a> {
     }
 
     /// parse identifier.
-    /// returns true if identifier is successfully parsed.
-    pub fn tokenize_ident(&mut self) -> bool {
+    /// returns `Some` if identifier is successfully parsed.
+    pub(crate) fn tokenize_ident(&mut self) -> Option<Token> {
         let i0 = self.byte_offset;
         if let Some(ch) = self.peek() {
             match ch {
@@ -129,41 +126,38 @@ impl<'a> Tokenizer<'a> {
                     if let Some(keyword) = self.keyword_map.get(s) {
                         let token = Token {
                             token_type: keyword.clone(),
-                            byte_start: i0,
-                            byte_end: i1,
+                            span: Span::new(i0, i1),
                         };
-                        self.push(token);
+                        Some(token)
                     } else {
                         let token = Token {
                             token_type: TokenType::Ident(s.to_string()),
-                            byte_start: i0,
-                            byte_end: i1,
+                            span: Span::new(i0, i1),
                         };
-                        self.push(token);
+                        Some(token)
                     }
-                    true
                 }
-                _ => false,
+                _ => None,
             }
         } else {
-            false
+            None
         }
     }
     /// parse literal.
     /// returns error if it is definitely literal but it contains invalid characters.
     /// otherwise, Ok(true) if it is literal, Ok(false) if it is not literal.
-    pub fn tokenize_literal(&mut self) -> Result<bool, TokenizeError> {
-        if self.tokenize_numeric()? {
-            return Ok(true);
-        } else if self.tokenize_string()? {
-            return Ok(true);
+    pub(crate) fn tokenize_literal(&mut self) -> Result<Option<Token>, TokenizeError> {
+        if let Some(token) = self.tokenize_numeric()? {
+            Ok(Some(token))
+        } else if let Some(token) = self.tokenize_string()? {
+            Ok(Some(token))
         } else {
-            Ok(false)
+            Ok(None)
         }
     }
 
     /// parse single hex
-    pub fn hex(ch: u8) -> Option<u32> {
+    pub(crate) fn hex(ch: u8) -> Option<u32> {
         match ch {
             b'0'..=b'9' => Some((ch - b'0') as u32),
             b'a'..=b'f' => Some((ch - b'a') as u32 + 10),
@@ -172,7 +166,7 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
-    pub fn tokenize_numeric(&mut self) -> Result<bool, TokenizeError> {
+    pub(crate) fn tokenize_numeric(&mut self) -> Result<Option<Token>, TokenizeError> {
         let i0 = self.byte_offset;
         // check if it is hex
         if self.starts_with_and_advance(b"0x") || self.starts_with_and_advance(b"0X") {
@@ -279,19 +273,16 @@ impl<'a> Tokenizer<'a> {
                 }
             }
 
-            // push value
             let token = Token {
                 token_type: TokenType::Numeric(value),
-                byte_start: i0,
-                byte_end: self.byte_offset,
+                span: Span::new(i0, self.byte_offset),
             };
-            self.push(token);
-            return Ok(true);
+            Ok(Some(token))
         } else {
             // decimals
             if let Some(b'0'..=b'9') = self.peek() {
             } else {
-                return Ok(false);
+                return Ok(None);
             }
 
             // one or more digits
@@ -395,17 +386,14 @@ impl<'a> Tokenizer<'a> {
                 }
             }
 
-            // push value
             let token = Token {
                 token_type: TokenType::Numeric(value),
-                byte_start: i0,
-                byte_end: self.byte_offset,
+                span: Span::new(i0, self.byte_offset),
             };
-            self.push(token);
-            return Ok(true);
+            Ok(Some(token))
         }
     }
-    pub fn short_string_literal(
+    pub(crate) fn short_string_literal(
         &mut self,
         delim: u8,
         start: usize,
@@ -685,7 +673,7 @@ impl<'a> Tokenizer<'a> {
             end: self.byte_offset,
         })
     }
-    pub fn long_string_literal(
+    pub(crate) fn long_string_literal(
         &mut self,
         equal_count: usize,
         start: usize,
@@ -732,7 +720,7 @@ impl<'a> Tokenizer<'a> {
             equal_count,
         })
     }
-    pub fn tokenize_string(&mut self) -> Result<bool, TokenizeError> {
+    pub(crate) fn tokenize_string(&mut self) -> Result<Option<Token>, TokenizeError> {
         match self.peek() {
             Some(b'\'') | Some(b'"') => {
                 // since ' or " is consumed, it is definitely short string literal.
@@ -744,11 +732,9 @@ impl<'a> Tokenizer<'a> {
 
                 let token = Token {
                     token_type: TokenType::String(s),
-                    byte_start: i0,
-                    byte_end: self.byte_offset,
+                    span: Span::new(i0, self.byte_offset),
                 };
-                self.push(token);
-                Ok(true)
+                Ok(Some(token))
             }
             Some(b'[') => {
                 // long string literal
@@ -759,22 +745,20 @@ impl<'a> Tokenizer<'a> {
 
                     let token = Token {
                         token_type: TokenType::String(s),
-                        byte_start: i0,
-                        byte_end: self.byte_offset,
+                        span: Span::new(i0, self.byte_offset),
                     };
-                    self.push(token);
-                    Ok(true)
+                    Ok(Some(token))
                 } else {
-                    Ok(false)
+                    Ok(None)
                 }
             }
-            _ => Ok(false),
+            _ => Ok(None),
         }
     }
 
     /// consume long bracket and return the number of '='.
     /// `bracket` must be either b'[' or b']'.
-    pub fn long_bracket(&mut self, bracket: u8) -> Option<usize> {
+    pub(crate) fn long_bracket(&mut self, bracket: u8) -> Option<usize> {
         assert!(bracket == b'[' || bracket == b']');
         let cursor0 = self.get_cursor();
         if self.peek() == Some(bracket) {
@@ -802,7 +786,7 @@ impl<'a> Tokenizer<'a> {
             return None;
         }
     }
-    pub fn starts_with_and_advance(&mut self, prefix: &[u8]) -> bool {
+    pub(crate) fn starts_with_and_advance(&mut self, prefix: &[u8]) -> bool {
         let slice = &self.source[self.byte_offset..];
         if slice.starts_with(prefix) {
             self.advance_n(prefix.len());
@@ -812,390 +796,300 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
-    pub fn tokenize(&mut self) -> Result<(), TokenizeError> {
-        loop {
-            self.ignore_whitespace();
-            // check eof
-            if self.byte_offset >= self.source.len() {
-                break;
+    /// try tokenize single token.
+    pub(crate) fn try_tokenize(&mut self) -> Result<Option<Token>, TokenizeError> {
+        self.ignore_whitespace();
+        // check eof
+        if self.byte_offset >= self.source.len() {
+            return Ok(None);
+        }
+
+        if let Some(token) = self.tokenize_ident() {
+            // try ident
+            Ok(Some(token))
+        } else if let Some(token) = self.tokenize_literal()? {
+            // try literal
+            Ok(Some(token))
+        } else {
+            // try punctuator
+
+            macro_rules! advance_and_return {
+                ($token_type:ident) => {{
+                    self.advance();
+                    Ok(Some(Token {
+                        token_type: TokenType::$token_type,
+                        span: Span::new(self.byte_offset - 1, self.byte_offset),
+                    }))
+                }};
             }
 
-            // check if we are in multi-line comment
-            if let Some(long_bracket_count) = self.is_in_multiline_comment {
-                // check end of multi-line comment
-                if self.peek() == Some(b']') {
-                    let cursor0 = self.get_cursor();
-                    if self.long_bracket(b']') == Some(long_bracket_count) {
-                        if self.starts_with_and_advance(b"--") {
-                            self.is_in_multiline_comment = None;
-                        } else {
-                            self.set_cursor(cursor0);
-                            self.advance();
-                        }
-                    } else {
-                        self.set_cursor(cursor0);
-                        self.advance();
-                    }
-                } else {
+            let ch = self.peek().unwrap();
+            match ch {
+                b'+' => {
+                    advance_and_return!(Plus)
+                }
+                b'*' => {
+                    advance_and_return!(Asterisk)
+                }
+                b'/' => {
+                    // check for SlashSlash
+                    let i0 = self.byte_offset;
                     self.advance();
+
+                    if self.peek() == Some(b'/') {
+                        self.advance();
+                        Ok(Some(Token {
+                            token_type: TokenType::SlashSlash,
+                            span: Span::new(i0, self.byte_offset),
+                        }))
+                    } else {
+                        Ok(Some(Token {
+                            token_type: TokenType::Slash,
+                            span: Span::new(i0, i0 + 1),
+                        }))
+                    }
                 }
-            } else {
-                if self.tokenize_ident() {
-                    continue;
+                b'%' => {
+                    advance_and_return!(Percent)
                 }
-                if self.tokenize_literal()? {
-                    continue;
+                b'^' => {
+                    advance_and_return!(Caret)
+                }
+                b'#' => {
+                    advance_and_return!(Hash)
+                }
+                b'&' => {
+                    advance_and_return!(Ampersand)
+                }
+                b'~' => {
+                    // check for TildeEqual
+                    let i0 = self.byte_offset;
+                    self.advance();
+
+                    if self.peek() == Some(b'=') {
+                        self.advance();
+                        Ok(Some(Token {
+                            token_type: TokenType::TildeEqual,
+                            span: Span::new(i0, self.byte_offset),
+                        }))
+                    } else {
+                        Ok(Some(Token {
+                            token_type: TokenType::Tilde,
+                            span: Span::new(i0, i0 + 1),
+                        }))
+                    }
+                }
+                b'|' => {
+                    advance_and_return!(Pipe)
+                }
+                b'<' => {
+                    // check for LessLess
+                    let i0 = self.byte_offset;
+                    self.advance();
+
+                    match self.peek() {
+                        Some(b'<') => {
+                            self.advance();
+                            Ok(Some(Token {
+                                token_type: TokenType::LessLess,
+                                span: Span::new(i0, self.byte_offset),
+                            }))
+                        }
+                        Some(b'=') => {
+                            self.advance();
+                            Ok(Some(Token {
+                                token_type: TokenType::LessEqual,
+                                span: Span::new(i0, self.byte_offset),
+                            }))
+                        }
+
+                        _ => Ok(Some(Token {
+                            token_type: TokenType::Less,
+                            span: Span::new(i0, i0 + 1),
+                        })),
+                    }
+                }
+                b'>' => {
+                    // check for LessLess
+                    let i0 = self.byte_offset;
+                    self.advance();
+
+                    match self.peek() {
+                        Some(b'>') => {
+                            self.advance();
+                            Ok(Some(Token {
+                                token_type: TokenType::GreaterGreater,
+                                span: Span::new(i0, self.byte_offset),
+                            }))
+                        }
+                        Some(b'=') => {
+                            self.advance();
+                            Ok(Some(Token {
+                                token_type: TokenType::GreaterEqual,
+                                span: Span::new(i0, self.byte_offset),
+                            }))
+                        }
+
+                        _ => Ok(Some(Token {
+                            token_type: TokenType::Greater,
+                            span: Span::new(i0, i0 + 1),
+                        })),
+                    }
+                }
+                b'=' => {
+                    // check for EqualEqual
+                    let i0 = self.byte_offset;
+                    self.advance();
+
+                    if self.peek() == Some(b'=') {
+                        self.advance();
+                        Ok(Some(Token {
+                            token_type: TokenType::EqualEqual,
+                            span: Span::new(i0, self.byte_offset),
+                        }))
+                    } else {
+                        Ok(Some(Token {
+                            token_type: TokenType::Equal,
+                            span: Span::new(i0, i0 + 1),
+                        }))
+                    }
                 }
 
-                // try punctuator
-                let ch = self.peek().unwrap();
-                match ch {
-                    b'+' => {
-                        self.push(Token {
-                            token_type: TokenType::Plus,
-                            byte_start: self.byte_offset,
-                            byte_end: self.byte_offset + 1,
-                        });
-                        self.advance();
-                    }
-                    b'-' => {
-                        let i0 = self.byte_offset;
-                        // check start of comment
-                        if self.starts_with_and_advance(b"--") {
-                            // check start of multi-line comment
-                            if let Some(equal_count) = self.long_bracket(b'[') {
-                                self.is_in_multiline_comment = Some(equal_count);
-                                self.multiline_comment_begin = (i0, self.byte_offset);
-                            } else {
-                                // it is line comment
-                                while let Some(ch) = self.peek() {
-                                    if ch == b'\n' {
-                                        break;
-                                    }
-                                    self.advance();
-                                }
-                            }
-                        } else {
-                            // it is not comment, put '-'
-                            self.push(Token {
-                                token_type: TokenType::Minus,
-                                byte_start: self.byte_offset,
-                                byte_end: self.byte_offset + 1,
-                            });
-                            self.advance();
-                        }
-                    }
-                    b'*' => {
-                        self.push(Token {
-                            token_type: TokenType::Asterisk,
-                            byte_start: self.byte_offset,
-                            byte_end: self.byte_offset + 1,
-                        });
-                        self.advance();
-                    }
-                    b'/' => {
-                        // check for SlashSlash
-                        let i0 = self.byte_offset;
-                        self.advance();
+                b'(' => {
+                    advance_and_return!(LParen)
+                }
+                b')' => {
+                    advance_and_return!(RParen)
+                }
+                b'{' => {
+                    advance_and_return!(LBrace)
+                }
+                b'}' => {
+                    advance_and_return!(RBrace)
+                }
+                b'[' => {
+                    advance_and_return!(LBracket)
+                }
+                b']' => {
+                    advance_and_return!(RBracket)
+                }
+                b':' => {
+                    // check for ColonColon
+                    let i0 = self.byte_offset;
+                    self.advance();
 
-                        if self.peek() == Some(b'/') {
-                            self.advance();
-                            self.push(Token {
-                                token_type: TokenType::SlashSlash,
-                                byte_start: i0,
-                                byte_end: self.byte_offset,
-                            });
-                        } else {
-                            self.push(Token {
-                                token_type: TokenType::Slash,
-                                byte_start: i0,
-                                byte_end: i0 + 1,
-                            });
-                        }
-                    }
-                    b'%' => {
-                        self.push(Token {
-                            token_type: TokenType::Percent,
-                            byte_start: self.byte_offset,
-                            byte_end: self.byte_offset + 1,
-                        });
+                    if self.peek() == Some(b':') {
                         self.advance();
+                        Ok(Some(Token {
+                            token_type: TokenType::ColonColon,
+                            span: Span::new(i0, self.byte_offset),
+                        }))
+                    } else {
+                        Ok(Some(Token {
+                            token_type: TokenType::Colon,
+                            span: Span::new(i0, i0 + 1),
+                        }))
                     }
-                    b'^' => {
-                        self.push(Token {
-                            token_type: TokenType::Caret,
-                            byte_start: self.byte_offset,
-                            byte_end: self.byte_offset + 1,
-                        });
-                        self.advance();
-                    }
-                    b'#' => {
-                        self.push(Token {
-                            token_type: TokenType::Hash,
-                            byte_start: self.byte_offset,
-                            byte_end: self.byte_offset + 1,
-                        });
-                        self.advance();
-                    }
-                    b'&' => {
-                        self.push(Token {
-                            token_type: TokenType::Ampersand,
-                            byte_start: self.byte_offset,
-                            byte_end: self.byte_offset + 1,
-                        });
-                        self.advance();
-                    }
-                    b'~' => {
-                        // check for TildeEqual
-                        let i0 = self.byte_offset;
-                        self.advance();
+                }
+                b';' => {
+                    advance_and_return!(Semicolon)
+                }
+                b',' => {
+                    advance_and_return!(Comma)
+                }
+                b'.' => {
+                    let i0 = self.byte_offset;
+                    self.advance();
 
-                        if self.peek() == Some(b'=') {
-                            self.advance();
-                            self.push(Token {
-                                token_type: TokenType::TildeEqual,
-                                byte_start: i0,
-                                byte_end: self.byte_offset,
-                            });
-                        } else {
-                            self.push(Token {
-                                token_type: TokenType::Tilde,
-                                byte_start: i0,
-                                byte_end: i0 + 1,
-                            });
-                        }
-                    }
-                    b'|' => {
-                        self.push(Token {
-                            token_type: TokenType::Pipe,
-                            byte_start: self.byte_offset,
-                            byte_end: self.byte_offset + 1,
-                        });
-                        self.advance();
-                    }
-                    b'<' => {
-                        // check for LessLess
-                        let i0 = self.byte_offset;
-                        self.advance();
-
-                        match self.peek() {
-                            Some(b'<') => {
-                                self.advance();
-                                self.push(Token {
-                                    token_type: TokenType::LessLess,
-                                    byte_start: i0,
-                                    byte_end: self.byte_offset,
-                                });
-                            }
-                            Some(b'=') => {
-                                self.advance();
-                                self.push(Token {
-                                    token_type: TokenType::LessEqual,
-                                    byte_start: i0,
-                                    byte_end: self.byte_offset,
-                                });
-                            }
-
-                            _ => {
-                                self.push(Token {
-                                    token_type: TokenType::Less,
-                                    byte_start: i0,
-                                    byte_end: i0 + 1,
-                                });
-                            }
-                        }
-                    }
-                    b'>' => {
-                        // check for LessLess
-                        let i0 = self.byte_offset;
-                        self.advance();
-
-                        match self.peek() {
-                            Some(b'>') => {
-                                self.advance();
-                                self.push(Token {
-                                    token_type: TokenType::GreaterGreater,
-                                    byte_start: i0,
-                                    byte_end: self.byte_offset,
-                                });
-                            }
-                            Some(b'=') => {
-                                self.advance();
-                                self.push(Token {
-                                    token_type: TokenType::GreaterEqual,
-                                    byte_start: i0,
-                                    byte_end: self.byte_offset,
-                                });
-                            }
-
-                            _ => {
-                                self.push(Token {
-                                    token_type: TokenType::Greater,
-                                    byte_start: i0,
-                                    byte_end: i0 + 1,
-                                });
-                            }
-                        }
-                    }
-                    b'=' => {
-                        // check for EqualEqual
-                        let i0 = self.byte_offset;
-                        self.advance();
-
-                        if self.peek() == Some(b'=') {
-                            self.advance();
-                            self.push(Token {
-                                token_type: TokenType::EqualEqual,
-                                byte_start: i0,
-                                byte_end: self.byte_offset,
-                            });
-                        } else {
-                            self.push(Token {
-                                token_type: TokenType::Equal,
-                                byte_start: i0,
-                                byte_end: i0 + 1,
-                            });
-                        }
-                    }
-
-                    b'(' => {
-                        self.push(Token {
-                            token_type: TokenType::LParen,
-                            byte_start: self.byte_offset,
-                            byte_end: self.byte_offset + 1,
-                        });
-                        self.advance();
-                    }
-                    b')' => {
-                        self.push(Token {
-                            token_type: TokenType::RParen,
-                            byte_start: self.byte_offset,
-                            byte_end: self.byte_offset + 1,
-                        });
-                        self.advance();
-                    }
-                    b'{' => {
-                        self.push(Token {
-                            token_type: TokenType::LBrace,
-                            byte_start: self.byte_offset,
-                            byte_end: self.byte_offset + 1,
-                        });
-                        self.advance();
-                    }
-                    b'}' => {
-                        self.push(Token {
-                            token_type: TokenType::RBrace,
-                            byte_start: self.byte_offset,
-                            byte_end: self.byte_offset + 1,
-                        });
-                        self.advance();
-                    }
-                    b'[' => {
-                        self.push(Token {
-                            token_type: TokenType::LBracket,
-                            byte_start: self.byte_offset,
-                            byte_end: self.byte_offset + 1,
-                        });
-                        self.advance();
-                    }
-                    b']' => {
-                        self.push(Token {
-                            token_type: TokenType::RBracket,
-                            byte_start: self.byte_offset,
-                            byte_end: self.byte_offset + 1,
-                        });
-                        self.advance();
-                    }
-                    b':' => {
-                        // check for ColonColon
-                        let i0 = self.byte_offset;
-                        self.advance();
-
-                        if self.peek() == Some(b':') {
-                            self.advance();
-                            self.push(Token {
-                                token_type: TokenType::ColonColon,
-                                byte_start: i0,
-                                byte_end: self.byte_offset,
-                            });
-                        } else {
-                            self.push(Token {
-                                token_type: TokenType::Colon,
-                                byte_start: i0,
-                                byte_end: i0 + 1,
-                            });
-                        }
-                    }
-                    b';' => {
-                        self.push(Token {
-                            token_type: TokenType::Semicolon,
-                            byte_start: self.byte_offset,
-                            byte_end: self.byte_offset + 1,
-                        });
-                        self.advance();
-                    }
-                    b',' => {
-                        self.push(Token {
-                            token_type: TokenType::Comma,
-                            byte_start: self.byte_offset,
-                            byte_end: self.byte_offset + 1,
-                        });
-                        self.advance();
-                    }
-                    b'.' => {
-                        let i0 = self.byte_offset;
+                    if self.peek() == Some(b'.') {
+                        let i1 = self.byte_offset;
                         self.advance();
 
                         if self.peek() == Some(b'.') {
-                            let i1 = self.byte_offset;
                             self.advance();
-
-                            if self.peek() == Some(b'.') {
-                                self.advance();
-                                self.push(Token {
-                                    token_type: TokenType::DotDotDot,
-                                    byte_start: i0,
-                                    byte_end: self.byte_offset,
-                                });
-                            } else {
-                                self.push(Token {
-                                    token_type: TokenType::DotDot,
-                                    byte_start: i0,
-                                    byte_end: i1 + 1,
-                                });
-                            }
+                            Ok(Some(Token {
+                                token_type: TokenType::DotDotDot,
+                                span: Span::new(i0, self.byte_offset),
+                            }))
                         } else {
-                            self.push(Token {
-                                token_type: TokenType::Dot,
-                                byte_start: i0,
-                                byte_end: i0 + 1,
-                            });
+                            Ok(Some(Token {
+                                token_type: TokenType::DotDot,
+                                span: Span::new(i0, i1),
+                            }))
                         }
+                    } else {
+                        Ok(Some(Token {
+                            token_type: TokenType::Dot,
+                            span: Span::new(i0, i0 + 1),
+                        }))
                     }
+                }
+                b'-' => {
+                    let i0 = self.byte_offset;
+                    // check start of comment
+                    if self.starts_with_and_advance(b"--") {
+                        // check start of multi-line comment
+                        if let Some(open_equal_count) = self.long_bracket(b'[') {
+                            let multiline_comment_begin = (i0, self.byte_offset);
 
-                    _ => {
-                        // invalid punctuator
-                        return Err(TokenizeError::InvalidPunct {
-                            pos: self.byte_offset,
-                            punct: ch as char,
-                        });
+                            while self.byte_offset < self.source.len() {
+                                if let Some(close_equal_count) = self.long_bracket(b']') {
+                                    if close_equal_count == open_equal_count {
+                                        if self.starts_with_and_advance(b"--") {
+                                            return self.try_tokenize();
+                                        }
+                                    }
+                                    // since `long_bracket` is parsed, the cursor is currently at the next position of ']'.
+                                    // ]====]
+                                    //       ^ here
+                                    // move back cursor so that it points to the last ']'.
+                                    self.byte_offset -= 1;
+                                } else {
+                                    self.advance()
+                                }
+                            }
+                            // eof reached
+                            // multi-line comment not closed
+                            Err(TokenizeError::MultilineCommentNotClosed {
+                                start: multiline_comment_begin.0,
+                                end: multiline_comment_begin.1,
+                            })
+                        } else {
+                            // it is line comment
+                            while let Some(ch) = self.peek() {
+                                self.advance();
+                                if ch == b'\n' {
+                                    break;
+                                }
+                            }
+                            self.try_tokenize()
+                        }
+                    } else {
+                        // it is not comment, put '-'
+                        advance_and_return!(Minus)
                     }
+                }
+
+                _ => {
+                    // invalid punctuator
+                    Err(TokenizeError::InvalidPunct {
+                        pos: self.byte_offset,
+                        punct: ch as char,
+                    })
                 }
             }
         }
-        Ok(())
     }
 }
 
-/// source must be valid utf-8 string.
-pub fn tokenize(source: &str) -> Result<Vec<Token>, TokenizeError> {
-    let mut tokenizer = Tokenizer::new(source.as_bytes());
-    tokenizer.tokenize()?;
-    if tokenizer.is_in_multiline_comment.is_some() {
-        return Err(TokenizeError::MultilineCommentNotClosed {
-            start: tokenizer.multiline_comment_begin.0,
-            end: tokenizer.multiline_comment_begin.1,
-        });
+impl<'a> Iterator for Tokenizer<'a> {
+    type Item = Result<Token, TokenizeError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.try_tokenize() {
+            Ok(Some(token)) => Some(Ok(token)),
+            Ok(None) => None,
+            Err(e) => Some(Err(e)),
+        }
     }
-    Ok(tokenizer.tokens)
 }
