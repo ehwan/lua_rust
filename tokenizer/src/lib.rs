@@ -759,7 +759,7 @@ impl<'a> Tokenizer<'a> {
     /// consume long bracket and return the number of '='.
     /// `bracket` must be either b'[' or b']'.
     pub(crate) fn long_bracket(&mut self, bracket: u8) -> Option<usize> {
-        assert!(bracket == b'[' || bracket == b']');
+        debug_assert!(bracket == b'[' || bracket == b']');
         let cursor0 = self.get_cursor();
         if self.peek() == Some(bracket) {
             // consume '['
@@ -771,7 +771,7 @@ impl<'a> Tokenizer<'a> {
                 if ch == bracket {
                     // consume '['
                     self.advance();
-                    break;
+                    return Some(count);
                 } else if ch == b'=' {
                     // consume '='
                     self.advance();
@@ -781,7 +781,7 @@ impl<'a> Tokenizer<'a> {
                     return None;
                 }
             }
-            Some(count)
+            None
         } else {
             return None;
         }
@@ -1035,14 +1035,13 @@ impl<'a> Tokenizer<'a> {
                             while self.byte_offset < self.source.len() {
                                 if let Some(close_equal_count) = self.long_bracket(b']') {
                                     if close_equal_count == open_equal_count {
-                                        if self.starts_with_and_advance(b"--") {
-                                            return self.try_tokenize();
-                                        }
+                                        return self.try_tokenize();
                                     }
                                     // since `long_bracket` is parsed, the cursor is currently at the next position of ']'.
                                     // ]====]
                                     //       ^ here
                                     // move back cursor so that it points to the last ']'.
+                                    // so we can test other long-closing-brackets.
                                     self.byte_offset -= 1;
                                 } else {
                                     self.advance()

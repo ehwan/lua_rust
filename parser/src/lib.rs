@@ -4,7 +4,6 @@ mod statement;
 // mod parser;
 mod parser_expanded;
 use parser_expanded as parser;
-mod types;
 
 // re-exports
 pub use lua_tokenizer::FloatType;
