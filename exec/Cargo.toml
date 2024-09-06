@@ -1,0 +1,11 @@
+[package]
+name = "exec"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+lua_parser = { version = "0.1.0", path = "../parser" }
+
+[features]
+default = []
+32bit = ["lua_parser/32bit"]
