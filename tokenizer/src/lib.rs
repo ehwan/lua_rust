@@ -1,5 +1,5 @@
 pub(crate) mod error;
-pub(crate) mod literal;
+pub(crate) mod iorf;
 pub(crate) mod token;
 pub(crate) mod tokentype;
 
@@ -7,7 +7,7 @@ pub(crate) mod tokentype;
 pub(crate) mod test;
 
 pub use error::TokenizeError;
-pub use literal::Literal;
+pub use iorf::IntOrFloat;
 pub use token::Token;
 pub use tokentype::TokenType;
 
@@ -48,20 +48,20 @@ impl<'a> Tokenizer<'a> {
         keyword_map.insert("else", TokenType::Else);
         keyword_map.insert("elseif", TokenType::Elseif);
         keyword_map.insert("end", TokenType::End);
-        keyword_map.insert("false", TokenType::Literal(Literal::Bool(false)));
+        keyword_map.insert("false", TokenType::Bool(false));
         keyword_map.insert("for", TokenType::For);
         keyword_map.insert("function", TokenType::Function);
         keyword_map.insert("goto", TokenType::Goto);
         keyword_map.insert("if", TokenType::If);
         keyword_map.insert("in", TokenType::In);
         keyword_map.insert("local", TokenType::Local);
-        keyword_map.insert("nil", TokenType::Literal(Literal::Nil));
+        keyword_map.insert("nil", TokenType::Nil);
         keyword_map.insert("not", TokenType::Not);
         keyword_map.insert("or", TokenType::Or);
         keyword_map.insert("repeat", TokenType::Repeat);
         keyword_map.insert("return", TokenType::Return);
         keyword_map.insert("then", TokenType::Then);
-        keyword_map.insert("true", TokenType::Literal(Literal::Bool(true)));
+        keyword_map.insert("true", TokenType::Bool(true));
         keyword_map.insert("until", TokenType::Until);
         keyword_map.insert("while", TokenType::While);
 
@@ -173,79 +173,20 @@ impl<'a> Tokenizer<'a> {
     }
 
     pub fn tokenize_numeric(&mut self) -> Result<bool, TokenizeError> {
-        enum IorF {
-            Int(IntType),
-            Float(FloatType),
-        }
-        impl IorF {
-            fn to_float(&self) -> FloatType {
-                match self {
-                    IorF::Int(x) => *x as FloatType,
-                    IorF::Float(x) => *x,
-                }
-            }
-            fn add_assign(&mut self, rhs: u32) {
-                match self {
-                    IorF::Int(ref mut x) => {
-                        if let Some(mul) = x.checked_add(rhs as IntType) {
-                            *x = mul;
-                        } else {
-                            // overflow
-                            let mut f = *x as FloatType;
-                            f *= rhs as FloatType;
-                            *self = IorF::Float(f);
-                        }
-                    }
-                    IorF::Float(ref mut x) => {
-                        *x *= rhs as FloatType;
-                    }
-                }
-            }
-            fn add_assign_f(&mut self, rhs: FloatType) {
-                match self {
-                    IorF::Int(ref mut x) => {
-                        let mut f = *x as FloatType;
-                        f += rhs as FloatType;
-                        *self = IorF::Float(f);
-                    }
-                    IorF::Float(ref mut x) => {
-                        *x += rhs as FloatType;
-                    }
-                }
-            }
-            fn mul_assign(&mut self, rhs: u32) {
-                match self {
-                    IorF::Int(ref mut x) => {
-                        if let Some(mul) = x.checked_mul(rhs as IntType) {
-                            *x = mul;
-                        } else {
-                            // overflow
-                            let mut f = *x as FloatType;
-                            f *= rhs as FloatType;
-                            *self = IorF::Float(f);
-                        }
-                    }
-                    IorF::Float(ref mut x) => {
-                        *x *= rhs as FloatType;
-                    }
-                }
-            }
-        }
-
         let i0 = self.byte_offset;
         // check if it is hex
         if self.starts_with_and_advance(b"0x") || self.starts_with_and_advance(b"0X") {
             // hex
 
             // one or more hexs
-            let mut value = IorF::Int(0);
+            let mut value = IntOrFloat::from(0);
             let mut count = 0;
             while let Some(ch) = self.peek() {
                 if let Some(hex) = Self::hex(ch) {
                     self.advance();
                     count += 1;
-                    value.mul_assign(16);
-                    value.add_assign(hex);
+                    value *= 16 as IntType;
+                    value += hex as IntType;
                 } else {
                     break;
                 }
@@ -262,7 +203,7 @@ impl<'a> Tokenizer<'a> {
             if self.peek() == Some(b'.') {
                 self.advance();
 
-                value = IorF::Float(value.to_float());
+                value = value.to_float().into();
 
                 // one or more hexs for fraction
                 let base = (1.0 / 16.0) as FloatType;
@@ -274,7 +215,7 @@ impl<'a> Tokenizer<'a> {
                         count += 1;
 
                         let f = hex as FloatType * exp;
-                        value.add_assign_f(f);
+                        value += f;
                         exp *= base;
                     } else {
                         break;
@@ -328,40 +269,21 @@ impl<'a> Tokenizer<'a> {
                 }
 
                 if is_neg {
-                    value = match value {
-                        IorF::Int(x) => {
-                            let mut x = x as FloatType;
-                            for _ in 0..binary_exp {
-                                x /= 2.0 as FloatType;
-                            }
-                            IorF::Float(x)
-                        }
-                        IorF::Float(mut x) => {
-                            for _ in 0..binary_exp {
-                                x /= 2.0 as FloatType;
-                            }
-                            IorF::Float(x)
-                        }
-                    };
+                    for _ in 0..binary_exp {
+                        value *= 0.5 as FloatType;
+                    }
                 } else {
                     for _ in 0..binary_exp {
-                        value.mul_assign(2);
+                        value *= 2 as IntType;
                     }
                 }
             }
 
             // push value
-            let token = match value {
-                IorF::Int(x) => Token {
-                    token_type: TokenType::Literal(Literal::Integer(x)),
-                    byte_start: i0,
-                    byte_end: self.byte_offset,
-                },
-                IorF::Float(x) => Token {
-                    token_type: TokenType::Literal(Literal::Floating(x)),
-                    byte_start: i0,
-                    byte_end: self.byte_offset,
-                },
+            let token = Token {
+                token_type: TokenType::Numeric(value),
+                byte_start: i0,
+                byte_end: self.byte_offset,
             };
             self.push(token);
             return Ok(true);
@@ -373,14 +295,14 @@ impl<'a> Tokenizer<'a> {
             }
 
             // one or more digits
-            let mut value = IorF::Int(0);
+            let mut value = IntOrFloat::from(0);
             let mut count = 0;
             while let Some(ch) = self.peek() {
                 if ch >= b'0' && ch <= b'9' {
                     self.advance();
                     count += 1;
-                    value.mul_assign(10);
-                    value.add_assign((ch - b'0') as u32);
+                    value *= 10 as IntType;
+                    value += (ch - b'0') as IntType;
                 } else {
                     break;
                 }
@@ -397,7 +319,7 @@ impl<'a> Tokenizer<'a> {
             if self.peek() == Some(b'.') {
                 self.advance();
 
-                value = IorF::Float(value.to_float());
+                value = value.to_float().into();
 
                 // one or more hexs for fraction
                 let base = (1.0 / 10.0) as FloatType;
@@ -409,7 +331,7 @@ impl<'a> Tokenizer<'a> {
                         count += 1;
 
                         let f = (ch - b'0') as FloatType * exp;
-                        value.add_assign_f(f);
+                        value += f;
                         exp *= base;
                     } else {
                         break;
@@ -463,40 +385,21 @@ impl<'a> Tokenizer<'a> {
                 }
 
                 if is_neg {
-                    value = match value {
-                        IorF::Int(x) => {
-                            let mut x = x as FloatType;
-                            for _ in 0..base10_exp {
-                                x /= 10.0 as FloatType;
-                            }
-                            IorF::Float(x)
-                        }
-                        IorF::Float(mut x) => {
-                            for _ in 0..base10_exp {
-                                x /= 10.0 as FloatType;
-                            }
-                            IorF::Float(x)
-                        }
-                    };
+                    for _ in 0..base10_exp {
+                        value *= 0.1 as FloatType;
+                    }
                 } else {
                     for _ in 0..base10_exp {
-                        value.mul_assign(10);
+                        value *= 10 as IntType;
                     }
                 }
             }
 
             // push value
-            let token = match value {
-                IorF::Int(x) => Token {
-                    token_type: TokenType::Literal(Literal::Integer(x)),
-                    byte_start: i0,
-                    byte_end: self.byte_offset,
-                },
-                IorF::Float(x) => Token {
-                    token_type: TokenType::Literal(Literal::Floating(x)),
-                    byte_start: i0,
-                    byte_end: self.byte_offset,
-                },
+            let token = Token {
+                token_type: TokenType::Numeric(value),
+                byte_start: i0,
+                byte_end: self.byte_offset,
             };
             self.push(token);
             return Ok(true);
@@ -840,7 +743,7 @@ impl<'a> Tokenizer<'a> {
                 let s = self.short_string_literal(quote, i0)?;
 
                 let token = Token {
-                    token_type: TokenType::Literal(Literal::String(s)),
+                    token_type: TokenType::String(s),
                     byte_start: i0,
                     byte_end: self.byte_offset,
                 };
@@ -855,7 +758,7 @@ impl<'a> Tokenizer<'a> {
                     let s = self.long_string_literal(open_count, i0)?;
 
                     let token = Token {
-                        token_type: TokenType::Literal(Literal::String(s)),
+                        token_type: TokenType::String(s),
                         byte_start: i0,
                         byte_end: self.byte_offset,
                     };
@@ -947,16 +850,13 @@ impl<'a> Tokenizer<'a> {
                 // try punctuator
                 let ch = self.peek().unwrap();
                 match ch {
-                    b'+' | b'*' | b'/' | b'%' | b'^' | b'#' | b'&' | b'~' | b'|' | b'<' | b'>'
-                    | b'=' | b'(' | b')' | b'{' | b'}' | b'[' | b']' | b',' | b'.' | b';'
-                    | b':' => {
-                        let token = Token {
-                            token_type: TokenType::Punct(ch as char),
+                    b'+' => {
+                        self.push(Token {
+                            token_type: TokenType::Plus,
                             byte_start: self.byte_offset,
                             byte_end: self.byte_offset + 1,
-                        };
+                        });
                         self.advance();
-                        self.push(token);
                     }
                     b'-' => {
                         let i0 = self.byte_offset;
@@ -977,15 +877,302 @@ impl<'a> Tokenizer<'a> {
                             }
                         } else {
                             // it is not comment, put '-'
-                            let token = Token {
-                                token_type: TokenType::Punct(ch as char),
+                            self.push(Token {
+                                token_type: TokenType::Minus,
                                 byte_start: self.byte_offset,
                                 byte_end: self.byte_offset + 1,
-                            };
+                            });
                             self.advance();
-                            self.push(token);
                         }
                     }
+                    b'*' => {
+                        self.push(Token {
+                            token_type: TokenType::Asterisk,
+                            byte_start: self.byte_offset,
+                            byte_end: self.byte_offset + 1,
+                        });
+                        self.advance();
+                    }
+                    b'/' => {
+                        // check for SlashSlash
+                        let i0 = self.byte_offset;
+                        self.advance();
+
+                        if self.peek() == Some(b'/') {
+                            self.advance();
+                            self.push(Token {
+                                token_type: TokenType::SlashSlash,
+                                byte_start: i0,
+                                byte_end: self.byte_offset,
+                            });
+                        } else {
+                            self.push(Token {
+                                token_type: TokenType::Slash,
+                                byte_start: i0,
+                                byte_end: i0 + 1,
+                            });
+                        }
+                    }
+                    b'%' => {
+                        self.push(Token {
+                            token_type: TokenType::Percent,
+                            byte_start: self.byte_offset,
+                            byte_end: self.byte_offset + 1,
+                        });
+                        self.advance();
+                    }
+                    b'^' => {
+                        self.push(Token {
+                            token_type: TokenType::Caret,
+                            byte_start: self.byte_offset,
+                            byte_end: self.byte_offset + 1,
+                        });
+                        self.advance();
+                    }
+                    b'#' => {
+                        self.push(Token {
+                            token_type: TokenType::Hash,
+                            byte_start: self.byte_offset,
+                            byte_end: self.byte_offset + 1,
+                        });
+                        self.advance();
+                    }
+                    b'&' => {
+                        self.push(Token {
+                            token_type: TokenType::Ampersand,
+                            byte_start: self.byte_offset,
+                            byte_end: self.byte_offset + 1,
+                        });
+                        self.advance();
+                    }
+                    b'~' => {
+                        // check for TildeEqual
+                        let i0 = self.byte_offset;
+                        self.advance();
+
+                        if self.peek() == Some(b'=') {
+                            self.advance();
+                            self.push(Token {
+                                token_type: TokenType::TildeEqual,
+                                byte_start: i0,
+                                byte_end: self.byte_offset,
+                            });
+                        } else {
+                            self.push(Token {
+                                token_type: TokenType::Tilde,
+                                byte_start: i0,
+                                byte_end: i0 + 1,
+                            });
+                        }
+                    }
+                    b'|' => {
+                        self.push(Token {
+                            token_type: TokenType::Pipe,
+                            byte_start: self.byte_offset,
+                            byte_end: self.byte_offset + 1,
+                        });
+                        self.advance();
+                    }
+                    b'<' => {
+                        // check for LessLess
+                        let i0 = self.byte_offset;
+                        self.advance();
+
+                        match self.peek() {
+                            Some(b'<') => {
+                                self.advance();
+                                self.push(Token {
+                                    token_type: TokenType::LessLess,
+                                    byte_start: i0,
+                                    byte_end: self.byte_offset,
+                                });
+                            }
+                            Some(b'=') => {
+                                self.advance();
+                                self.push(Token {
+                                    token_type: TokenType::LessEqual,
+                                    byte_start: i0,
+                                    byte_end: self.byte_offset,
+                                });
+                            }
+
+                            _ => {
+                                self.push(Token {
+                                    token_type: TokenType::Less,
+                                    byte_start: i0,
+                                    byte_end: i0 + 1,
+                                });
+                            }
+                        }
+                    }
+                    b'>' => {
+                        // check for LessLess
+                        let i0 = self.byte_offset;
+                        self.advance();
+
+                        match self.peek() {
+                            Some(b'>') => {
+                                self.advance();
+                                self.push(Token {
+                                    token_type: TokenType::GreaterGreater,
+                                    byte_start: i0,
+                                    byte_end: self.byte_offset,
+                                });
+                            }
+                            Some(b'=') => {
+                                self.advance();
+                                self.push(Token {
+                                    token_type: TokenType::GreaterEqual,
+                                    byte_start: i0,
+                                    byte_end: self.byte_offset,
+                                });
+                            }
+
+                            _ => {
+                                self.push(Token {
+                                    token_type: TokenType::Greater,
+                                    byte_start: i0,
+                                    byte_end: i0 + 1,
+                                });
+                            }
+                        }
+                    }
+                    b'=' => {
+                        // check for EqualEqual
+                        let i0 = self.byte_offset;
+                        self.advance();
+
+                        if self.peek() == Some(b'=') {
+                            self.advance();
+                            self.push(Token {
+                                token_type: TokenType::EqualEqual,
+                                byte_start: i0,
+                                byte_end: self.byte_offset,
+                            });
+                        } else {
+                            self.push(Token {
+                                token_type: TokenType::Equal,
+                                byte_start: i0,
+                                byte_end: i0 + 1,
+                            });
+                        }
+                    }
+
+                    b'(' => {
+                        self.push(Token {
+                            token_type: TokenType::LParen,
+                            byte_start: self.byte_offset,
+                            byte_end: self.byte_offset + 1,
+                        });
+                        self.advance();
+                    }
+                    b')' => {
+                        self.push(Token {
+                            token_type: TokenType::RParen,
+                            byte_start: self.byte_offset,
+                            byte_end: self.byte_offset + 1,
+                        });
+                        self.advance();
+                    }
+                    b'{' => {
+                        self.push(Token {
+                            token_type: TokenType::LBrace,
+                            byte_start: self.byte_offset,
+                            byte_end: self.byte_offset + 1,
+                        });
+                        self.advance();
+                    }
+                    b'}' => {
+                        self.push(Token {
+                            token_type: TokenType::RBrace,
+                            byte_start: self.byte_offset,
+                            byte_end: self.byte_offset + 1,
+                        });
+                        self.advance();
+                    }
+                    b'[' => {
+                        self.push(Token {
+                            token_type: TokenType::LBracket,
+                            byte_start: self.byte_offset,
+                            byte_end: self.byte_offset + 1,
+                        });
+                        self.advance();
+                    }
+                    b']' => {
+                        self.push(Token {
+                            token_type: TokenType::RBracket,
+                            byte_start: self.byte_offset,
+                            byte_end: self.byte_offset + 1,
+                        });
+                        self.advance();
+                    }
+                    b':' => {
+                        // check for ColonColon
+                        let i0 = self.byte_offset;
+                        self.advance();
+
+                        if self.peek() == Some(b':') {
+                            self.advance();
+                            self.push(Token {
+                                token_type: TokenType::ColonColon,
+                                byte_start: i0,
+                                byte_end: self.byte_offset,
+                            });
+                        } else {
+                            self.push(Token {
+                                token_type: TokenType::Colon,
+                                byte_start: i0,
+                                byte_end: i0 + 1,
+                            });
+                        }
+                    }
+                    b';' => {
+                        self.push(Token {
+                            token_type: TokenType::Semicolon,
+                            byte_start: self.byte_offset,
+                            byte_end: self.byte_offset + 1,
+                        });
+                        self.advance();
+                    }
+                    b',' => {
+                        self.push(Token {
+                            token_type: TokenType::Comma,
+                            byte_start: self.byte_offset,
+                            byte_end: self.byte_offset + 1,
+                        });
+                        self.advance();
+                    }
+                    b'.' => {
+                        let i0 = self.byte_offset;
+                        self.advance();
+
+                        if self.peek() == Some(b'.') {
+                            let i1 = self.byte_offset;
+                            self.advance();
+
+                            if self.peek() == Some(b'.') {
+                                self.advance();
+                                self.push(Token {
+                                    token_type: TokenType::DotDotDot,
+                                    byte_start: i0,
+                                    byte_end: self.byte_offset,
+                                });
+                            } else {
+                                self.push(Token {
+                                    token_type: TokenType::DotDot,
+                                    byte_start: i0,
+                                    byte_end: i1 + 1,
+                                });
+                            }
+                        } else {
+                            self.push(Token {
+                                token_type: TokenType::Dot,
+                                byte_start: i0,
+                                byte_end: i0 + 1,
+                            });
+                        }
+                    }
+
                     _ => {
                         // invalid punctuator
                         return Err(TokenizeError::InvalidPunct {

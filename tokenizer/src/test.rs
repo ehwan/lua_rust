@@ -2,7 +2,8 @@ use crate::Tokenizer;
 
 mod test {
     use super::*;
-    use crate::{literal, Literal, TokenType};
+    use crate::IntOrFloat;
+    use crate::TokenType;
 
     #[test]
     fn ignore_whitespace1() {
@@ -78,14 +79,10 @@ mod test {
             let token = tokenizer.tokens.into_iter().next().unwrap();
             assert_eq!(token.byte_start, 0);
             assert_eq!(token.byte_end, 6);
-            if let TokenType::Literal(literal) = token.token_type {
-                if let literal::Literal::String(s) = literal {
-                    assert_eq!(s, "abcd");
-                } else {
-                    panic!("Expected String");
-                }
+            if let TokenType::String(s) = token.token_type {
+                assert_eq!(s, "abcd");
             } else {
-                panic!("Expected Literal");
+                panic!("Expected String Literal");
             }
         } else {
             panic!("Expected Ok");
@@ -102,14 +99,10 @@ mod test {
 
             let token = tokenizer.tokens.into_iter().next().unwrap();
             assert_eq!(token.byte_start, 0);
-            if let TokenType::Literal(literal) = token.token_type {
-                if let literal::Literal::String(s) = literal {
-                    assert_eq!(s, "ab");
-                } else {
-                    panic!("Expected String");
-                }
+            if let TokenType::String(s) = token.token_type {
+                assert_eq!(s, "ab");
             } else {
-                panic!("Expected Literal");
+                panic!("Expected StringLiteral");
             }
         } else {
             panic!("Expected Ok");
@@ -128,8 +121,8 @@ mod test {
             assert_eq!(token.byte_start, 0);
             assert_eq!(token.byte_end, 5);
 
-            if let TokenType::Literal(Literal::Integer(i)) = token.token_type {
-                assert_eq!(i, 12345);
+            if let TokenType::Numeric(i) = token.token_type {
+                assert_eq!(i, IntOrFloat::Int(12345));
             } else {
                 panic!("Expected Integer");
             }
@@ -150,8 +143,8 @@ mod test {
             assert_eq!(token.byte_start, 0);
             assert_eq!(token.byte_end, 10);
 
-            if let TokenType::Literal(Literal::Integer(i)) = token.token_type {
-                assert_eq!(i, 0x12345abc);
+            if let TokenType::Numeric(i) = token.token_type {
+                assert_eq!(i, IntOrFloat::Int(0x12345abc));
             } else {
                 panic!("Expected Integer");
             }
@@ -170,7 +163,7 @@ mod test {
             assert_eq!(token.byte_start, 0);
             assert_eq!(token.byte_end, 7);
 
-            if let TokenType::Literal(Literal::Floating(f)) = token.token_type {
+            if let TokenType::Numeric(IntOrFloat::Float(f)) = token.token_type {
                 let abs = (f - 123.456).abs();
                 assert!(abs < 0.00001);
             } else {
@@ -192,7 +185,7 @@ mod test {
             assert_eq!(token.byte_start, 0);
             assert_eq!(token.byte_end, 10);
 
-            if let TokenType::Literal(Literal::Floating(f)) = token.token_type {
+            if let TokenType::Numeric(IntOrFloat::Float(f)) = token.token_type {
                 let abs = (f - 12345.6).abs();
                 assert!(abs < 0.00001);
             } else {
@@ -213,7 +206,7 @@ mod test {
             assert_eq!(token.byte_start, 0);
             assert_eq!(token.byte_end, 10);
 
-            if let TokenType::Literal(Literal::Floating(f)) = token.token_type {
+            if let TokenType::Numeric(IntOrFloat::Float(f)) = token.token_type {
                 let abs = (f - 1.23456).abs();
                 assert!(abs < 0.00001);
             } else {

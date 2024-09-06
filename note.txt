@@ -1,0 +1,2 @@
+Table Insertion Order -> left to right
+Gc -> RefCounting
