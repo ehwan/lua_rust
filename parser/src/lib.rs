@@ -10,6 +10,7 @@ pub use lua_tokenizer::FloatType;
 pub use lua_tokenizer::IntOrFloat;
 pub use lua_tokenizer::IntType;
 pub use lua_tokenizer::Span;
+pub use lua_tokenizer::Token;
 
 pub use error::InvalidToken;
 pub use error::ParseError;
@@ -31,7 +32,9 @@ pub use expression::TableField;
 
 pub use statement::AttName;
 pub use statement::Attrib;
+pub use statement::Block;
 pub use statement::FunctionName;
+pub use statement::ReturnStatement;
 pub use statement::Statement;
 pub use statement::StmtAssignment;
 pub use statement::StmtBreak;
@@ -48,12 +51,10 @@ pub use statement::StmtLocalDeclaration;
 pub use statement::StmtRepeat;
 pub use statement::StmtWhile;
 
-pub use statement::*;
-
 pub use lua_tokenizer::Tokenizer;
 
 /// parse lua source code to AST
-pub fn parse_str(source: &str) -> Result<Block, ()> {
+pub fn parse_str(source: &str) -> Result<Block, ParseError> {
     let tokenizer = Tokenizer::new(source);
     let parser = parser::ChunkParser::new();
     let mut context = parser::ChunkContext::new();
@@ -62,16 +63,23 @@ pub fn parse_str(source: &str) -> Result<Block, ()> {
         let token = match token {
             Ok(token) => token,
             Err(e) => {
-                eprintln!("tokenize error: {}", e);
-                return Err(());
+                return Err(ParseError::TokenizeError(e));
             }
         };
 
         match context.feed(&parser, token, &mut ()) {
             Ok(_) => {}
             Err(err) => {
-                eprintln!("parse error: {}", err);
-                return Err(());
+                let token = err.term;
+                let expected = context
+                    .expected_on_error(&parser)
+                    .cloned()
+                    .collect::<Vec<_>>();
+                let error = InvalidToken {
+                    token: Some(token),
+                    expected,
+                };
+                return Err(ParseError::InvalidToken(error));
             }
         }
     }
@@ -82,17 +90,23 @@ pub fn parse_str(source: &str) -> Result<Block, ()> {
     };
     match context.feed(&parser, eof_token, &mut ()) {
         Ok(_) => {}
-        Err(err) => {
-            eprintln!("parse error: {}", err);
-            return Err(());
+        Err(_) => {
+            let expected = context
+                .expected_on_error(&parser)
+                .cloned()
+                .collect::<Vec<_>>();
+            let error = InvalidToken {
+                token: None,
+                expected,
+            };
+            return Err(ParseError::InvalidToken(error));
         }
     }
 
     match context.accept() {
         Ok(block) => Ok(block),
-        Err(err) => {
-            eprintln!("accept error: {}", err);
-            return Err(());
+        Err(_) => {
+            return Err(ParseError::Ambiguous);
         }
     }
 }
