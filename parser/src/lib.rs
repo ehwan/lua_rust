@@ -71,13 +71,15 @@ pub fn parse_str(source: &str) -> Result<Block, ParseError> {
             Ok(_) => {}
             Err(err) => {
                 let token = err.term;
-                let expected = context
-                    .expected_on_error(&parser)
+                let expected = context.expected(&parser).cloned().collect::<Vec<_>>();
+                let expected_nonterm = context
+                    .expected_nonterm(&parser)
                     .cloned()
                     .collect::<Vec<_>>();
                 let error = InvalidToken {
                     token: Some(token),
                     expected,
+                    expected_nonterm,
                 };
                 return Err(ParseError::InvalidToken(error));
             }
@@ -91,13 +93,15 @@ pub fn parse_str(source: &str) -> Result<Block, ParseError> {
     match context.feed(&parser, eof_token, &mut ()) {
         Ok(_) => {}
         Err(_) => {
-            let expected = context
-                .expected_on_error(&parser)
+            let expected = context.expected(&parser).cloned().collect::<Vec<_>>();
+            let expected_nonterm = context
+                .expected_nonterm(&parser)
                 .cloned()
                 .collect::<Vec<_>>();
             let error = InvalidToken {
                 token: None,
                 expected,
+                expected_nonterm,
             };
             return Err(ParseError::InvalidToken(error));
         }

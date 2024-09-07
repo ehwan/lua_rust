@@ -45,6 +45,8 @@ pub struct InvalidToken {
     pub token: Option<Token>,
     /// expected tokens
     pub expected: Vec<Token>,
+    /// expected nonterminal tokens
+    pub expected_nonterm: Vec<parser_expanded::ChunkNonTerminals>,
 }
 impl std::fmt::Display for InvalidToken {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -60,6 +62,13 @@ impl std::fmt::Display for InvalidToken {
             }
             write!(f, "{}", token)?;
         }
+        write!(f, "\nExpected nonterminals: ")?;
+        for (i, token) in self.expected_nonterm.iter().enumerate() {
+            if i != 0 {
+                write!(f, ", ")?;
+            }
+            write!(f, "{}", token)?;
+        }
         Ok(())
     }
 }
@@ -70,15 +79,24 @@ use codespan_reporting::diagnostic::Diagnostic;
 #[cfg(feature = "diag")]
 use codespan_reporting::diagnostic::Label;
 
+use crate::parser_expanded;
+
 impl InvalidToken {
     #[cfg(feature = "diag")]
     pub fn to_diag<FileId: Copy>(&self, fileid: FileId) -> Diagnostic<FileId> {
-        let mut note_message = String::from("Expected one of: ");
+        let mut note_message1 = String::from("Expected one of: ");
         for (idx, token) in self.expected.iter().enumerate() {
             if idx != 0 {
-                note_message.push_str(", ");
+                note_message1.push_str(", ");
             }
-            note_message.push_str(format!("{}", token).as_str());
+            note_message1.push_str(format!("{}", token).as_str());
+        }
+        let mut note_message2 = String::from("Expected(NonTerminals) one of: ");
+        for (idx, token) in self.expected_nonterm.iter().enumerate() {
+            if idx != 0 {
+                note_message2.push_str(", ");
+            }
+            note_message2.push_str(format!("{}", token).as_str());
         }
         if let Some(token) = &self.token {
             Diagnostic::error()
@@ -89,7 +107,7 @@ impl InvalidToken {
         } else {
             Diagnostic::error().with_message("code not complete")
         }
-        .with_notes(vec![note_message])
+        .with_notes(vec![note_message1, note_message2])
     }
 }
 
