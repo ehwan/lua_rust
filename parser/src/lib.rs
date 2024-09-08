@@ -1,3 +1,18 @@
+//!
+//! ```rust
+//! let source = " <lua source code> ";
+//!
+//! let block = match lua_parser::parse_str(&source) {
+//!     Ok(block) => block,
+//!     Err(err) => {
+//!         println!("{}", err);
+//!         return;
+//!     }
+//! };
+//!
+//! println!("AST:\n{:#?}", block);
+//! ```
+
 mod error;
 mod expression;
 mod statement;

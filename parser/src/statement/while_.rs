@@ -1,6 +1,7 @@
 use super::Block;
 use crate::Expression;
 
+/// while statement
 #[derive(Clone, Debug)]
 pub struct StmtWhile {
     pub condition: Expression,

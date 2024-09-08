@@ -1,5 +1,6 @@
 use crate::statement;
 
+/// parameter list for named & anonymous function definition
 #[derive(Clone, Debug)]
 pub struct ParameterList {
     pub names: Vec<String>,

@@ -1,3 +1,5 @@
+/// This file must be explicitly converted to a `parser_expanded.rs` by `rustylr`
+
 use lua_tokenizer::IntOrFloat;
 use lua_tokenizer::Token;
 use lua_tokenizer::TokenType;

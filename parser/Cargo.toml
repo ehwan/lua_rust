@@ -2,13 +2,21 @@
 name = "lua_parser"
 version = "0.1.0"
 edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "syntax parser for lua language"
+repository = "https://github.com/ehwan/lua_rust"
+readme = "../README.md"
+keywords = ["parser", "lua", "glr"]
+categories = ["parsing"]
 
 [dependencies]
-rusty_lr = { version = "3.2.0", features = ["fxhash"] }
-lua_tokenizer = { verion = "0.1.0", path = "../tokenizer" }
+rusty_lr = { version = "3.2.0", path = "../../RustyLR/rusty_lr", features = [
+  "fxhash",
+] }
+lua_tokenizer = { version = "0.1.0", path = "../tokenizer" }
 codespan-reporting = { version = "0.11", optional = true }
 
 [features]
 default = []
-32bit = []
+32bit = ["lua_tokenizer/32bit"]
 diag = ["dep:codespan-reporting", "lua_tokenizer/diag"]

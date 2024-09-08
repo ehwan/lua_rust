@@ -1,6 +1,7 @@
 use super::Block;
 use crate::Expression;
 
+/// if statement
 #[derive(Clone, Debug)]
 pub struct StmtIf {
     pub condition: Expression,

@@ -1,5 +1,6 @@
 use super::Block;
 
+/// do - end statements block
 #[derive(Clone, Debug)]
 pub struct StmtDo {
     pub block: Block,

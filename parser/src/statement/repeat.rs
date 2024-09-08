@@ -1,6 +1,7 @@
 use super::Block;
 use crate::Expression;
 
+/// repeat statement
 #[derive(Clone, Debug)]
 pub struct StmtRepeat {
     pub block: Block,

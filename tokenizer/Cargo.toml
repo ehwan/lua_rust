@@ -2,6 +2,12 @@
 name = "lua_tokenizer"
 version = "0.1.0"
 edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "tokenizer for lua language"
+repository = "https://github.com/ehwan/lua_rust"
+readme = "../README.md"
+keywords = ["parser", "lua", "glr"]
+categories = ["parsing"]
 
 [dependencies]
 codespan-reporting = { version = "0.11", optional = true }

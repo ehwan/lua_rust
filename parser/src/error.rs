@@ -9,7 +9,8 @@ pub enum ParseError {
     TokenizeError(TokenizeError),
     /// error when feeding token to parser
     InvalidToken(InvalidToken),
-    /// when there are multiple possible paths to parse (in GLR parser)
+    /// when there are multiple possible paths to parse (in GLR parser).
+    /// normally, this should not happen
     Ambiguous,
 }
 

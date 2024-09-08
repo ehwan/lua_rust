@@ -1,3 +1,22 @@
+//!
+//! ```rust
+//! let source = " <source code here> ";
+//!
+//! let tokenizer = Tokenizer::new(source);
+//! // tokenizer itself is a lazy iterator.
+//! for token in tokenizer {
+//!     match token {
+//!         Ok(token) => {
+//!             // do something with token
+//!         }
+//!         Err(e) => {
+//!             print!("Tokenize Error: {}", e);
+//!         }
+//!     }
+//! }
+//! ```
+//!
+
 mod error;
 mod iorf;
 mod span;
