@@ -7,6 +7,7 @@ use crate::expression;
 use crate::statement;
 use crate::Expression;
 use crate::IntType;
+use crate::Span;
 use crate::Statement;
 use lua_tokenizer::IntOrFloat;
 use lua_tokenizer::Token;
@@ -25,12 +26,13 @@ Statement -> goto_ ident
 Statement -> do_ Block end_
 Statement -> while_ Exp do_ Block end_
 Statement -> repeat_ Block until_ Exp
-Statement -> if_ Exp then_ Block (elseif_, Exp, then_, Block)* (else_, Block)? end_
+Statement -> if_ Exp then_ Block ElseIf* (else_, Block)? end_
 Statement -> for_ ident equal Exp comma Exp (comma, Exp)? do_ Block end_
 Statement -> for_ NameList in_ ExpList1 do_ Block end_
 Statement -> function_ FuncName FuncBody
 Statement -> local_ function_ ident FuncBody
 Statement -> local_ AttNameList (equal, ExpList1)?
+ElseIf -> elseif_ Exp then_ Block
 ReturnStatement -> return_ ExpList0 semicolon?
 Var -> ident
 Var -> PrefixExp lbracket Exp rbracket
@@ -70,6 +72,7 @@ Exp1 -> Exp0
 Exp2 -> not_ Exp2
 Exp2 -> hash Exp2
 Exp2 -> minus Exp2
+Exp2 -> plus Exp2
 Exp2 -> tilde Exp2
 Exp2 -> Exp1
 Exp3 -> Exp3 asterisk Exp2
@@ -126,11 +129,10 @@ Statement* -> Statement+
 Statement* ->
 ReturnStatement? -> ReturnStatement
 ReturnStatement? ->
-(elseif_, Exp, then_, Block) -> elseif_ Exp then_ Block
-(elseif_, Exp, then_, Block)+ -> (elseif_, Exp, then_, Block)
-(elseif_, Exp, then_, Block)+ -> (elseif_, Exp, then_, Block)+ (elseif_, Exp, then_, Block)
-(elseif_, Exp, then_, Block)* -> (elseif_, Exp, then_, Block)+
-(elseif_, Exp, then_, Block)* ->
+ElseIf+ -> ElseIf
+ElseIf+ -> ElseIf+ ElseIf
+ElseIf* -> ElseIf+
+ElseIf* ->
 (else_, Block) -> else_ Block
 (else_, Block)? -> (else_, Block)
 (else_, Block)? ->
@@ -187,6 +189,7 @@ pub enum ChunkNonTerminals {
     Chunk,
     Block,
     Statement,
+    ElseIf,
     ReturnStatement,
     Var,
     PrefixExp,
@@ -223,12 +226,11 @@ pub enum ChunkNonTerminals {
     FuncName1,
     FuncName,
     ParList,
-    _Statement_Plus39,
-    _Statement_Star40,
-    _ReturnStatement_Question41,
-    _Group42,
-    __Group42_Plus43,
-    __Group42_Star44,
+    _Statement_Plus40,
+    _Statement_Star41,
+    _ReturnStatement_Question42,
+    _ElseIf_Plus43,
+    _ElseIf_Star44,
     _Group45,
     __Group45_Question46,
     _Group47,
@@ -248,6 +250,7 @@ impl std::fmt::Display for ChunkNonTerminals {
             ChunkNonTerminals::Chunk => write!(f, "Chunk"),
             ChunkNonTerminals::Block => write!(f, "Block"),
             ChunkNonTerminals::Statement => write!(f, "Statement"),
+            ChunkNonTerminals::ElseIf => write!(f, "ElseIf"),
             ChunkNonTerminals::ReturnStatement => write!(f, "ReturnStatement"),
             ChunkNonTerminals::Var => write!(f, "Var"),
             ChunkNonTerminals::PrefixExp => write!(f, "PrefixExp"),
@@ -284,12 +287,11 @@ impl std::fmt::Display for ChunkNonTerminals {
             ChunkNonTerminals::FuncName1 => write!(f, "FuncName1"),
             ChunkNonTerminals::FuncName => write!(f, "FuncName"),
             ChunkNonTerminals::ParList => write!(f, "ParList"),
-            ChunkNonTerminals::_Statement_Plus39 => write!(f, "Statement+"),
-            ChunkNonTerminals::_Statement_Star40 => write!(f, "Statement*"),
-            ChunkNonTerminals::_ReturnStatement_Question41 => write!(f, "ReturnStatement?"),
-            ChunkNonTerminals::_Group42 => write!(f, "(elseif_, Exp, then_, Block)"),
-            ChunkNonTerminals::__Group42_Plus43 => write!(f, "(elseif_, Exp, then_, Block)+"),
-            ChunkNonTerminals::__Group42_Star44 => write!(f, "(elseif_, Exp, then_, Block)*"),
+            ChunkNonTerminals::_Statement_Plus40 => write!(f, "Statement+"),
+            ChunkNonTerminals::_Statement_Star41 => write!(f, "Statement*"),
+            ChunkNonTerminals::_ReturnStatement_Question42 => write!(f, "ReturnStatement?"),
+            ChunkNonTerminals::_ElseIf_Plus43 => write!(f, "ElseIf+"),
+            ChunkNonTerminals::_ElseIf_Star44 => write!(f, "ElseIf*"),
             ChunkNonTerminals::_Group45 => write!(f, "(else_, Block)"),
             ChunkNonTerminals::__Group45_Question46 => write!(f, "(else_, Block)?"),
             ChunkNonTerminals::_Group47 => write!(f, "(comma, Exp)"),
@@ -311,6 +313,7 @@ impl std::fmt::Debug for ChunkNonTerminals {
             ChunkNonTerminals::Chunk => write!(f, "Chunk"),
             ChunkNonTerminals::Block => write!(f, "Block"),
             ChunkNonTerminals::Statement => write!(f, "Statement"),
+            ChunkNonTerminals::ElseIf => write!(f, "ElseIf"),
             ChunkNonTerminals::ReturnStatement => write!(f, "ReturnStatement"),
             ChunkNonTerminals::Var => write!(f, "Var"),
             ChunkNonTerminals::PrefixExp => write!(f, "PrefixExp"),
@@ -347,12 +350,11 @@ impl std::fmt::Debug for ChunkNonTerminals {
             ChunkNonTerminals::FuncName1 => write!(f, "FuncName1"),
             ChunkNonTerminals::FuncName => write!(f, "FuncName"),
             ChunkNonTerminals::ParList => write!(f, "ParList"),
-            ChunkNonTerminals::_Statement_Plus39 => write!(f, "Statement+"),
-            ChunkNonTerminals::_Statement_Star40 => write!(f, "Statement*"),
-            ChunkNonTerminals::_ReturnStatement_Question41 => write!(f, "ReturnStatement?"),
-            ChunkNonTerminals::_Group42 => write!(f, "(elseif_, Exp, then_, Block)"),
-            ChunkNonTerminals::__Group42_Plus43 => write!(f, "(elseif_, Exp, then_, Block)+"),
-            ChunkNonTerminals::__Group42_Star44 => write!(f, "(elseif_, Exp, then_, Block)*"),
+            ChunkNonTerminals::_Statement_Plus40 => write!(f, "Statement+"),
+            ChunkNonTerminals::_Statement_Star41 => write!(f, "Statement*"),
+            ChunkNonTerminals::_ReturnStatement_Question42 => write!(f, "ReturnStatement?"),
+            ChunkNonTerminals::_ElseIf_Plus43 => write!(f, "ElseIf+"),
+            ChunkNonTerminals::_ElseIf_Star44 => write!(f, "ElseIf*"),
             ChunkNonTerminals::_Group45 => write!(f, "(else_, Block)"),
             ChunkNonTerminals::__Group45_Question46 => write!(f, "(else_, Block)?"),
             ChunkNonTerminals::_Group47 => write!(f, "(comma, Exp)"),
@@ -376,29 +378,30 @@ pub enum ChunkNodeEnum {
     Terminals(Token),
     Variant2(statement::Block),
     Variant3(Statement),
-    Variant4(statement::ReturnStatement),
-    Variant5(Expression),
-    Variant6((Expression, Vec<Expression>)),
-    Variant7(Vec<Expression>),
-    Variant8(Vec<String>),
-    Variant9(statement::AttName),
-    Variant10(Vec<statement::AttName>),
-    Variant11(Option<statement::Attrib>),
-    Variant12(expression::ExprTable),
-    Variant13(Vec<expression::TableConstructorFieldBuilder>),
-    Variant14(expression::TableConstructorFieldBuilder),
-    Variant15(expression::ExprFunction),
-    Variant16(statement::FunctionName),
-    Variant17(expression::ParameterList),
-    Variant18(Vec<Statement>),
-    Variant19(Option<statement::ReturnStatement>),
-    Variant20((Expression, statement::Block)),
-    Variant21(Vec<(Expression, statement::Block)>),
-    Variant22(Option<statement::Block>),
-    Variant23(Option<Expression>),
-    Variant24(Option<Vec<Expression>>),
-    Variant25(Option<Token>),
-    Variant26(Option<expression::ParameterList>),
+    Variant4(statement::StmtElseIf),
+    Variant5(statement::ReturnStatement),
+    Variant6(Expression),
+    Variant7(expression::ExprFunctionCall),
+    Variant8(expression::FunctionCallArguments),
+    Variant9(Vec<Expression>),
+    Variant10(Vec<expression::ExprString>),
+    Variant11(statement::AttName),
+    Variant12(Vec<statement::AttName>),
+    Variant13(Option<statement::Attrib>),
+    Variant14(expression::ExprTable),
+    Variant15(Vec<expression::TableConstructorFieldBuilder>),
+    Variant16(expression::TableConstructorFieldBuilder),
+    Variant17(expression::ExprFunction),
+    Variant18(statement::FunctionName),
+    Variant19(expression::ParameterList),
+    Variant20(Vec<Statement>),
+    Variant21(Option<statement::ReturnStatement>),
+    Variant22(Vec<statement::StmtElseIf>),
+    Variant23(Option<statement::Block>),
+    Variant24(Option<Expression>),
+    Variant25(Option<Vec<Expression>>),
+    Variant26(Option<Token>),
+    Variant27(Option<expression::ParameterList>),
 }
 #[allow(
     unused_braces,
@@ -429,19 +432,36 @@ impl ChunkNodeEnum {
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
         let mut Statement =
-            if let ChunkNodeEnum::Variant18(Statement) = __rustylr_args.pop().unwrap() {
+            if let ChunkNodeEnum::Variant20(Statement) = __rustylr_args.pop().unwrap() {
                 Statement
             } else {
                 unreachable!()
             };
         let mut ReturnStatement =
-            if let ChunkNodeEnum::Variant19(ReturnStatement) = __rustylr_args.pop().unwrap() {
+            if let ChunkNodeEnum::Variant21(ReturnStatement) = __rustylr_args.pop().unwrap() {
                 ReturnStatement
             } else {
                 unreachable!()
             };
         Ok(ChunkNodeEnum::Variant2({
-            statement::Block::new(Statement, ReturnStatement)
+            let span0 = if let Some(first) = Statement.first() {
+                first.span()
+            } else {
+                Span::new_none()
+            };
+            if let Some(ret) = ReturnStatement {
+                let span1 = ret.span();
+                let span = span0.merge_ordered(&span1);
+                statement::Block::new(Statement, Some(ret), span)
+            } else {
+                let span1 = if let Some(last) = Statement.last() {
+                    last.span()
+                } else {
+                    Span::new_none()
+                };
+                let span = span0.merge_ordered(&span1);
+                statement::Block::new(Statement, None, span)
+            }
         }))
     }
     fn reduce_Statement_0(
@@ -450,8 +470,15 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        __rustylr_args.pop();
-        Ok(ChunkNodeEnum::Variant3({ Statement::None }))
+        let mut semicolon =
+            if let ChunkNodeEnum::Terminals(semicolon) = __rustylr_args.pop().unwrap() {
+                semicolon
+            } else {
+                unreachable!()
+            };
+        Ok(ChunkNodeEnum::Variant3({
+            Statement::None(statement::StmtNone::new(semicolon.span()))
+        }))
     }
     fn reduce_Statement_1(
         __rustylr_args: &mut Vec<Self>,
@@ -459,20 +486,32 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut VarList = if let ChunkNodeEnum::Variant7(VarList) = __rustylr_args.pop().unwrap() {
+        let mut VarList = if let ChunkNodeEnum::Variant9(VarList) = __rustylr_args.pop().unwrap() {
             VarList
         } else {
             unreachable!()
         };
-        __rustylr_args.pop();
-        let mut ExpList1 = if let ChunkNodeEnum::Variant7(ExpList1) = __rustylr_args.pop().unwrap()
+        let mut equal = if let ChunkNodeEnum::Terminals(equal) = __rustylr_args.pop().unwrap() {
+            equal
+        } else {
+            unreachable!()
+        };
+        let mut ExpList1 = if let ChunkNodeEnum::Variant9(ExpList1) = __rustylr_args.pop().unwrap()
         {
             ExpList1
         } else {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant3({
-            Statement::Assignment(statement::StmtAssignment::new(VarList, ExpList1))
+            let span = VarList
+                .first()
+                .unwrap()
+                .span()
+                .merge_ordered(&ExpList1.last().unwrap().span());
+            let span_eq = equal.span();
+            Statement::Assignment(statement::StmtAssignment::new(
+                VarList, ExpList1, span, span_eq,
+            ))
         }))
     }
     fn reduce_Statement_2(
@@ -482,16 +521,13 @@ impl ChunkNodeEnum {
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
         let mut FunctionCall =
-            if let ChunkNodeEnum::Variant6(FunctionCall) = __rustylr_args.pop().unwrap() {
+            if let ChunkNodeEnum::Variant7(FunctionCall) = __rustylr_args.pop().unwrap() {
                 FunctionCall
             } else {
                 unreachable!()
             };
         Ok(ChunkNodeEnum::Variant3({
-            Statement::FunctionCall(statement::StmtFunctionCall::new(
-                FunctionCall.0,
-                FunctionCall.1,
-            ))
+            Statement::FunctionCall(FunctionCall)
         }))
     }
     fn reduce_Statement_3(
@@ -500,17 +536,24 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        __rustylr_args.pop();
+        let mut c1 = if let ChunkNodeEnum::Terminals(c1) = __rustylr_args.pop().unwrap() {
+            c1
+        } else {
+            unreachable!()
+        };
         let mut ident = if let ChunkNodeEnum::Terminals(ident) = __rustylr_args.pop().unwrap() {
             ident
         } else {
             unreachable!()
         };
-        __rustylr_args.pop();
+        let mut c2 = if let ChunkNodeEnum::Terminals(c2) = __rustylr_args.pop().unwrap() {
+            c2
+        } else {
+            unreachable!()
+        };
         Ok(ChunkNodeEnum::Variant3({
-            Statement::Label(statement::StmtLabel::new(
-                ident.token_type.into_ident().unwrap(),
-            ))
+            let span = c1.span().merge_ordered(&c2.span());
+            Statement::Label(statement::StmtLabel::new(ident.into(), span))
         }))
     }
     fn reduce_Statement_4(
@@ -519,9 +562,13 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        __rustylr_args.pop();
+        let mut break_ = if let ChunkNodeEnum::Terminals(break_) = __rustylr_args.pop().unwrap() {
+            break_
+        } else {
+            unreachable!()
+        };
         Ok(ChunkNodeEnum::Variant3({
-            Statement::Break(statement::StmtBreak {})
+            Statement::Break(statement::StmtBreak::new(break_.span()))
         }))
     }
     fn reduce_Statement_5(
@@ -530,16 +577,19 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        __rustylr_args.pop();
+        let mut goto_ = if let ChunkNodeEnum::Terminals(goto_) = __rustylr_args.pop().unwrap() {
+            goto_
+        } else {
+            unreachable!()
+        };
         let mut ident = if let ChunkNodeEnum::Terminals(ident) = __rustylr_args.pop().unwrap() {
             ident
         } else {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant3({
-            Statement::Goto(statement::StmtGoto::new(
-                ident.token_type.into_ident().unwrap(),
-            ))
+            let span = goto_.span().merge_ordered(&ident.span());
+            Statement::Goto(statement::StmtGoto::new(ident.into(), span))
         }))
     }
     fn reduce_Statement_6(
@@ -548,15 +598,24 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        __rustylr_args.pop();
+        let mut do_ = if let ChunkNodeEnum::Terminals(do_) = __rustylr_args.pop().unwrap() {
+            do_
+        } else {
+            unreachable!()
+        };
         let mut Block = if let ChunkNodeEnum::Variant2(Block) = __rustylr_args.pop().unwrap() {
             Block
         } else {
             unreachable!()
         };
-        __rustylr_args.pop();
+        let mut end_ = if let ChunkNodeEnum::Terminals(end_) = __rustylr_args.pop().unwrap() {
+            end_
+        } else {
+            unreachable!()
+        };
         Ok(ChunkNodeEnum::Variant3({
-            Statement::Do(statement::StmtDo::new(Block))
+            let span = do_.span().merge_ordered(&end_.span());
+            Statement::Do(statement::StmtDo::new(Block, span))
         }))
     }
     fn reduce_Statement_7(
@@ -565,8 +624,12 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        __rustylr_args.pop();
-        let mut Exp = if let ChunkNodeEnum::Variant5(Exp) = __rustylr_args.pop().unwrap() {
+        let mut while_ = if let ChunkNodeEnum::Terminals(while_) = __rustylr_args.pop().unwrap() {
+            while_
+        } else {
+            unreachable!()
+        };
+        let mut Exp = if let ChunkNodeEnum::Variant6(Exp) = __rustylr_args.pop().unwrap() {
             Exp
         } else {
             unreachable!()
@@ -577,9 +640,14 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        __rustylr_args.pop();
+        let mut end_ = if let ChunkNodeEnum::Terminals(end_) = __rustylr_args.pop().unwrap() {
+            end_
+        } else {
+            unreachable!()
+        };
         Ok(ChunkNodeEnum::Variant3({
-            Statement::While(statement::StmtWhile::new(Exp, Block))
+            let span = while_.span().merge_ordered(&end_.span());
+            Statement::While(statement::StmtWhile::new(Exp, Block, span))
         }))
     }
     fn reduce_Statement_8(
@@ -588,20 +656,25 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        __rustylr_args.pop();
+        let mut repeat_ = if let ChunkNodeEnum::Terminals(repeat_) = __rustylr_args.pop().unwrap() {
+            repeat_
+        } else {
+            unreachable!()
+        };
         let mut Block = if let ChunkNodeEnum::Variant2(Block) = __rustylr_args.pop().unwrap() {
             Block
         } else {
             unreachable!()
         };
         __rustylr_args.pop();
-        let mut Exp = if let ChunkNodeEnum::Variant5(Exp) = __rustylr_args.pop().unwrap() {
+        let mut Exp = if let ChunkNodeEnum::Variant6(Exp) = __rustylr_args.pop().unwrap() {
             Exp
         } else {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant3({
-            Statement::Repeat(statement::StmtRepeat::new(Block, Exp))
+            let span = repeat_.span().merge_ordered(&Exp.span());
+            Statement::Repeat(statement::StmtRepeat::new(Block, Exp, span))
         }))
     }
     fn reduce_Statement_9(
@@ -610,8 +683,12 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        __rustylr_args.pop();
-        let mut Exp = if let ChunkNodeEnum::Variant5(Exp) = __rustylr_args.pop().unwrap() {
+        let mut if_ = if let ChunkNodeEnum::Terminals(if_) = __rustylr_args.pop().unwrap() {
+            if_
+        } else {
+            unreachable!()
+        };
+        let mut Exp = if let ChunkNodeEnum::Variant6(Exp) = __rustylr_args.pop().unwrap() {
             Exp
         } else {
             unreachable!()
@@ -622,19 +699,24 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        let mut elseifs = if let ChunkNodeEnum::Variant21(elseifs) = __rustylr_args.pop().unwrap() {
+        let mut elseifs = if let ChunkNodeEnum::Variant22(elseifs) = __rustylr_args.pop().unwrap() {
             elseifs
         } else {
             unreachable!()
         };
-        let mut else_ = if let ChunkNodeEnum::Variant22(else_) = __rustylr_args.pop().unwrap() {
+        let mut else_ = if let ChunkNodeEnum::Variant23(else_) = __rustylr_args.pop().unwrap() {
             else_
         } else {
             unreachable!()
         };
-        __rustylr_args.pop();
+        let mut end_ = if let ChunkNodeEnum::Terminals(end_) = __rustylr_args.pop().unwrap() {
+            end_
+        } else {
+            unreachable!()
+        };
         Ok(ChunkNodeEnum::Variant3({
-            Statement::If(statement::StmtIf::new(Exp, Block, elseifs, else_))
+            let span = if_.span().merge_ordered(&end_.span());
+            Statement::If(statement::StmtIf::new(Exp, Block, elseifs, else_, span))
         }))
     }
     fn reduce_Statement_10(
@@ -643,25 +725,29 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        __rustylr_args.pop();
+        let mut for_ = if let ChunkNodeEnum::Terminals(for_) = __rustylr_args.pop().unwrap() {
+            for_
+        } else {
+            unreachable!()
+        };
         let mut ident = if let ChunkNodeEnum::Terminals(ident) = __rustylr_args.pop().unwrap() {
             ident
         } else {
             unreachable!()
         };
         __rustylr_args.pop();
-        let mut start = if let ChunkNodeEnum::Variant5(start) = __rustylr_args.pop().unwrap() {
+        let mut start = if let ChunkNodeEnum::Variant6(start) = __rustylr_args.pop().unwrap() {
             start
         } else {
             unreachable!()
         };
         __rustylr_args.pop();
-        let mut end = if let ChunkNodeEnum::Variant5(end) = __rustylr_args.pop().unwrap() {
+        let mut end = if let ChunkNodeEnum::Variant6(end) = __rustylr_args.pop().unwrap() {
             end
         } else {
             unreachable!()
         };
-        let mut step = if let ChunkNodeEnum::Variant23(step) = __rustylr_args.pop().unwrap() {
+        let mut step = if let ChunkNodeEnum::Variant24(step) = __rustylr_args.pop().unwrap() {
             step
         } else {
             unreachable!()
@@ -672,14 +758,22 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        __rustylr_args.pop();
+        let mut end_ = if let ChunkNodeEnum::Terminals(end_) = __rustylr_args.pop().unwrap() {
+            end_
+        } else {
+            unreachable!()
+        };
         Ok(ChunkNodeEnum::Variant3({
+            let span = for_.span().merge_ordered(&end_.span());
             Statement::For(statement::StmtFor::new(
                 ident.token_type.into_ident().unwrap(),
                 start,
                 end,
-                step.unwrap_or_else(|| Expression::from(1)),
+                step.unwrap_or_else(|| {
+                    Expression::Numeric(expression::ExprNumeric::new(1.into(), Span::new_none()))
+                }),
                 Block,
+                span,
             ))
         }))
     }
@@ -689,15 +783,19 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        __rustylr_args.pop();
-        let mut NameList = if let ChunkNodeEnum::Variant8(NameList) = __rustylr_args.pop().unwrap()
+        let mut for_ = if let ChunkNodeEnum::Terminals(for_) = __rustylr_args.pop().unwrap() {
+            for_
+        } else {
+            unreachable!()
+        };
+        let mut NameList = if let ChunkNodeEnum::Variant10(NameList) = __rustylr_args.pop().unwrap()
         {
             NameList
         } else {
             unreachable!()
         };
         __rustylr_args.pop();
-        let mut ExpList1 = if let ChunkNodeEnum::Variant7(ExpList1) = __rustylr_args.pop().unwrap()
+        let mut ExpList1 = if let ChunkNodeEnum::Variant9(ExpList1) = __rustylr_args.pop().unwrap()
         {
             ExpList1
         } else {
@@ -709,9 +807,16 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        __rustylr_args.pop();
+        let mut end_ = if let ChunkNodeEnum::Terminals(end_) = __rustylr_args.pop().unwrap() {
+            end_
+        } else {
+            unreachable!()
+        };
         Ok(ChunkNodeEnum::Variant3({
-            Statement::ForGeneric(statement::StmtForGeneric::new(NameList, ExpList1, Block))
+            let span = for_.span().merge_ordered(&end_.span());
+            Statement::ForGeneric(statement::StmtForGeneric::new(
+                NameList, ExpList1, Block, span,
+            ))
         }))
     }
     fn reduce_Statement_12(
@@ -720,22 +825,28 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        __rustylr_args.pop();
-        let mut FuncName = if let ChunkNodeEnum::Variant16(FuncName) = __rustylr_args.pop().unwrap()
+        let mut function_ =
+            if let ChunkNodeEnum::Terminals(function_) = __rustylr_args.pop().unwrap() {
+                function_
+            } else {
+                unreachable!()
+            };
+        let mut FuncName = if let ChunkNodeEnum::Variant18(FuncName) = __rustylr_args.pop().unwrap()
         {
             FuncName
         } else {
             unreachable!()
         };
-        let mut FuncBody = if let ChunkNodeEnum::Variant15(FuncBody) = __rustylr_args.pop().unwrap()
+        let mut FuncBody = if let ChunkNodeEnum::Variant17(FuncBody) = __rustylr_args.pop().unwrap()
         {
             FuncBody
         } else {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant3({
+            let span = function_.span().merge_ordered(&FuncBody.span());
             Statement::FunctionDefinition(statement::StmtFunctionDefinition::new(
-                FuncName, FuncBody,
+                FuncName, FuncBody, span,
             ))
         }))
     }
@@ -745,23 +856,29 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        __rustylr_args.pop();
+        let mut local_ = if let ChunkNodeEnum::Terminals(local_) = __rustylr_args.pop().unwrap() {
+            local_
+        } else {
+            unreachable!()
+        };
         __rustylr_args.pop();
         let mut ident = if let ChunkNodeEnum::Terminals(ident) = __rustylr_args.pop().unwrap() {
             ident
         } else {
             unreachable!()
         };
-        let mut FuncBody = if let ChunkNodeEnum::Variant15(FuncBody) = __rustylr_args.pop().unwrap()
+        let mut FuncBody = if let ChunkNodeEnum::Variant17(FuncBody) = __rustylr_args.pop().unwrap()
         {
             FuncBody
         } else {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant3({
+            let span = local_.span().merge_ordered(&FuncBody.span());
             Statement::FunctionDefinitionLocal(statement::StmtFunctionDefinitionLocal::new(
-                ident.token_type.into_ident().unwrap(),
+                ident.into(),
                 FuncBody,
+                span,
             ))
         }))
     }
@@ -771,21 +888,75 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        __rustylr_args.pop();
+        let mut local_ = if let ChunkNodeEnum::Terminals(local_) = __rustylr_args.pop().unwrap() {
+            local_
+        } else {
+            unreachable!()
+        };
         let mut AttNameList =
-            if let ChunkNodeEnum::Variant10(AttNameList) = __rustylr_args.pop().unwrap() {
+            if let ChunkNodeEnum::Variant12(AttNameList) = __rustylr_args.pop().unwrap() {
                 AttNameList
             } else {
                 unreachable!()
             };
-        let mut rhs_list = if let ChunkNodeEnum::Variant24(rhs_list) = __rustylr_args.pop().unwrap()
+        let mut rhs_list = if let ChunkNodeEnum::Variant25(rhs_list) = __rustylr_args.pop().unwrap()
         {
             rhs_list
         } else {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant3({
-            Statement::LocalDeclaration(statement::StmtLocalDeclaration::new(AttNameList, rhs_list))
+            let span0 = local_.span();
+            if let Some(rhs) = rhs_list {
+                let span = span0.merge_ordered(&rhs.last().unwrap().span());
+                Statement::LocalDeclaration(statement::StmtLocalDeclaration::new(
+                    AttNameList,
+                    Some(rhs),
+                    span,
+                ))
+            } else {
+                let span = AttNameList.last().unwrap().span();
+                Statement::LocalDeclaration(statement::StmtLocalDeclaration::new(
+                    AttNameList,
+                    None,
+                    span,
+                ))
+            }
+        }))
+    }
+    fn reduce_ElseIf_0(
+        __rustylr_args: &mut Vec<Self>,
+        shift: &mut bool,
+        lookahead: &Token,
+        data: &mut (),
+    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+        let mut elseif_ = if let ChunkNodeEnum::Terminals(elseif_) = __rustylr_args.pop().unwrap() {
+            elseif_
+        } else {
+            unreachable!()
+        };
+        let mut Exp = if let ChunkNodeEnum::Variant6(Exp) = __rustylr_args.pop().unwrap() {
+            Exp
+        } else {
+            unreachable!()
+        };
+        let mut then_ = if let ChunkNodeEnum::Terminals(then_) = __rustylr_args.pop().unwrap() {
+            then_
+        } else {
+            unreachable!()
+        };
+        let mut Block = if let ChunkNodeEnum::Variant2(Block) = __rustylr_args.pop().unwrap() {
+            Block
+        } else {
+            unreachable!()
+        };
+        Ok(ChunkNodeEnum::Variant4({
+            let span = if Block.span().is_none() {
+                elseif_.span().merge_ordered(&then_.span())
+            } else {
+                elseif_.span().merge_ordered(&Block.span())
+            };
+            statement::StmtElseIf::new(Exp, Block, span)
         }))
     }
     fn reduce_ReturnStatement_0(
@@ -794,21 +965,35 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        __rustylr_args.pop();
-        let mut ExpList0 = if let ChunkNodeEnum::Variant7(ExpList0) = __rustylr_args.pop().unwrap()
+        let mut return_ = if let ChunkNodeEnum::Terminals(return_) = __rustylr_args.pop().unwrap() {
+            return_
+        } else {
+            unreachable!()
+        };
+        let mut ExpList0 = if let ChunkNodeEnum::Variant9(ExpList0) = __rustylr_args.pop().unwrap()
         {
             ExpList0
         } else {
             unreachable!()
         };
         let mut semicolon =
-            if let ChunkNodeEnum::Variant25(semicolon) = __rustylr_args.pop().unwrap() {
+            if let ChunkNodeEnum::Variant26(semicolon) = __rustylr_args.pop().unwrap() {
                 semicolon
             } else {
                 unreachable!()
             };
-        Ok(ChunkNodeEnum::Variant4({
-            statement::ReturnStatement::new(ExpList0)
+        Ok(ChunkNodeEnum::Variant5({
+            let span0 = return_.span();
+            let span = if let Some(last) = semicolon {
+                span0.merge_ordered(&last.span())
+            } else {
+                if let Some(last) = ExpList0.last() {
+                    span0.merge_ordered(&last.span())
+                } else {
+                    span0
+                }
+            };
+            statement::ReturnStatement::new(ExpList0, span)
         }))
     }
     fn reduce_Var_0(
@@ -822,9 +1007,7 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5({
-            Expression::new_ident(ident.token_type.into_ident().unwrap())
-        }))
+        Ok(ChunkNodeEnum::Variant6({ Expression::Ident(ident.into()) }))
     }
     fn reduce_Var_1(
         __rustylr_args: &mut Vec<Self>,
@@ -833,23 +1016,26 @@ impl ChunkNodeEnum {
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
         let mut PrefixExp =
-            if let ChunkNodeEnum::Variant5(PrefixExp) = __rustylr_args.pop().unwrap() {
+            if let ChunkNodeEnum::Variant6(PrefixExp) = __rustylr_args.pop().unwrap() {
                 PrefixExp
             } else {
                 unreachable!()
             };
         __rustylr_args.pop();
-        let mut Exp = if let ChunkNodeEnum::Variant5(Exp) = __rustylr_args.pop().unwrap() {
+        let mut Exp = if let ChunkNodeEnum::Variant6(Exp) = __rustylr_args.pop().unwrap() {
             Exp
         } else {
             unreachable!()
         };
-        __rustylr_args.pop();
-        Ok(ChunkNodeEnum::Variant5({
-            Expression::TableIndex(expression::ExprTableIndex {
-                table: Box::new(PrefixExp),
-                index: Box::new(Exp),
-            })
+        let mut rbracket = if let ChunkNodeEnum::Terminals(rbracket) = __rustylr_args.pop().unwrap()
+        {
+            rbracket
+        } else {
+            unreachable!()
+        };
+        Ok(ChunkNodeEnum::Variant6({
+            let span = PrefixExp.span().merge_ordered(&rbracket.span());
+            Expression::TableIndex(expression::ExprTableIndex::new(PrefixExp, Exp, span))
         }))
     }
     fn reduce_Var_2(
@@ -859,7 +1045,7 @@ impl ChunkNodeEnum {
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
         let mut PrefixExp =
-            if let ChunkNodeEnum::Variant5(PrefixExp) = __rustylr_args.pop().unwrap() {
+            if let ChunkNodeEnum::Variant6(PrefixExp) = __rustylr_args.pop().unwrap() {
                 PrefixExp
             } else {
                 unreachable!()
@@ -870,12 +1056,14 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5({
-            let member = ident.token_type.into_ident().unwrap();
-            Expression::TableIndex(expression::ExprTableIndex {
-                table: Box::new(PrefixExp),
-                index: Box::new(Expression::from(member)),
-            })
+        Ok(ChunkNodeEnum::Variant6({
+            let span = PrefixExp.span().merge_ordered(&ident.span());
+            let member = expression::ExprString::from(ident);
+            Expression::TableIndex(expression::ExprTableIndex::new(
+                PrefixExp,
+                Expression::String(member),
+                span,
+            ))
         }))
     }
     fn reduce_PrefixExp_0(
@@ -884,12 +1072,12 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Var = if let ChunkNodeEnum::Variant5(Var) = __rustylr_args.pop().unwrap() {
+        let mut Var = if let ChunkNodeEnum::Variant6(Var) = __rustylr_args.pop().unwrap() {
             Var
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5(Var))
+        Ok(ChunkNodeEnum::Variant6(Var))
     }
     fn reduce_PrefixExp_1(
         __rustylr_args: &mut Vec<Self>,
@@ -898,16 +1086,13 @@ impl ChunkNodeEnum {
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
         let mut FunctionCall =
-            if let ChunkNodeEnum::Variant6(FunctionCall) = __rustylr_args.pop().unwrap() {
+            if let ChunkNodeEnum::Variant7(FunctionCall) = __rustylr_args.pop().unwrap() {
                 FunctionCall
             } else {
                 unreachable!()
             };
-        Ok(ChunkNodeEnum::Variant5({
-            Expression::FunctionCall(expression::ExprFunctionCall::new(
-                FunctionCall.0,
-                FunctionCall.1,
-            ))
+        Ok(ChunkNodeEnum::Variant6({
+            Expression::FunctionCall(FunctionCall)
         }))
     }
     fn reduce_PrefixExp_2(
@@ -917,13 +1102,13 @@ impl ChunkNodeEnum {
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
         __rustylr_args.pop();
-        let mut Exp = if let ChunkNodeEnum::Variant5(Exp) = __rustylr_args.pop().unwrap() {
+        let mut Exp = if let ChunkNodeEnum::Variant6(Exp) = __rustylr_args.pop().unwrap() {
             Exp
         } else {
             unreachable!()
         };
         __rustylr_args.pop();
-        Ok(ChunkNodeEnum::Variant5(Exp))
+        Ok(ChunkNodeEnum::Variant6(Exp))
     }
     fn reduce_FunctionCall_0(
         __rustylr_args: &mut Vec<Self>,
@@ -932,17 +1117,20 @@ impl ChunkNodeEnum {
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
         let mut PrefixExp =
-            if let ChunkNodeEnum::Variant5(PrefixExp) = __rustylr_args.pop().unwrap() {
+            if let ChunkNodeEnum::Variant6(PrefixExp) = __rustylr_args.pop().unwrap() {
                 PrefixExp
             } else {
                 unreachable!()
             };
-        let mut Args = if let ChunkNodeEnum::Variant7(Args) = __rustylr_args.pop().unwrap() {
+        let mut Args = if let ChunkNodeEnum::Variant8(Args) = __rustylr_args.pop().unwrap() {
             Args
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant6({ (PrefixExp, Args) }))
+        Ok(ChunkNodeEnum::Variant7({
+            let span = PrefixExp.span().merge_ordered(&Args.span());
+            expression::ExprFunctionCall::new(PrefixExp, None, Args, span)
+        }))
     }
     fn reduce_FunctionCall_1(
         __rustylr_args: &mut Vec<Self>,
@@ -951,7 +1139,7 @@ impl ChunkNodeEnum {
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
         let mut PrefixExp =
-            if let ChunkNodeEnum::Variant5(PrefixExp) = __rustylr_args.pop().unwrap() {
+            if let ChunkNodeEnum::Variant6(PrefixExp) = __rustylr_args.pop().unwrap() {
                 PrefixExp
             } else {
                 unreachable!()
@@ -962,21 +1150,14 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        let mut Args = if let ChunkNodeEnum::Variant7(Args) = __rustylr_args.pop().unwrap() {
+        let mut Args = if let ChunkNodeEnum::Variant8(Args) = __rustylr_args.pop().unwrap() {
             Args
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant6({
-            let arg0 = PrefixExp.clone();
-            let mut args = Vec::with_capacity(Args.len() + 1);
-            args.push(arg0);
-            args.extend(Args);
-            let member = Expression::TableIndex(expression::ExprTableIndex::new(
-                PrefixExp,
-                Expression::from(ident.token_type.into_ident().unwrap()),
-            ));
-            (member, args)
+        Ok(ChunkNodeEnum::Variant7({
+            let span = PrefixExp.span().merge_ordered(&Args.span());
+            expression::ExprFunctionCall::new(PrefixExp, Some(ident.into()), Args, span)
         }))
     }
     fn reduce_Args_0(
@@ -985,15 +1166,26 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        __rustylr_args.pop();
-        let mut ExpList0 = if let ChunkNodeEnum::Variant7(ExpList0) = __rustylr_args.pop().unwrap()
+        let mut lparen = if let ChunkNodeEnum::Terminals(lparen) = __rustylr_args.pop().unwrap() {
+            lparen
+        } else {
+            unreachable!()
+        };
+        let mut ExpList0 = if let ChunkNodeEnum::Variant9(ExpList0) = __rustylr_args.pop().unwrap()
         {
             ExpList0
         } else {
             unreachable!()
         };
-        __rustylr_args.pop();
-        Ok(ChunkNodeEnum::Variant7(ExpList0))
+        let mut rparen = if let ChunkNodeEnum::Terminals(rparen) = __rustylr_args.pop().unwrap() {
+            rparen
+        } else {
+            unreachable!()
+        };
+        Ok(ChunkNodeEnum::Variant8({
+            let span = lparen.span().merge_ordered(&rparen.span());
+            expression::FunctionCallArguments::new(ExpList0, span)
+        }))
     }
     fn reduce_Args_1(
         __rustylr_args: &mut Vec<Self>,
@@ -1002,14 +1194,16 @@ impl ChunkNodeEnum {
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
         let mut TableConstructor =
-            if let ChunkNodeEnum::Variant12(TableConstructor) = __rustylr_args.pop().unwrap() {
+            if let ChunkNodeEnum::Variant14(TableConstructor) = __rustylr_args.pop().unwrap() {
                 TableConstructor
             } else {
                 unreachable!()
             };
-        Ok(ChunkNodeEnum::Variant7({
+        Ok(ChunkNodeEnum::Variant8({
+            let span = TableConstructor.span();
             let table_expr = Expression::Table(TableConstructor);
-            vec![table_expr]
+            let exprs = vec![table_expr];
+            expression::FunctionCallArguments::new(exprs, span)
         }))
     }
     fn reduce_Args_2(
@@ -1024,10 +1218,10 @@ impl ChunkNodeEnum {
             } else {
                 unreachable!()
             };
-        Ok(ChunkNodeEnum::Variant7({
-            vec![Expression::from(
-                string_literal.token_type.into_string().unwrap(),
-            )]
+        Ok(ChunkNodeEnum::Variant8({
+            let span = string_literal.span();
+            let exprs = vec![Expression::String(string_literal.into())];
+            expression::FunctionCallArguments::new(exprs, span)
         }))
     }
     fn reduce_VarList_0(
@@ -1036,7 +1230,7 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut VarList = if let ChunkNodeEnum::Variant7(VarList) = __rustylr_args.pop().unwrap() {
+        let mut VarList = if let ChunkNodeEnum::Variant9(VarList) = __rustylr_args.pop().unwrap() {
             VarList
         } else {
             unreachable!()
@@ -1046,12 +1240,12 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        let mut Var = if let ChunkNodeEnum::Variant5(Var) = __rustylr_args.pop().unwrap() {
+        let mut Var = if let ChunkNodeEnum::Variant6(Var) = __rustylr_args.pop().unwrap() {
             Var
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant7({
+        Ok(ChunkNodeEnum::Variant9({
             VarList.push(Var);
             VarList
         }))
@@ -1062,12 +1256,12 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Var = if let ChunkNodeEnum::Variant5(Var) = __rustylr_args.pop().unwrap() {
+        let mut Var = if let ChunkNodeEnum::Variant6(Var) = __rustylr_args.pop().unwrap() {
             Var
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant7({ vec![Var] }))
+        Ok(ChunkNodeEnum::Variant9({ vec![Var] }))
     }
     fn reduce_ExpList1_0(
         __rustylr_args: &mut Vec<Self>,
@@ -1075,7 +1269,7 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut ExpList1 = if let ChunkNodeEnum::Variant7(ExpList1) = __rustylr_args.pop().unwrap()
+        let mut ExpList1 = if let ChunkNodeEnum::Variant9(ExpList1) = __rustylr_args.pop().unwrap()
         {
             ExpList1
         } else {
@@ -1086,12 +1280,12 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        let mut Exp = if let ChunkNodeEnum::Variant5(Exp) = __rustylr_args.pop().unwrap() {
+        let mut Exp = if let ChunkNodeEnum::Variant6(Exp) = __rustylr_args.pop().unwrap() {
             Exp
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant7({
+        Ok(ChunkNodeEnum::Variant9({
             ExpList1.push(Exp);
             ExpList1
         }))
@@ -1102,12 +1296,12 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp = if let ChunkNodeEnum::Variant5(Exp) = __rustylr_args.pop().unwrap() {
+        let mut Exp = if let ChunkNodeEnum::Variant6(Exp) = __rustylr_args.pop().unwrap() {
             Exp
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant7({ vec![Exp] }))
+        Ok(ChunkNodeEnum::Variant9({ vec![Exp] }))
     }
     fn reduce_ExpList0_0(
         __rustylr_args: &mut Vec<Self>,
@@ -1115,13 +1309,13 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut ExpList1 = if let ChunkNodeEnum::Variant7(ExpList1) = __rustylr_args.pop().unwrap()
+        let mut ExpList1 = if let ChunkNodeEnum::Variant9(ExpList1) = __rustylr_args.pop().unwrap()
         {
             ExpList1
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant7({ ExpList1 }))
+        Ok(ChunkNodeEnum::Variant9({ ExpList1 }))
     }
     fn reduce_ExpList0_1(
         __rustylr_args: &mut Vec<Self>,
@@ -1129,7 +1323,7 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        Ok(ChunkNodeEnum::Variant7({ vec![] }))
+        Ok(ChunkNodeEnum::Variant9({ vec![] }))
     }
     fn reduce_NameList_0(
         __rustylr_args: &mut Vec<Self>,
@@ -1137,7 +1331,7 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut NameList = if let ChunkNodeEnum::Variant8(NameList) = __rustylr_args.pop().unwrap()
+        let mut NameList = if let ChunkNodeEnum::Variant10(NameList) = __rustylr_args.pop().unwrap()
         {
             NameList
         } else {
@@ -1149,8 +1343,8 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant8({
-            NameList.push(ident.token_type.into_ident().unwrap());
+        Ok(ChunkNodeEnum::Variant10({
+            NameList.push(ident.into());
             NameList
         }))
     }
@@ -1165,9 +1359,7 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant8({
-            vec![ident.token_type.into_ident().unwrap()]
-        }))
+        Ok(ChunkNodeEnum::Variant10({ vec![ident.into()] }))
     }
     fn reduce_AttName_0(
         __rustylr_args: &mut Vec<Self>,
@@ -1180,13 +1372,14 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        let mut Attrib = if let ChunkNodeEnum::Variant11(Attrib) = __rustylr_args.pop().unwrap() {
+        let mut Attrib = if let ChunkNodeEnum::Variant13(Attrib) = __rustylr_args.pop().unwrap() {
             Attrib
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant9({
-            statement::AttName::new(ident.token_type.into_ident().unwrap(), Attrib)
+        Ok(ChunkNodeEnum::Variant11({
+            let span = ident.span();
+            statement::AttName::new(ident.into(), Attrib, span)
         }))
     }
     fn reduce_AttNameList_0(
@@ -1196,18 +1389,18 @@ impl ChunkNodeEnum {
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
         let mut AttNameList =
-            if let ChunkNodeEnum::Variant10(AttNameList) = __rustylr_args.pop().unwrap() {
+            if let ChunkNodeEnum::Variant12(AttNameList) = __rustylr_args.pop().unwrap() {
                 AttNameList
             } else {
                 unreachable!()
             };
         __rustylr_args.pop();
-        let mut AttName = if let ChunkNodeEnum::Variant9(AttName) = __rustylr_args.pop().unwrap() {
+        let mut AttName = if let ChunkNodeEnum::Variant11(AttName) = __rustylr_args.pop().unwrap() {
             AttName
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant10({
+        Ok(ChunkNodeEnum::Variant12({
             AttNameList.push(AttName);
             AttNameList
         }))
@@ -1218,12 +1411,12 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut AttName = if let ChunkNodeEnum::Variant9(AttName) = __rustylr_args.pop().unwrap() {
+        let mut AttName = if let ChunkNodeEnum::Variant11(AttName) = __rustylr_args.pop().unwrap() {
             AttName
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant10({ vec![AttName] }))
+        Ok(ChunkNodeEnum::Variant12({ vec![AttName] }))
     }
     fn reduce_Attrib_0(
         __rustylr_args: &mut Vec<Self>,
@@ -1238,12 +1431,14 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         __rustylr_args.pop();
-        Ok(ChunkNodeEnum::Variant11({
+        Ok(ChunkNodeEnum::Variant13({
             let s = ident.token_type.into_ident().unwrap();
             match s.as_str() {
                 "const" => Some(statement::Attrib::Const),
                 "close" => Some(statement::Attrib::Close),
-                _ => Some(statement::Attrib::Const),
+                _ => {
+                    panic!("unknown attribute: {}", s);
+                }
             }
         }))
     }
@@ -1253,7 +1448,7 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        Ok(ChunkNodeEnum::Variant11({ None }))
+        Ok(ChunkNodeEnum::Variant13({ None }))
     }
     fn reduce_Exp_0(
         __rustylr_args: &mut Vec<Self>,
@@ -1261,12 +1456,12 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp12 = if let ChunkNodeEnum::Variant5(Exp12) = __rustylr_args.pop().unwrap() {
+        let mut Exp12 = if let ChunkNodeEnum::Variant6(Exp12) = __rustylr_args.pop().unwrap() {
             Exp12
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5(Exp12))
+        Ok(ChunkNodeEnum::Variant6(Exp12))
     }
     fn reduce_Exp0_0(
         __rustylr_args: &mut Vec<Self>,
@@ -1280,8 +1475,8 @@ impl ChunkNodeEnum {
             } else {
                 unreachable!()
             };
-        Ok(ChunkNodeEnum::Variant5({
-            Expression::from(numeric_literal.token_type.into_numeric().unwrap())
+        Ok(ChunkNodeEnum::Variant6({
+            Expression::Numeric(numeric_literal.into())
         }))
     }
     fn reduce_Exp0_1(
@@ -1295,9 +1490,7 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5({
-            Expression::Nil(expression::ExprNil)
-        }))
+        Ok(ChunkNodeEnum::Variant6({ Expression::Nil(nil.into()) }))
     }
     fn reduce_Exp0_2(
         __rustylr_args: &mut Vec<Self>,
@@ -1311,8 +1504,8 @@ impl ChunkNodeEnum {
             } else {
                 unreachable!()
             };
-        Ok(ChunkNodeEnum::Variant5({
-            Expression::from(string_literal.token_type.into_string().unwrap())
+        Ok(ChunkNodeEnum::Variant6({
+            Expression::String(string_literal.into())
         }))
     }
     fn reduce_Exp0_3(
@@ -1326,9 +1519,7 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5({
-            Expression::from(bool_.token_type.into_bool().unwrap())
-        }))
+        Ok(ChunkNodeEnum::Variant6({ Expression::Bool(bool_.into()) }))
     }
     fn reduce_Exp0_4(
         __rustylr_args: &mut Vec<Self>,
@@ -1342,7 +1533,9 @@ impl ChunkNodeEnum {
             } else {
                 unreachable!()
             };
-        Ok(ChunkNodeEnum::Variant5({ Expression::Variadic }))
+        Ok(ChunkNodeEnum::Variant6({
+            Expression::Variadic(dotdotdot.into())
+        }))
     }
     fn reduce_Exp0_5(
         __rustylr_args: &mut Vec<Self>,
@@ -1351,12 +1544,12 @@ impl ChunkNodeEnum {
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
         let mut FunctionDef =
-            if let ChunkNodeEnum::Variant15(FunctionDef) = __rustylr_args.pop().unwrap() {
+            if let ChunkNodeEnum::Variant17(FunctionDef) = __rustylr_args.pop().unwrap() {
                 FunctionDef
             } else {
                 unreachable!()
             };
-        Ok(ChunkNodeEnum::Variant5({
+        Ok(ChunkNodeEnum::Variant6({
             Expression::Function(FunctionDef)
         }))
     }
@@ -1367,12 +1560,12 @@ impl ChunkNodeEnum {
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
         let mut PrefixExp =
-            if let ChunkNodeEnum::Variant5(PrefixExp) = __rustylr_args.pop().unwrap() {
+            if let ChunkNodeEnum::Variant6(PrefixExp) = __rustylr_args.pop().unwrap() {
                 PrefixExp
             } else {
                 unreachable!()
             };
-        Ok(ChunkNodeEnum::Variant5(PrefixExp))
+        Ok(ChunkNodeEnum::Variant6(PrefixExp))
     }
     fn reduce_Exp0_7(
         __rustylr_args: &mut Vec<Self>,
@@ -1381,12 +1574,12 @@ impl ChunkNodeEnum {
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
         let mut TableConstructor =
-            if let ChunkNodeEnum::Variant12(TableConstructor) = __rustylr_args.pop().unwrap() {
+            if let ChunkNodeEnum::Variant14(TableConstructor) = __rustylr_args.pop().unwrap() {
                 TableConstructor
             } else {
                 unreachable!()
             };
-        Ok(ChunkNodeEnum::Variant5({
+        Ok(ChunkNodeEnum::Variant6({
             Expression::Table(TableConstructor)
         }))
     }
@@ -1396,7 +1589,7 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp0 = if let ChunkNodeEnum::Variant5(Exp0) = __rustylr_args.pop().unwrap() {
+        let mut Exp0 = if let ChunkNodeEnum::Variant6(Exp0) = __rustylr_args.pop().unwrap() {
             Exp0
         } else {
             unreachable!()
@@ -1406,13 +1599,16 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        let mut Exp1 = if let ChunkNodeEnum::Variant5(Exp1) = __rustylr_args.pop().unwrap() {
+        let mut Exp1 = if let ChunkNodeEnum::Variant6(Exp1) = __rustylr_args.pop().unwrap() {
             Exp1
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::ExprBinary::Pow(Box::new(Exp0), Box::new(Exp1)))
+        Ok(ChunkNodeEnum::Variant6({
+            let span = Exp0.span().merge_ordered(&Exp1.span());
+            let span_op = caret.span();
+            let binary_data = expression::ExprBinaryData::new(Exp0, Exp1, span, span_op);
+            Expression::Binary(expression::ExprBinary::Pow(binary_data))
         }))
     }
     fn reduce_Exp1_1(
@@ -1421,12 +1617,12 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp0 = if let ChunkNodeEnum::Variant5(Exp0) = __rustylr_args.pop().unwrap() {
+        let mut Exp0 = if let ChunkNodeEnum::Variant6(Exp0) = __rustylr_args.pop().unwrap() {
             Exp0
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5(Exp0))
+        Ok(ChunkNodeEnum::Variant6(Exp0))
     }
     fn reduce_Exp2_0(
         __rustylr_args: &mut Vec<Self>,
@@ -1439,13 +1635,16 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        let mut Exp2 = if let ChunkNodeEnum::Variant5(Exp2) = __rustylr_args.pop().unwrap() {
+        let mut Exp2 = if let ChunkNodeEnum::Variant6(Exp2) = __rustylr_args.pop().unwrap() {
             Exp2
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5({
-            Expression::Unary(expression::ExprUnary::LogicalNot(Box::new(Exp2)))
+        Ok(ChunkNodeEnum::Variant6({
+            let span = not_.span().merge_ordered(&Exp2.span());
+            let span_op = not_.span();
+            let unary_data = expression::ExprUnaryData::new(Exp2, span, span_op);
+            Expression::Unary(expression::ExprUnary::LogicalNot(unary_data))
         }))
     }
     fn reduce_Exp2_1(
@@ -1459,13 +1658,16 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        let mut Exp2 = if let ChunkNodeEnum::Variant5(Exp2) = __rustylr_args.pop().unwrap() {
+        let mut Exp2 = if let ChunkNodeEnum::Variant6(Exp2) = __rustylr_args.pop().unwrap() {
             Exp2
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5({
-            Expression::Unary(expression::ExprUnary::Length(Box::new(Exp2)))
+        Ok(ChunkNodeEnum::Variant6({
+            let span = hash.span().merge_ordered(&Exp2.span());
+            let span_op = hash.span();
+            let unary_data = expression::ExprUnaryData::new(Exp2, span, span_op);
+            Expression::Unary(expression::ExprUnary::Length(unary_data))
         }))
     }
     fn reduce_Exp2_2(
@@ -1479,16 +1681,42 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        let mut Exp2 = if let ChunkNodeEnum::Variant5(Exp2) = __rustylr_args.pop().unwrap() {
+        let mut Exp2 = if let ChunkNodeEnum::Variant6(Exp2) = __rustylr_args.pop().unwrap() {
             Exp2
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5({
-            Expression::Unary(expression::ExprUnary::Minus(Box::new(Exp2)))
+        Ok(ChunkNodeEnum::Variant6({
+            let span = minus.span().merge_ordered(&Exp2.span());
+            let span_op = minus.span();
+            let unary_data = expression::ExprUnaryData::new(Exp2, span, span_op);
+            Expression::Unary(expression::ExprUnary::Minus(unary_data))
         }))
     }
     fn reduce_Exp2_3(
+        __rustylr_args: &mut Vec<Self>,
+        shift: &mut bool,
+        lookahead: &Token,
+        data: &mut (),
+    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+        let mut plus = if let ChunkNodeEnum::Terminals(plus) = __rustylr_args.pop().unwrap() {
+            plus
+        } else {
+            unreachable!()
+        };
+        let mut Exp2 = if let ChunkNodeEnum::Variant6(Exp2) = __rustylr_args.pop().unwrap() {
+            Exp2
+        } else {
+            unreachable!()
+        };
+        Ok(ChunkNodeEnum::Variant6({
+            let span = plus.span().merge_ordered(&Exp2.span());
+            let span_op = plus.span();
+            let unary_data = expression::ExprUnaryData::new(Exp2, span, span_op);
+            Expression::Unary(expression::ExprUnary::Plus(unary_data))
+        }))
+    }
+    fn reduce_Exp2_4(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -1499,27 +1727,30 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        let mut Exp2 = if let ChunkNodeEnum::Variant5(Exp2) = __rustylr_args.pop().unwrap() {
+        let mut Exp2 = if let ChunkNodeEnum::Variant6(Exp2) = __rustylr_args.pop().unwrap() {
             Exp2
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5({
-            Expression::Unary(expression::ExprUnary::BitwiseNot(Box::new(Exp2)))
+        Ok(ChunkNodeEnum::Variant6({
+            let span = tilde.span().merge_ordered(&Exp2.span());
+            let span_op = tilde.span();
+            let unary_data = expression::ExprUnaryData::new(Exp2, span, span_op);
+            Expression::Unary(expression::ExprUnary::BitwiseNot(unary_data))
         }))
     }
-    fn reduce_Exp2_4(
+    fn reduce_Exp2_5(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp1 = if let ChunkNodeEnum::Variant5(Exp1) = __rustylr_args.pop().unwrap() {
+        let mut Exp1 = if let ChunkNodeEnum::Variant6(Exp1) = __rustylr_args.pop().unwrap() {
             Exp1
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5(Exp1))
+        Ok(ChunkNodeEnum::Variant6(Exp1))
     }
     fn reduce_Exp3_0(
         __rustylr_args: &mut Vec<Self>,
@@ -1527,7 +1758,7 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp3 = if let ChunkNodeEnum::Variant5(Exp3) = __rustylr_args.pop().unwrap() {
+        let mut Exp3 = if let ChunkNodeEnum::Variant6(Exp3) = __rustylr_args.pop().unwrap() {
             Exp3
         } else {
             unreachable!()
@@ -1538,13 +1769,16 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        let mut Exp2 = if let ChunkNodeEnum::Variant5(Exp2) = __rustylr_args.pop().unwrap() {
+        let mut Exp2 = if let ChunkNodeEnum::Variant6(Exp2) = __rustylr_args.pop().unwrap() {
             Exp2
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::ExprBinary::Mul(Box::new(Exp3), Box::new(Exp2)))
+        Ok(ChunkNodeEnum::Variant6({
+            let span = Exp3.span().merge_ordered(&Exp2.span());
+            let span_op = asterisk.span();
+            let binary_data = expression::ExprBinaryData::new(Exp3, Exp2, span, span_op);
+            Expression::Binary(expression::ExprBinary::Mul(binary_data))
         }))
     }
     fn reduce_Exp3_1(
@@ -1553,7 +1787,7 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp3 = if let ChunkNodeEnum::Variant5(Exp3) = __rustylr_args.pop().unwrap() {
+        let mut Exp3 = if let ChunkNodeEnum::Variant6(Exp3) = __rustylr_args.pop().unwrap() {
             Exp3
         } else {
             unreachable!()
@@ -1563,13 +1797,16 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        let mut Exp2 = if let ChunkNodeEnum::Variant5(Exp2) = __rustylr_args.pop().unwrap() {
+        let mut Exp2 = if let ChunkNodeEnum::Variant6(Exp2) = __rustylr_args.pop().unwrap() {
             Exp2
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::ExprBinary::Div(Box::new(Exp3), Box::new(Exp2)))
+        Ok(ChunkNodeEnum::Variant6({
+            let span = Exp3.span().merge_ordered(&Exp2.span());
+            let span_op = slash.span();
+            let binary_data = expression::ExprBinaryData::new(Exp3, Exp2, span, span_op);
+            Expression::Binary(expression::ExprBinary::Div(binary_data))
         }))
     }
     fn reduce_Exp3_2(
@@ -1578,7 +1815,7 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp3 = if let ChunkNodeEnum::Variant5(Exp3) = __rustylr_args.pop().unwrap() {
+        let mut Exp3 = if let ChunkNodeEnum::Variant6(Exp3) = __rustylr_args.pop().unwrap() {
             Exp3
         } else {
             unreachable!()
@@ -1589,16 +1826,16 @@ impl ChunkNodeEnum {
             } else {
                 unreachable!()
             };
-        let mut Exp2 = if let ChunkNodeEnum::Variant5(Exp2) = __rustylr_args.pop().unwrap() {
+        let mut Exp2 = if let ChunkNodeEnum::Variant6(Exp2) = __rustylr_args.pop().unwrap() {
             Exp2
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::ExprBinary::FloorDiv(
-                Box::new(Exp3),
-                Box::new(Exp2),
-            ))
+        Ok(ChunkNodeEnum::Variant6({
+            let span = Exp3.span().merge_ordered(&Exp2.span());
+            let span_op = slashslash.span();
+            let binary_data = expression::ExprBinaryData::new(Exp3, Exp2, span, span_op);
+            Expression::Binary(expression::ExprBinary::FloorDiv(binary_data))
         }))
     }
     fn reduce_Exp3_3(
@@ -1607,7 +1844,7 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp3 = if let ChunkNodeEnum::Variant5(Exp3) = __rustylr_args.pop().unwrap() {
+        let mut Exp3 = if let ChunkNodeEnum::Variant6(Exp3) = __rustylr_args.pop().unwrap() {
             Exp3
         } else {
             unreachable!()
@@ -1617,13 +1854,16 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        let mut Exp2 = if let ChunkNodeEnum::Variant5(Exp2) = __rustylr_args.pop().unwrap() {
+        let mut Exp2 = if let ChunkNodeEnum::Variant6(Exp2) = __rustylr_args.pop().unwrap() {
             Exp2
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::ExprBinary::Mod(Box::new(Exp3), Box::new(Exp2)))
+        Ok(ChunkNodeEnum::Variant6({
+            let span = Exp3.span().merge_ordered(&Exp2.span());
+            let span_op = percent.span();
+            let binary_data = expression::ExprBinaryData::new(Exp3, Exp2, span, span_op);
+            Expression::Binary(expression::ExprBinary::Mod(binary_data))
         }))
     }
     fn reduce_Exp3_4(
@@ -1632,12 +1872,12 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp2 = if let ChunkNodeEnum::Variant5(Exp2) = __rustylr_args.pop().unwrap() {
+        let mut Exp2 = if let ChunkNodeEnum::Variant6(Exp2) = __rustylr_args.pop().unwrap() {
             Exp2
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5(Exp2))
+        Ok(ChunkNodeEnum::Variant6(Exp2))
     }
     fn reduce_Exp4_0(
         __rustylr_args: &mut Vec<Self>,
@@ -1645,7 +1885,7 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp4 = if let ChunkNodeEnum::Variant5(Exp4) = __rustylr_args.pop().unwrap() {
+        let mut Exp4 = if let ChunkNodeEnum::Variant6(Exp4) = __rustylr_args.pop().unwrap() {
             Exp4
         } else {
             unreachable!()
@@ -1655,13 +1895,16 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        let mut Exp3 = if let ChunkNodeEnum::Variant5(Exp3) = __rustylr_args.pop().unwrap() {
+        let mut Exp3 = if let ChunkNodeEnum::Variant6(Exp3) = __rustylr_args.pop().unwrap() {
             Exp3
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::ExprBinary::Add(Box::new(Exp4), Box::new(Exp3)))
+        Ok(ChunkNodeEnum::Variant6({
+            let span = Exp4.span().merge_ordered(&Exp3.span());
+            let span_op = plus.span();
+            let binary_data = expression::ExprBinaryData::new(Exp4, Exp3, span, span_op);
+            Expression::Binary(expression::ExprBinary::Add(binary_data))
         }))
     }
     fn reduce_Exp4_1(
@@ -1670,7 +1913,7 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp4 = if let ChunkNodeEnum::Variant5(Exp4) = __rustylr_args.pop().unwrap() {
+        let mut Exp4 = if let ChunkNodeEnum::Variant6(Exp4) = __rustylr_args.pop().unwrap() {
             Exp4
         } else {
             unreachable!()
@@ -1680,13 +1923,16 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        let mut Exp3 = if let ChunkNodeEnum::Variant5(Exp3) = __rustylr_args.pop().unwrap() {
+        let mut Exp3 = if let ChunkNodeEnum::Variant6(Exp3) = __rustylr_args.pop().unwrap() {
             Exp3
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::ExprBinary::Sub(Box::new(Exp4), Box::new(Exp3)))
+        Ok(ChunkNodeEnum::Variant6({
+            let span = Exp4.span().merge_ordered(&Exp3.span());
+            let span_op = minus.span();
+            let binary_data = expression::ExprBinaryData::new(Exp4, Exp3, span, span_op);
+            Expression::Binary(expression::ExprBinary::Sub(binary_data))
         }))
     }
     fn reduce_Exp4_2(
@@ -1695,12 +1941,12 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp3 = if let ChunkNodeEnum::Variant5(Exp3) = __rustylr_args.pop().unwrap() {
+        let mut Exp3 = if let ChunkNodeEnum::Variant6(Exp3) = __rustylr_args.pop().unwrap() {
             Exp3
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5(Exp3))
+        Ok(ChunkNodeEnum::Variant6(Exp3))
     }
     fn reduce_Exp5_0(
         __rustylr_args: &mut Vec<Self>,
@@ -1708,7 +1954,7 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp4 = if let ChunkNodeEnum::Variant5(Exp4) = __rustylr_args.pop().unwrap() {
+        let mut Exp4 = if let ChunkNodeEnum::Variant6(Exp4) = __rustylr_args.pop().unwrap() {
             Exp4
         } else {
             unreachable!()
@@ -1718,16 +1964,16 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        let mut Exp5 = if let ChunkNodeEnum::Variant5(Exp5) = __rustylr_args.pop().unwrap() {
+        let mut Exp5 = if let ChunkNodeEnum::Variant6(Exp5) = __rustylr_args.pop().unwrap() {
             Exp5
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::ExprBinary::Concat(
-                Box::new(Exp4),
-                Box::new(Exp5),
-            ))
+        Ok(ChunkNodeEnum::Variant6({
+            let span = Exp4.span().merge_ordered(&Exp5.span());
+            let span_op = dotdot.span();
+            let binary_data = expression::ExprBinaryData::new(Exp4, Exp5, span, span_op);
+            Expression::Binary(expression::ExprBinary::Concat(binary_data))
         }))
     }
     fn reduce_Exp5_1(
@@ -1736,12 +1982,12 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp4 = if let ChunkNodeEnum::Variant5(Exp4) = __rustylr_args.pop().unwrap() {
+        let mut Exp4 = if let ChunkNodeEnum::Variant6(Exp4) = __rustylr_args.pop().unwrap() {
             Exp4
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5(Exp4))
+        Ok(ChunkNodeEnum::Variant6(Exp4))
     }
     fn reduce_Exp6_0(
         __rustylr_args: &mut Vec<Self>,
@@ -1749,7 +1995,7 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp6 = if let ChunkNodeEnum::Variant5(Exp6) = __rustylr_args.pop().unwrap() {
+        let mut Exp6 = if let ChunkNodeEnum::Variant6(Exp6) = __rustylr_args.pop().unwrap() {
             Exp6
         } else {
             unreachable!()
@@ -1760,16 +2006,16 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        let mut Exp5 = if let ChunkNodeEnum::Variant5(Exp5) = __rustylr_args.pop().unwrap() {
+        let mut Exp5 = if let ChunkNodeEnum::Variant6(Exp5) = __rustylr_args.pop().unwrap() {
             Exp5
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::ExprBinary::ShiftLeft(
-                Box::new(Exp6),
-                Box::new(Exp5),
-            ))
+        Ok(ChunkNodeEnum::Variant6({
+            let span = Exp6.span().merge_ordered(&Exp5.span());
+            let span_op = lessless.span();
+            let binary_data = expression::ExprBinaryData::new(Exp6, Exp5, span, span_op);
+            Expression::Binary(expression::ExprBinary::ShiftLeft(binary_data))
         }))
     }
     fn reduce_Exp6_1(
@@ -1778,7 +2024,7 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp6 = if let ChunkNodeEnum::Variant5(Exp6) = __rustylr_args.pop().unwrap() {
+        let mut Exp6 = if let ChunkNodeEnum::Variant6(Exp6) = __rustylr_args.pop().unwrap() {
             Exp6
         } else {
             unreachable!()
@@ -1789,16 +2035,16 @@ impl ChunkNodeEnum {
             } else {
                 unreachable!()
             };
-        let mut Exp5 = if let ChunkNodeEnum::Variant5(Exp5) = __rustylr_args.pop().unwrap() {
+        let mut Exp5 = if let ChunkNodeEnum::Variant6(Exp5) = __rustylr_args.pop().unwrap() {
             Exp5
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::ExprBinary::ShiftRight(
-                Box::new(Exp6),
-                Box::new(Exp5),
-            ))
+        Ok(ChunkNodeEnum::Variant6({
+            let span = Exp6.span().merge_ordered(&Exp5.span());
+            let span_op = greatergreater.span();
+            let binary_data = expression::ExprBinaryData::new(Exp6, Exp5, span, span_op);
+            Expression::Binary(expression::ExprBinary::ShiftRight(binary_data))
         }))
     }
     fn reduce_Exp6_2(
@@ -1807,12 +2053,12 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp5 = if let ChunkNodeEnum::Variant5(Exp5) = __rustylr_args.pop().unwrap() {
+        let mut Exp5 = if let ChunkNodeEnum::Variant6(Exp5) = __rustylr_args.pop().unwrap() {
             Exp5
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5(Exp5))
+        Ok(ChunkNodeEnum::Variant6(Exp5))
     }
     fn reduce_Exp7_0(
         __rustylr_args: &mut Vec<Self>,
@@ -1820,7 +2066,7 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp7 = if let ChunkNodeEnum::Variant5(Exp7) = __rustylr_args.pop().unwrap() {
+        let mut Exp7 = if let ChunkNodeEnum::Variant6(Exp7) = __rustylr_args.pop().unwrap() {
             Exp7
         } else {
             unreachable!()
@@ -1831,16 +2077,16 @@ impl ChunkNodeEnum {
             } else {
                 unreachable!()
             };
-        let mut Exp6 = if let ChunkNodeEnum::Variant5(Exp6) = __rustylr_args.pop().unwrap() {
+        let mut Exp6 = if let ChunkNodeEnum::Variant6(Exp6) = __rustylr_args.pop().unwrap() {
             Exp6
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::ExprBinary::BitwiseAnd(
-                Box::new(Exp7),
-                Box::new(Exp6),
-            ))
+        Ok(ChunkNodeEnum::Variant6({
+            let span = Exp7.span().merge_ordered(&Exp6.span());
+            let span_op = ampersand.span();
+            let binary_data = expression::ExprBinaryData::new(Exp7, Exp6, span, span_op);
+            Expression::Binary(expression::ExprBinary::BitwiseAnd(binary_data))
         }))
     }
     fn reduce_Exp7_1(
@@ -1849,12 +2095,12 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp6 = if let ChunkNodeEnum::Variant5(Exp6) = __rustylr_args.pop().unwrap() {
+        let mut Exp6 = if let ChunkNodeEnum::Variant6(Exp6) = __rustylr_args.pop().unwrap() {
             Exp6
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5(Exp6))
+        Ok(ChunkNodeEnum::Variant6(Exp6))
     }
     fn reduce_Exp8_0(
         __rustylr_args: &mut Vec<Self>,
@@ -1862,7 +2108,7 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp8 = if let ChunkNodeEnum::Variant5(Exp8) = __rustylr_args.pop().unwrap() {
+        let mut Exp8 = if let ChunkNodeEnum::Variant6(Exp8) = __rustylr_args.pop().unwrap() {
             Exp8
         } else {
             unreachable!()
@@ -1872,16 +2118,16 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        let mut Exp7 = if let ChunkNodeEnum::Variant5(Exp7) = __rustylr_args.pop().unwrap() {
+        let mut Exp7 = if let ChunkNodeEnum::Variant6(Exp7) = __rustylr_args.pop().unwrap() {
             Exp7
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::ExprBinary::BitwiseXor(
-                Box::new(Exp8),
-                Box::new(Exp7),
-            ))
+        Ok(ChunkNodeEnum::Variant6({
+            let span = Exp8.span().merge_ordered(&Exp7.span());
+            let span_op = tilde.span();
+            let binary_data = expression::ExprBinaryData::new(Exp8, Exp7, span, span_op);
+            Expression::Binary(expression::ExprBinary::BitwiseXor(binary_data))
         }))
     }
     fn reduce_Exp8_1(
@@ -1890,12 +2136,12 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp7 = if let ChunkNodeEnum::Variant5(Exp7) = __rustylr_args.pop().unwrap() {
+        let mut Exp7 = if let ChunkNodeEnum::Variant6(Exp7) = __rustylr_args.pop().unwrap() {
             Exp7
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5(Exp7))
+        Ok(ChunkNodeEnum::Variant6(Exp7))
     }
     fn reduce_Exp9_0(
         __rustylr_args: &mut Vec<Self>,
@@ -1903,7 +2149,7 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp9 = if let ChunkNodeEnum::Variant5(Exp9) = __rustylr_args.pop().unwrap() {
+        let mut Exp9 = if let ChunkNodeEnum::Variant6(Exp9) = __rustylr_args.pop().unwrap() {
             Exp9
         } else {
             unreachable!()
@@ -1913,16 +2159,16 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        let mut Exp8 = if let ChunkNodeEnum::Variant5(Exp8) = __rustylr_args.pop().unwrap() {
+        let mut Exp8 = if let ChunkNodeEnum::Variant6(Exp8) = __rustylr_args.pop().unwrap() {
             Exp8
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::ExprBinary::BitwiseOr(
-                Box::new(Exp9),
-                Box::new(Exp8),
-            ))
+        Ok(ChunkNodeEnum::Variant6({
+            let span = Exp9.span().merge_ordered(&Exp8.span());
+            let span_op = pipe.span();
+            let binary_data = expression::ExprBinaryData::new(Exp9, Exp8, span, span_op);
+            Expression::Binary(expression::ExprBinary::BitwiseOr(binary_data))
         }))
     }
     fn reduce_Exp9_1(
@@ -1931,12 +2177,12 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp8 = if let ChunkNodeEnum::Variant5(Exp8) = __rustylr_args.pop().unwrap() {
+        let mut Exp8 = if let ChunkNodeEnum::Variant6(Exp8) = __rustylr_args.pop().unwrap() {
             Exp8
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5(Exp8))
+        Ok(ChunkNodeEnum::Variant6(Exp8))
     }
     fn reduce_Exp10_0(
         __rustylr_args: &mut Vec<Self>,
@@ -1944,7 +2190,7 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp10 = if let ChunkNodeEnum::Variant5(Exp10) = __rustylr_args.pop().unwrap() {
+        let mut Exp10 = if let ChunkNodeEnum::Variant6(Exp10) = __rustylr_args.pop().unwrap() {
             Exp10
         } else {
             unreachable!()
@@ -1954,16 +2200,16 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        let mut Exp9 = if let ChunkNodeEnum::Variant5(Exp9) = __rustylr_args.pop().unwrap() {
+        let mut Exp9 = if let ChunkNodeEnum::Variant6(Exp9) = __rustylr_args.pop().unwrap() {
             Exp9
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::ExprBinary::LessThan(
-                Box::new(Exp10),
-                Box::new(Exp9),
-            ))
+        Ok(ChunkNodeEnum::Variant6({
+            let span = Exp10.span().merge_ordered(&Exp9.span());
+            let span_op = less.span();
+            let binary_data = expression::ExprBinaryData::new(Exp10, Exp9, span, span_op);
+            Expression::Binary(expression::ExprBinary::LessThan(binary_data))
         }))
     }
     fn reduce_Exp10_1(
@@ -1972,7 +2218,7 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp10 = if let ChunkNodeEnum::Variant5(Exp10) = __rustylr_args.pop().unwrap() {
+        let mut Exp10 = if let ChunkNodeEnum::Variant6(Exp10) = __rustylr_args.pop().unwrap() {
             Exp10
         } else {
             unreachable!()
@@ -1983,16 +2229,16 @@ impl ChunkNodeEnum {
             } else {
                 unreachable!()
             };
-        let mut Exp9 = if let ChunkNodeEnum::Variant5(Exp9) = __rustylr_args.pop().unwrap() {
+        let mut Exp9 = if let ChunkNodeEnum::Variant6(Exp9) = __rustylr_args.pop().unwrap() {
             Exp9
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::ExprBinary::LessEqual(
-                Box::new(Exp10),
-                Box::new(Exp9),
-            ))
+        Ok(ChunkNodeEnum::Variant6({
+            let span = Exp10.span().merge_ordered(&Exp9.span());
+            let span_op = lessequal.span();
+            let binary_data = expression::ExprBinaryData::new(Exp10, Exp9, span, span_op);
+            Expression::Binary(expression::ExprBinary::LessEqual(binary_data))
         }))
     }
     fn reduce_Exp10_2(
@@ -2001,7 +2247,7 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp10 = if let ChunkNodeEnum::Variant5(Exp10) = __rustylr_args.pop().unwrap() {
+        let mut Exp10 = if let ChunkNodeEnum::Variant6(Exp10) = __rustylr_args.pop().unwrap() {
             Exp10
         } else {
             unreachable!()
@@ -2011,16 +2257,16 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        let mut Exp9 = if let ChunkNodeEnum::Variant5(Exp9) = __rustylr_args.pop().unwrap() {
+        let mut Exp9 = if let ChunkNodeEnum::Variant6(Exp9) = __rustylr_args.pop().unwrap() {
             Exp9
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::ExprBinary::GreaterThan(
-                Box::new(Exp10),
-                Box::new(Exp9),
-            ))
+        Ok(ChunkNodeEnum::Variant6({
+            let span = Exp10.span().merge_ordered(&Exp9.span());
+            let span_op = greater.span();
+            let binary_data = expression::ExprBinaryData::new(Exp10, Exp9, span, span_op);
+            Expression::Binary(expression::ExprBinary::GreaterThan(binary_data))
         }))
     }
     fn reduce_Exp10_3(
@@ -2029,7 +2275,7 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp10 = if let ChunkNodeEnum::Variant5(Exp10) = __rustylr_args.pop().unwrap() {
+        let mut Exp10 = if let ChunkNodeEnum::Variant6(Exp10) = __rustylr_args.pop().unwrap() {
             Exp10
         } else {
             unreachable!()
@@ -2040,16 +2286,16 @@ impl ChunkNodeEnum {
             } else {
                 unreachable!()
             };
-        let mut Exp9 = if let ChunkNodeEnum::Variant5(Exp9) = __rustylr_args.pop().unwrap() {
+        let mut Exp9 = if let ChunkNodeEnum::Variant6(Exp9) = __rustylr_args.pop().unwrap() {
             Exp9
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::ExprBinary::GreaterEqual(
-                Box::new(Exp10),
-                Box::new(Exp9),
-            ))
+        Ok(ChunkNodeEnum::Variant6({
+            let span = Exp10.span().merge_ordered(&Exp9.span());
+            let span_op = greaterequal.span();
+            let binary_data = expression::ExprBinaryData::new(Exp10, Exp9, span, span_op);
+            Expression::Binary(expression::ExprBinary::GreaterEqual(binary_data))
         }))
     }
     fn reduce_Exp10_4(
@@ -2058,7 +2304,7 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp10 = if let ChunkNodeEnum::Variant5(Exp10) = __rustylr_args.pop().unwrap() {
+        let mut Exp10 = if let ChunkNodeEnum::Variant6(Exp10) = __rustylr_args.pop().unwrap() {
             Exp10
         } else {
             unreachable!()
@@ -2069,16 +2315,16 @@ impl ChunkNodeEnum {
             } else {
                 unreachable!()
             };
-        let mut Exp9 = if let ChunkNodeEnum::Variant5(Exp9) = __rustylr_args.pop().unwrap() {
+        let mut Exp9 = if let ChunkNodeEnum::Variant6(Exp9) = __rustylr_args.pop().unwrap() {
             Exp9
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::ExprBinary::NotEqual(
-                Box::new(Exp10),
-                Box::new(Exp9),
-            ))
+        Ok(ChunkNodeEnum::Variant6({
+            let span = Exp10.span().merge_ordered(&Exp9.span());
+            let span_op = tildeequal.span();
+            let binary_data = expression::ExprBinaryData::new(Exp10, Exp9, span, span_op);
+            Expression::Binary(expression::ExprBinary::NotEqual(binary_data))
         }))
     }
     fn reduce_Exp10_5(
@@ -2087,7 +2333,7 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp10 = if let ChunkNodeEnum::Variant5(Exp10) = __rustylr_args.pop().unwrap() {
+        let mut Exp10 = if let ChunkNodeEnum::Variant6(Exp10) = __rustylr_args.pop().unwrap() {
             Exp10
         } else {
             unreachable!()
@@ -2098,16 +2344,16 @@ impl ChunkNodeEnum {
             } else {
                 unreachable!()
             };
-        let mut Exp9 = if let ChunkNodeEnum::Variant5(Exp9) = __rustylr_args.pop().unwrap() {
+        let mut Exp9 = if let ChunkNodeEnum::Variant6(Exp9) = __rustylr_args.pop().unwrap() {
             Exp9
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::ExprBinary::Equal(
-                Box::new(Exp10),
-                Box::new(Exp9),
-            ))
+        Ok(ChunkNodeEnum::Variant6({
+            let span = Exp10.span().merge_ordered(&Exp9.span());
+            let span_op = equalequal.span();
+            let binary_data = expression::ExprBinaryData::new(Exp10, Exp9, span, span_op);
+            Expression::Binary(expression::ExprBinary::Equal(binary_data))
         }))
     }
     fn reduce_Exp10_6(
@@ -2116,12 +2362,12 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp9 = if let ChunkNodeEnum::Variant5(Exp9) = __rustylr_args.pop().unwrap() {
+        let mut Exp9 = if let ChunkNodeEnum::Variant6(Exp9) = __rustylr_args.pop().unwrap() {
             Exp9
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5(Exp9))
+        Ok(ChunkNodeEnum::Variant6(Exp9))
     }
     fn reduce_Exp11_0(
         __rustylr_args: &mut Vec<Self>,
@@ -2129,7 +2375,7 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp11 = if let ChunkNodeEnum::Variant5(Exp11) = __rustylr_args.pop().unwrap() {
+        let mut Exp11 = if let ChunkNodeEnum::Variant6(Exp11) = __rustylr_args.pop().unwrap() {
             Exp11
         } else {
             unreachable!()
@@ -2139,16 +2385,16 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        let mut Exp10 = if let ChunkNodeEnum::Variant5(Exp10) = __rustylr_args.pop().unwrap() {
+        let mut Exp10 = if let ChunkNodeEnum::Variant6(Exp10) = __rustylr_args.pop().unwrap() {
             Exp10
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::ExprBinary::LogicalAnd(
-                Box::new(Exp11),
-                Box::new(Exp10),
-            ))
+        Ok(ChunkNodeEnum::Variant6({
+            let span = Exp11.span().merge_ordered(&Exp10.span());
+            let span_op = and_.span();
+            let binary_data = expression::ExprBinaryData::new(Exp11, Exp10, span, span_op);
+            Expression::Binary(expression::ExprBinary::LogicalAnd(binary_data))
         }))
     }
     fn reduce_Exp11_1(
@@ -2157,12 +2403,12 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp10 = if let ChunkNodeEnum::Variant5(Exp10) = __rustylr_args.pop().unwrap() {
+        let mut Exp10 = if let ChunkNodeEnum::Variant6(Exp10) = __rustylr_args.pop().unwrap() {
             Exp10
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5(Exp10))
+        Ok(ChunkNodeEnum::Variant6(Exp10))
     }
     fn reduce_Exp12_0(
         __rustylr_args: &mut Vec<Self>,
@@ -2170,7 +2416,7 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp12 = if let ChunkNodeEnum::Variant5(Exp12) = __rustylr_args.pop().unwrap() {
+        let mut Exp12 = if let ChunkNodeEnum::Variant6(Exp12) = __rustylr_args.pop().unwrap() {
             Exp12
         } else {
             unreachable!()
@@ -2180,16 +2426,16 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        let mut Exp11 = if let ChunkNodeEnum::Variant5(Exp11) = __rustylr_args.pop().unwrap() {
+        let mut Exp11 = if let ChunkNodeEnum::Variant6(Exp11) = __rustylr_args.pop().unwrap() {
             Exp11
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5({
-            Expression::Binary(expression::ExprBinary::LogicalOr(
-                Box::new(Exp12),
-                Box::new(Exp11),
-            ))
+        Ok(ChunkNodeEnum::Variant6({
+            let span = Exp12.span().merge_ordered(&Exp11.span());
+            let span_op = or_.span();
+            let binary_data = expression::ExprBinaryData::new(Exp12, Exp11, span, span_op);
+            Expression::Binary(expression::ExprBinary::LogicalOr(binary_data))
         }))
     }
     fn reduce_Exp12_1(
@@ -2198,12 +2444,12 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp11 = if let ChunkNodeEnum::Variant5(Exp11) = __rustylr_args.pop().unwrap() {
+        let mut Exp11 = if let ChunkNodeEnum::Variant6(Exp11) = __rustylr_args.pop().unwrap() {
             Exp11
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant5(Exp11))
+        Ok(ChunkNodeEnum::Variant6(Exp11))
     }
     fn reduce_TableConstructor_0(
         __rustylr_args: &mut Vec<Self>,
@@ -2211,33 +2457,52 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        __rustylr_args.pop();
+        let mut lbrace = if let ChunkNodeEnum::Terminals(lbrace) = __rustylr_args.pop().unwrap() {
+            lbrace
+        } else {
+            unreachable!()
+        };
         let mut FieldList =
-            if let ChunkNodeEnum::Variant13(FieldList) = __rustylr_args.pop().unwrap() {
+            if let ChunkNodeEnum::Variant15(FieldList) = __rustylr_args.pop().unwrap() {
                 FieldList
             } else {
                 unreachable!()
             };
-        __rustylr_args.pop();
-        Ok(ChunkNodeEnum::Variant12({
-            let mut table = expression::ExprTable::new();
+        let mut rbrace = if let ChunkNodeEnum::Terminals(rbrace) = __rustylr_args.pop().unwrap() {
+            rbrace
+        } else {
+            unreachable!()
+        };
+        Ok(ChunkNodeEnum::Variant14({
+            let span = lbrace.span().merge_ordered(&rbrace.span());
+            let mut table = expression::ExprTable::new(span);
             let mut consecutive: IntType = 1;
             for field in FieldList.into_iter() {
                 match field {
                     expression::TableConstructorFieldBuilder::KeyValue(k, v) => {
-                        table.fields.push(expression::TableField::new(k, v));
+                        let span = k.span().merge_ordered(&v.span());
+                        table.fields.push(expression::TableField::new(k, v, span));
                     }
                     expression::TableConstructorFieldBuilder::NameValue(name, v) => {
-                        table
-                            .fields
-                            .push(expression::TableField::new(name.into(), v));
+                        let span = name.span().merge_ordered(&v.span());
+                        table.fields.push(expression::TableField::new(
+                            Expression::String(name),
+                            v,
+                            span,
+                        ));
                     }
                     expression::TableConstructorFieldBuilder::Value(v) => {
                         let idx = consecutive;
                         consecutive += 1;
-                        table
-                            .fields
-                            .push(expression::TableField::new(idx.into(), v));
+                        let span = v.span();
+                        table.fields.push(expression::TableField::new(
+                            Expression::Numeric(expression::ExprNumeric::new(
+                                idx.into(),
+                                Span::new_none(),
+                            )),
+                            v,
+                            span,
+                        ));
                     }
                 }
             }
@@ -2251,18 +2516,18 @@ impl ChunkNodeEnum {
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
         let mut FieldList1 =
-            if let ChunkNodeEnum::Variant13(FieldList1) = __rustylr_args.pop().unwrap() {
+            if let ChunkNodeEnum::Variant15(FieldList1) = __rustylr_args.pop().unwrap() {
                 FieldList1
             } else {
                 unreachable!()
             };
         __rustylr_args.pop();
-        let mut Field = if let ChunkNodeEnum::Variant14(Field) = __rustylr_args.pop().unwrap() {
+        let mut Field = if let ChunkNodeEnum::Variant16(Field) = __rustylr_args.pop().unwrap() {
             Field
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant13({
+        Ok(ChunkNodeEnum::Variant15({
             FieldList1.push(Field);
             FieldList1
         }))
@@ -2273,12 +2538,12 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Field = if let ChunkNodeEnum::Variant14(Field) = __rustylr_args.pop().unwrap() {
+        let mut Field = if let ChunkNodeEnum::Variant16(Field) = __rustylr_args.pop().unwrap() {
             Field
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant13({ vec![Field] }))
+        Ok(ChunkNodeEnum::Variant15({ vec![Field] }))
     }
     fn reduce_FieldList_0(
         __rustylr_args: &mut Vec<Self>,
@@ -2287,13 +2552,13 @@ impl ChunkNodeEnum {
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
         let mut FieldList1 =
-            if let ChunkNodeEnum::Variant13(FieldList1) = __rustylr_args.pop().unwrap() {
+            if let ChunkNodeEnum::Variant15(FieldList1) = __rustylr_args.pop().unwrap() {
                 FieldList1
             } else {
                 unreachable!()
             };
         __rustylr_args.pop();
-        Ok(ChunkNodeEnum::Variant13({ FieldList1 }))
+        Ok(ChunkNodeEnum::Variant15({ FieldList1 }))
     }
     fn reduce_FieldList_1(
         __rustylr_args: &mut Vec<Self>,
@@ -2301,7 +2566,7 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        Ok(ChunkNodeEnum::Variant13({ vec![] }))
+        Ok(ChunkNodeEnum::Variant15({ vec![] }))
     }
     fn reduce_Field_0(
         __rustylr_args: &mut Vec<Self>,
@@ -2310,19 +2575,19 @@ impl ChunkNodeEnum {
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
         __rustylr_args.pop();
-        let mut k = if let ChunkNodeEnum::Variant5(k) = __rustylr_args.pop().unwrap() {
+        let mut k = if let ChunkNodeEnum::Variant6(k) = __rustylr_args.pop().unwrap() {
             k
         } else {
             unreachable!()
         };
         __rustylr_args.pop();
         __rustylr_args.pop();
-        let mut v = if let ChunkNodeEnum::Variant5(v) = __rustylr_args.pop().unwrap() {
+        let mut v = if let ChunkNodeEnum::Variant6(v) = __rustylr_args.pop().unwrap() {
             v
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant14({
+        Ok(ChunkNodeEnum::Variant16({
             expression::TableConstructorFieldBuilder::KeyValue(k, v)
         }))
     }
@@ -2338,14 +2603,13 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         __rustylr_args.pop();
-        let mut Exp = if let ChunkNodeEnum::Variant5(Exp) = __rustylr_args.pop().unwrap() {
+        let mut Exp = if let ChunkNodeEnum::Variant6(Exp) = __rustylr_args.pop().unwrap() {
             Exp
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant14({
-            let name = ident.token_type.into_ident().unwrap();
-            expression::TableConstructorFieldBuilder::NameValue(name, Exp)
+        Ok(ChunkNodeEnum::Variant16({
+            expression::TableConstructorFieldBuilder::NameValue(ident.into(), Exp)
         }))
     }
     fn reduce_Field_2(
@@ -2354,12 +2618,12 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Exp = if let ChunkNodeEnum::Variant5(Exp) = __rustylr_args.pop().unwrap() {
+        let mut Exp = if let ChunkNodeEnum::Variant6(Exp) = __rustylr_args.pop().unwrap() {
             Exp
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant14({
+        Ok(ChunkNodeEnum::Variant16({
             expression::TableConstructorFieldBuilder::Value(Exp)
         }))
     }
@@ -2387,14 +2651,23 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        __rustylr_args.pop();
-        let mut FuncBody = if let ChunkNodeEnum::Variant15(FuncBody) = __rustylr_args.pop().unwrap()
+        let mut function_ =
+            if let ChunkNodeEnum::Terminals(function_) = __rustylr_args.pop().unwrap() {
+                function_
+            } else {
+                unreachable!()
+            };
+        let mut FuncBody = if let ChunkNodeEnum::Variant17(FuncBody) = __rustylr_args.pop().unwrap()
         {
             FuncBody
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant15(FuncBody))
+        Ok(ChunkNodeEnum::Variant17({
+            let span = function_.span().merge_ordered(&FuncBody.span());
+            FuncBody.span = span;
+            FuncBody
+        }))
     }
     fn reduce_FuncBody_0(
         __rustylr_args: &mut Vec<Self>,
@@ -2402,8 +2675,12 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        __rustylr_args.pop();
-        let mut ParList = if let ChunkNodeEnum::Variant26(ParList) = __rustylr_args.pop().unwrap() {
+        let mut lparen = if let ChunkNodeEnum::Terminals(lparen) = __rustylr_args.pop().unwrap() {
+            lparen
+        } else {
+            unreachable!()
+        };
+        let mut ParList = if let ChunkNodeEnum::Variant27(ParList) = __rustylr_args.pop().unwrap() {
             ParList
         } else {
             unreachable!()
@@ -2414,9 +2691,14 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        __rustylr_args.pop();
-        Ok(ChunkNodeEnum::Variant15({
-            expression::ExprFunction::new(ParList, Block)
+        let mut end_ = if let ChunkNodeEnum::Terminals(end_) = __rustylr_args.pop().unwrap() {
+            end_
+        } else {
+            unreachable!()
+        };
+        Ok(ChunkNodeEnum::Variant17({
+            let span = lparen.span().merge_ordered(&end_.span());
+            expression::ExprFunction::new(ParList, Block, span)
         }))
     }
     fn reduce_FuncName1_0(
@@ -2426,7 +2708,7 @@ impl ChunkNodeEnum {
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
         let mut FuncName1 =
-            if let ChunkNodeEnum::Variant8(FuncName1) = __rustylr_args.pop().unwrap() {
+            if let ChunkNodeEnum::Variant10(FuncName1) = __rustylr_args.pop().unwrap() {
                 FuncName1
             } else {
                 unreachable!()
@@ -2441,8 +2723,8 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant8({
-            FuncName1.push(ident.token_type.into_ident().unwrap());
+        Ok(ChunkNodeEnum::Variant10({
+            FuncName1.push(ident.into());
             FuncName1
         }))
     }
@@ -2457,9 +2739,7 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant8({
-            vec![ident.token_type.into_ident().unwrap()]
-        }))
+        Ok(ChunkNodeEnum::Variant10({ vec![ident.into()] }))
     }
     fn reduce_FuncName_0(
         __rustylr_args: &mut Vec<Self>,
@@ -2468,7 +2748,7 @@ impl ChunkNodeEnum {
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
         let mut FuncName1 =
-            if let ChunkNodeEnum::Variant8(FuncName1) = __rustylr_args.pop().unwrap() {
+            if let ChunkNodeEnum::Variant10(FuncName1) = __rustylr_args.pop().unwrap() {
                 FuncName1
             } else {
                 unreachable!()
@@ -2479,8 +2759,13 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant16({
-            statement::FunctionName::new(FuncName1, Some(ident.token_type.into_ident().unwrap()))
+        Ok(ChunkNodeEnum::Variant18({
+            let span = FuncName1
+                .first()
+                .unwrap()
+                .span()
+                .merge_ordered(&ident.span());
+            statement::FunctionName::new(FuncName1, Some(ident.into()), span)
         }))
     }
     fn reduce_FuncName_1(
@@ -2490,13 +2775,18 @@ impl ChunkNodeEnum {
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
         let mut FuncName1 =
-            if let ChunkNodeEnum::Variant8(FuncName1) = __rustylr_args.pop().unwrap() {
+            if let ChunkNodeEnum::Variant10(FuncName1) = __rustylr_args.pop().unwrap() {
                 FuncName1
             } else {
                 unreachable!()
             };
-        Ok(ChunkNodeEnum::Variant16({
-            statement::FunctionName::new(FuncName1, None)
+        Ok(ChunkNodeEnum::Variant18({
+            let span = FuncName1
+                .first()
+                .unwrap()
+                .span()
+                .merge_ordered(&FuncName1.last().unwrap().span());
+            statement::FunctionName::new(FuncName1, None, span)
         }))
     }
     fn reduce_ParList_0(
@@ -2505,19 +2795,25 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut NameList = if let ChunkNodeEnum::Variant8(NameList) = __rustylr_args.pop().unwrap()
+        let mut NameList = if let ChunkNodeEnum::Variant10(NameList) = __rustylr_args.pop().unwrap()
         {
             NameList
         } else {
             unreachable!()
         };
-        let mut var = if let ChunkNodeEnum::Variant25(var) = __rustylr_args.pop().unwrap() {
+        let mut var = if let ChunkNodeEnum::Variant26(var) = __rustylr_args.pop().unwrap() {
             var
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant17({
-            expression::ParameterList::new(NameList, var.is_some())
+        Ok(ChunkNodeEnum::Variant19({
+            if let Some(var) = var {
+                let span = NameList.first().unwrap().span().merge_ordered(&var.span());
+                expression::ParameterList::new(NameList, true, span)
+            } else {
+                let span = NameList.first().unwrap().span();
+                expression::ParameterList::new(NameList, false, span)
+            }
         }))
     }
     fn reduce_ParList_1(
@@ -2532,11 +2828,11 @@ impl ChunkNodeEnum {
             } else {
                 unreachable!()
             };
-        Ok(ChunkNodeEnum::Variant17({
-            expression::ParameterList::new(Vec::new(), true)
+        Ok(ChunkNodeEnum::Variant19({
+            expression::ParameterList::new(Vec::new(), true, dotdotdot.span())
         }))
     }
-    fn reduce__Statement_Plus39_0(
+    fn reduce__Statement_Plus40_0(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -2547,15 +2843,15 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant18({ vec![A] }))
+        Ok(ChunkNodeEnum::Variant20({ vec![A] }))
     }
-    fn reduce__Statement_Plus39_1(
+    fn reduce__Statement_Plus40_1(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Ap = if let ChunkNodeEnum::Variant18(Ap) = __rustylr_args.pop().unwrap() {
+        let mut Ap = if let ChunkNodeEnum::Variant20(Ap) = __rustylr_args.pop().unwrap() {
             Ap
         } else {
             unreachable!()
@@ -2565,33 +2861,54 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant18({
+        Ok(ChunkNodeEnum::Variant20({
             Ap.push(A);
             Ap
         }))
     }
-    fn reduce__Statement_Star40_0(
+    fn reduce__Statement_Star41_0(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Ap = if let ChunkNodeEnum::Variant18(Ap) = __rustylr_args.pop().unwrap() {
+        let mut Ap = if let ChunkNodeEnum::Variant20(Ap) = __rustylr_args.pop().unwrap() {
             Ap
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant18({ Ap }))
+        Ok(ChunkNodeEnum::Variant20({ Ap }))
     }
-    fn reduce__Statement_Star40_1(
+    fn reduce__Statement_Star41_1(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        Ok(ChunkNodeEnum::Variant18({ vec![] }))
+        Ok(ChunkNodeEnum::Variant20({ vec![] }))
     }
-    fn reduce__ReturnStatement_Question41_0(
+    fn reduce__ReturnStatement_Question42_0(
+        __rustylr_args: &mut Vec<Self>,
+        shift: &mut bool,
+        lookahead: &Token,
+        data: &mut (),
+    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+        let mut A = if let ChunkNodeEnum::Variant5(A) = __rustylr_args.pop().unwrap() {
+            A
+        } else {
+            unreachable!()
+        };
+        Ok(ChunkNodeEnum::Variant21({ Some(A) }))
+    }
+    fn reduce__ReturnStatement_Question42_1(
+        __rustylr_args: &mut Vec<Self>,
+        shift: &mut bool,
+        lookahead: &Token,
+        data: &mut (),
+    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+        Ok(ChunkNodeEnum::Variant21({ None }))
+    }
+    fn reduce__ElseIf_Plus43_0(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -2602,95 +2919,49 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant19({ Some(A) }))
+        Ok(ChunkNodeEnum::Variant22({ vec![A] }))
     }
-    fn reduce__ReturnStatement_Question41_1(
+    fn reduce__ElseIf_Plus43_1(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        Ok(ChunkNodeEnum::Variant19({ None }))
-    }
-    fn reduce__Group42_0(
-        __rustylr_args: &mut Vec<Self>,
-        shift: &mut bool,
-        lookahead: &Token,
-        data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        __rustylr_args.pop();
-        let mut __rustylr_group_elem1 =
-            if let ChunkNodeEnum::Variant5(__rustylr_group_elem1) = __rustylr_args.pop().unwrap() {
-                __rustylr_group_elem1
-            } else {
-                unreachable!()
-            };
-        __rustylr_args.pop();
-        let mut __rustylr_group_elem3 =
-            if let ChunkNodeEnum::Variant2(__rustylr_group_elem3) = __rustylr_args.pop().unwrap() {
-                __rustylr_group_elem3
-            } else {
-                unreachable!()
-            };
-        Ok(ChunkNodeEnum::Variant20((
-            __rustylr_group_elem1,
-            __rustylr_group_elem3,
-        )))
-    }
-    fn reduce___Group42_Plus43_0(
-        __rustylr_args: &mut Vec<Self>,
-        shift: &mut bool,
-        lookahead: &Token,
-        data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut A = if let ChunkNodeEnum::Variant20(A) = __rustylr_args.pop().unwrap() {
-            A
-        } else {
-            unreachable!()
-        };
-        Ok(ChunkNodeEnum::Variant21({ vec![A] }))
-    }
-    fn reduce___Group42_Plus43_1(
-        __rustylr_args: &mut Vec<Self>,
-        shift: &mut bool,
-        lookahead: &Token,
-        data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Ap = if let ChunkNodeEnum::Variant21(Ap) = __rustylr_args.pop().unwrap() {
+        let mut Ap = if let ChunkNodeEnum::Variant22(Ap) = __rustylr_args.pop().unwrap() {
             Ap
         } else {
             unreachable!()
         };
-        let mut A = if let ChunkNodeEnum::Variant20(A) = __rustylr_args.pop().unwrap() {
+        let mut A = if let ChunkNodeEnum::Variant4(A) = __rustylr_args.pop().unwrap() {
             A
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant21({
+        Ok(ChunkNodeEnum::Variant22({
             Ap.push(A);
             Ap
         }))
     }
-    fn reduce___Group42_Star44_0(
+    fn reduce__ElseIf_Star44_0(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut Ap = if let ChunkNodeEnum::Variant21(Ap) = __rustylr_args.pop().unwrap() {
+        let mut Ap = if let ChunkNodeEnum::Variant22(Ap) = __rustylr_args.pop().unwrap() {
             Ap
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant21({ Ap }))
+        Ok(ChunkNodeEnum::Variant22({ Ap }))
     }
-    fn reduce___Group42_Star44_1(
+    fn reduce__ElseIf_Star44_1(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        Ok(ChunkNodeEnum::Variant21({ vec![] }))
+        Ok(ChunkNodeEnum::Variant22({ vec![] }))
     }
     fn reduce__Group45_0(
         __rustylr_args: &mut Vec<Self>,
@@ -2718,7 +2989,7 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant22({ Some(A) }))
+        Ok(ChunkNodeEnum::Variant23({ Some(A) }))
     }
     fn reduce___Group45_Question46_1(
         __rustylr_args: &mut Vec<Self>,
@@ -2726,7 +2997,7 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        Ok(ChunkNodeEnum::Variant22({ None }))
+        Ok(ChunkNodeEnum::Variant23({ None }))
     }
     fn reduce__Group47_0(
         __rustylr_args: &mut Vec<Self>,
@@ -2736,12 +3007,12 @@ impl ChunkNodeEnum {
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
         __rustylr_args.pop();
         let mut __rustylr_group_elem1 =
-            if let ChunkNodeEnum::Variant5(__rustylr_group_elem1) = __rustylr_args.pop().unwrap() {
+            if let ChunkNodeEnum::Variant6(__rustylr_group_elem1) = __rustylr_args.pop().unwrap() {
                 __rustylr_group_elem1
             } else {
                 unreachable!()
             };
-        Ok(ChunkNodeEnum::Variant5(__rustylr_group_elem1))
+        Ok(ChunkNodeEnum::Variant6(__rustylr_group_elem1))
     }
     fn reduce___Group47_Question48_0(
         __rustylr_args: &mut Vec<Self>,
@@ -2749,12 +3020,12 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut A = if let ChunkNodeEnum::Variant5(A) = __rustylr_args.pop().unwrap() {
+        let mut A = if let ChunkNodeEnum::Variant6(A) = __rustylr_args.pop().unwrap() {
             A
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant23({ Some(A) }))
+        Ok(ChunkNodeEnum::Variant24({ Some(A) }))
     }
     fn reduce___Group47_Question48_1(
         __rustylr_args: &mut Vec<Self>,
@@ -2762,7 +3033,7 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        Ok(ChunkNodeEnum::Variant23({ None }))
+        Ok(ChunkNodeEnum::Variant24({ None }))
     }
     fn reduce__Group49_0(
         __rustylr_args: &mut Vec<Self>,
@@ -2772,12 +3043,12 @@ impl ChunkNodeEnum {
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
         __rustylr_args.pop();
         let mut __rustylr_group_elem1 =
-            if let ChunkNodeEnum::Variant7(__rustylr_group_elem1) = __rustylr_args.pop().unwrap() {
+            if let ChunkNodeEnum::Variant9(__rustylr_group_elem1) = __rustylr_args.pop().unwrap() {
                 __rustylr_group_elem1
             } else {
                 unreachable!()
             };
-        Ok(ChunkNodeEnum::Variant7(__rustylr_group_elem1))
+        Ok(ChunkNodeEnum::Variant9(__rustylr_group_elem1))
     }
     fn reduce___Group49_Question50_0(
         __rustylr_args: &mut Vec<Self>,
@@ -2785,12 +3056,12 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut A = if let ChunkNodeEnum::Variant7(A) = __rustylr_args.pop().unwrap() {
+        let mut A = if let ChunkNodeEnum::Variant9(A) = __rustylr_args.pop().unwrap() {
             A
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant24({ Some(A) }))
+        Ok(ChunkNodeEnum::Variant25({ Some(A) }))
     }
     fn reduce___Group49_Question50_1(
         __rustylr_args: &mut Vec<Self>,
@@ -2798,7 +3069,7 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        Ok(ChunkNodeEnum::Variant24({ None }))
+        Ok(ChunkNodeEnum::Variant25({ None }))
     }
     fn reduce__semicolon_Question51_0(
         __rustylr_args: &mut Vec<Self>,
@@ -2811,7 +3082,7 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant25({ Some(A) }))
+        Ok(ChunkNodeEnum::Variant26({ Some(A) }))
     }
     fn reduce__semicolon_Question51_1(
         __rustylr_args: &mut Vec<Self>,
@@ -2819,7 +3090,7 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        Ok(ChunkNodeEnum::Variant25({ None }))
+        Ok(ChunkNodeEnum::Variant26({ None }))
     }
     fn reduce__FieldSep_Question52_0(
         __rustylr_args: &mut Vec<Self>,
@@ -2845,12 +3116,12 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        let mut A = if let ChunkNodeEnum::Variant17(A) = __rustylr_args.pop().unwrap() {
+        let mut A = if let ChunkNodeEnum::Variant19(A) = __rustylr_args.pop().unwrap() {
             A
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant26({ Some(A) }))
+        Ok(ChunkNodeEnum::Variant27({ Some(A) }))
     }
     fn reduce__ParList_Question53_1(
         __rustylr_args: &mut Vec<Self>,
@@ -2858,7 +3129,7 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        Ok(ChunkNodeEnum::Variant26({ None }))
+        Ok(ChunkNodeEnum::Variant27({ None }))
     }
     fn reduce__Group54_0(
         __rustylr_args: &mut Vec<Self>,
@@ -2887,7 +3158,7 @@ impl ChunkNodeEnum {
         } else {
             unreachable!()
         };
-        Ok(ChunkNodeEnum::Variant25({ Some(A) }))
+        Ok(ChunkNodeEnum::Variant26({ Some(A) }))
     }
     fn reduce___Group54_Question55_1(
         __rustylr_args: &mut Vec<Self>,
@@ -2895,7 +3166,7 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
-        Ok(ChunkNodeEnum::Variant25({ None }))
+        Ok(ChunkNodeEnum::Variant26({ None }))
     }
     fn reduce_Augmented_0(
         __rustylr_args: &mut Vec<Self>,
@@ -2948,157 +3219,158 @@ impl ::rusty_lr::glr::NodeData for ChunkNodeEnum {
             14usize => Self::reduce_Statement_12(reduce_args, shift, lookahead, user_data),
             15usize => Self::reduce_Statement_13(reduce_args, shift, lookahead, user_data),
             16usize => Self::reduce_Statement_14(reduce_args, shift, lookahead, user_data),
-            17usize => Self::reduce_ReturnStatement_0(reduce_args, shift, lookahead, user_data),
-            18usize => Self::reduce_Var_0(reduce_args, shift, lookahead, user_data),
-            19usize => Self::reduce_Var_1(reduce_args, shift, lookahead, user_data),
-            20usize => Self::reduce_Var_2(reduce_args, shift, lookahead, user_data),
-            21usize => Self::reduce_PrefixExp_0(reduce_args, shift, lookahead, user_data),
-            22usize => Self::reduce_PrefixExp_1(reduce_args, shift, lookahead, user_data),
-            23usize => Self::reduce_PrefixExp_2(reduce_args, shift, lookahead, user_data),
-            24usize => Self::reduce_FunctionCall_0(reduce_args, shift, lookahead, user_data),
-            25usize => Self::reduce_FunctionCall_1(reduce_args, shift, lookahead, user_data),
-            26usize => Self::reduce_Args_0(reduce_args, shift, lookahead, user_data),
-            27usize => Self::reduce_Args_1(reduce_args, shift, lookahead, user_data),
-            28usize => Self::reduce_Args_2(reduce_args, shift, lookahead, user_data),
-            29usize => Self::reduce_VarList_0(reduce_args, shift, lookahead, user_data),
-            30usize => Self::reduce_VarList_1(reduce_args, shift, lookahead, user_data),
-            31usize => Self::reduce_ExpList1_0(reduce_args, shift, lookahead, user_data),
-            32usize => Self::reduce_ExpList1_1(reduce_args, shift, lookahead, user_data),
-            33usize => Self::reduce_ExpList0_0(reduce_args, shift, lookahead, user_data),
-            34usize => Self::reduce_ExpList0_1(reduce_args, shift, lookahead, user_data),
-            35usize => Self::reduce_NameList_0(reduce_args, shift, lookahead, user_data),
-            36usize => Self::reduce_NameList_1(reduce_args, shift, lookahead, user_data),
-            37usize => Self::reduce_AttName_0(reduce_args, shift, lookahead, user_data),
-            38usize => Self::reduce_AttNameList_0(reduce_args, shift, lookahead, user_data),
-            39usize => Self::reduce_AttNameList_1(reduce_args, shift, lookahead, user_data),
-            40usize => Self::reduce_Attrib_0(reduce_args, shift, lookahead, user_data),
-            41usize => Self::reduce_Attrib_1(reduce_args, shift, lookahead, user_data),
-            42usize => Self::reduce_Exp_0(reduce_args, shift, lookahead, user_data),
-            43usize => Self::reduce_Exp0_0(reduce_args, shift, lookahead, user_data),
-            44usize => Self::reduce_Exp0_1(reduce_args, shift, lookahead, user_data),
-            45usize => Self::reduce_Exp0_2(reduce_args, shift, lookahead, user_data),
-            46usize => Self::reduce_Exp0_3(reduce_args, shift, lookahead, user_data),
-            47usize => Self::reduce_Exp0_4(reduce_args, shift, lookahead, user_data),
-            48usize => Self::reduce_Exp0_5(reduce_args, shift, lookahead, user_data),
-            49usize => Self::reduce_Exp0_6(reduce_args, shift, lookahead, user_data),
-            50usize => Self::reduce_Exp0_7(reduce_args, shift, lookahead, user_data),
-            51usize => Self::reduce_Exp1_0(reduce_args, shift, lookahead, user_data),
-            52usize => Self::reduce_Exp1_1(reduce_args, shift, lookahead, user_data),
-            53usize => Self::reduce_Exp2_0(reduce_args, shift, lookahead, user_data),
-            54usize => Self::reduce_Exp2_1(reduce_args, shift, lookahead, user_data),
-            55usize => Self::reduce_Exp2_2(reduce_args, shift, lookahead, user_data),
-            56usize => Self::reduce_Exp2_3(reduce_args, shift, lookahead, user_data),
-            57usize => Self::reduce_Exp2_4(reduce_args, shift, lookahead, user_data),
-            58usize => Self::reduce_Exp3_0(reduce_args, shift, lookahead, user_data),
-            59usize => Self::reduce_Exp3_1(reduce_args, shift, lookahead, user_data),
-            60usize => Self::reduce_Exp3_2(reduce_args, shift, lookahead, user_data),
-            61usize => Self::reduce_Exp3_3(reduce_args, shift, lookahead, user_data),
-            62usize => Self::reduce_Exp3_4(reduce_args, shift, lookahead, user_data),
-            63usize => Self::reduce_Exp4_0(reduce_args, shift, lookahead, user_data),
-            64usize => Self::reduce_Exp4_1(reduce_args, shift, lookahead, user_data),
-            65usize => Self::reduce_Exp4_2(reduce_args, shift, lookahead, user_data),
-            66usize => Self::reduce_Exp5_0(reduce_args, shift, lookahead, user_data),
-            67usize => Self::reduce_Exp5_1(reduce_args, shift, lookahead, user_data),
-            68usize => Self::reduce_Exp6_0(reduce_args, shift, lookahead, user_data),
-            69usize => Self::reduce_Exp6_1(reduce_args, shift, lookahead, user_data),
-            70usize => Self::reduce_Exp6_2(reduce_args, shift, lookahead, user_data),
-            71usize => Self::reduce_Exp7_0(reduce_args, shift, lookahead, user_data),
-            72usize => Self::reduce_Exp7_1(reduce_args, shift, lookahead, user_data),
-            73usize => Self::reduce_Exp8_0(reduce_args, shift, lookahead, user_data),
-            74usize => Self::reduce_Exp8_1(reduce_args, shift, lookahead, user_data),
-            75usize => Self::reduce_Exp9_0(reduce_args, shift, lookahead, user_data),
-            76usize => Self::reduce_Exp9_1(reduce_args, shift, lookahead, user_data),
-            77usize => Self::reduce_Exp10_0(reduce_args, shift, lookahead, user_data),
-            78usize => Self::reduce_Exp10_1(reduce_args, shift, lookahead, user_data),
-            79usize => Self::reduce_Exp10_2(reduce_args, shift, lookahead, user_data),
-            80usize => Self::reduce_Exp10_3(reduce_args, shift, lookahead, user_data),
-            81usize => Self::reduce_Exp10_4(reduce_args, shift, lookahead, user_data),
-            82usize => Self::reduce_Exp10_5(reduce_args, shift, lookahead, user_data),
-            83usize => Self::reduce_Exp10_6(reduce_args, shift, lookahead, user_data),
-            84usize => Self::reduce_Exp11_0(reduce_args, shift, lookahead, user_data),
-            85usize => Self::reduce_Exp11_1(reduce_args, shift, lookahead, user_data),
-            86usize => Self::reduce_Exp12_0(reduce_args, shift, lookahead, user_data),
-            87usize => Self::reduce_Exp12_1(reduce_args, shift, lookahead, user_data),
-            88usize => Self::reduce_TableConstructor_0(reduce_args, shift, lookahead, user_data),
-            89usize => Self::reduce_FieldList1_0(reduce_args, shift, lookahead, user_data),
-            90usize => Self::reduce_FieldList1_1(reduce_args, shift, lookahead, user_data),
-            91usize => Self::reduce_FieldList_0(reduce_args, shift, lookahead, user_data),
-            92usize => Self::reduce_FieldList_1(reduce_args, shift, lookahead, user_data),
-            93usize => Self::reduce_Field_0(reduce_args, shift, lookahead, user_data),
-            94usize => Self::reduce_Field_1(reduce_args, shift, lookahead, user_data),
-            95usize => Self::reduce_Field_2(reduce_args, shift, lookahead, user_data),
-            96usize => Self::reduce_FieldSep_0(reduce_args, shift, lookahead, user_data),
-            97usize => Self::reduce_FieldSep_1(reduce_args, shift, lookahead, user_data),
-            98usize => Self::reduce_FunctionDef_0(reduce_args, shift, lookahead, user_data),
-            99usize => Self::reduce_FuncBody_0(reduce_args, shift, lookahead, user_data),
-            100usize => Self::reduce_FuncName1_0(reduce_args, shift, lookahead, user_data),
-            101usize => Self::reduce_FuncName1_1(reduce_args, shift, lookahead, user_data),
-            102usize => Self::reduce_FuncName_0(reduce_args, shift, lookahead, user_data),
-            103usize => Self::reduce_FuncName_1(reduce_args, shift, lookahead, user_data),
-            104usize => Self::reduce_ParList_0(reduce_args, shift, lookahead, user_data),
-            105usize => Self::reduce_ParList_1(reduce_args, shift, lookahead, user_data),
-            106usize => Self::reduce__Statement_Plus39_0(reduce_args, shift, lookahead, user_data),
-            107usize => Self::reduce__Statement_Plus39_1(reduce_args, shift, lookahead, user_data),
-            108usize => Self::reduce__Statement_Star40_0(reduce_args, shift, lookahead, user_data),
-            109usize => Self::reduce__Statement_Star40_1(reduce_args, shift, lookahead, user_data),
-            110usize => {
-                Self::reduce__ReturnStatement_Question41_0(reduce_args, shift, lookahead, user_data)
+            17usize => Self::reduce_ElseIf_0(reduce_args, shift, lookahead, user_data),
+            18usize => Self::reduce_ReturnStatement_0(reduce_args, shift, lookahead, user_data),
+            19usize => Self::reduce_Var_0(reduce_args, shift, lookahead, user_data),
+            20usize => Self::reduce_Var_1(reduce_args, shift, lookahead, user_data),
+            21usize => Self::reduce_Var_2(reduce_args, shift, lookahead, user_data),
+            22usize => Self::reduce_PrefixExp_0(reduce_args, shift, lookahead, user_data),
+            23usize => Self::reduce_PrefixExp_1(reduce_args, shift, lookahead, user_data),
+            24usize => Self::reduce_PrefixExp_2(reduce_args, shift, lookahead, user_data),
+            25usize => Self::reduce_FunctionCall_0(reduce_args, shift, lookahead, user_data),
+            26usize => Self::reduce_FunctionCall_1(reduce_args, shift, lookahead, user_data),
+            27usize => Self::reduce_Args_0(reduce_args, shift, lookahead, user_data),
+            28usize => Self::reduce_Args_1(reduce_args, shift, lookahead, user_data),
+            29usize => Self::reduce_Args_2(reduce_args, shift, lookahead, user_data),
+            30usize => Self::reduce_VarList_0(reduce_args, shift, lookahead, user_data),
+            31usize => Self::reduce_VarList_1(reduce_args, shift, lookahead, user_data),
+            32usize => Self::reduce_ExpList1_0(reduce_args, shift, lookahead, user_data),
+            33usize => Self::reduce_ExpList1_1(reduce_args, shift, lookahead, user_data),
+            34usize => Self::reduce_ExpList0_0(reduce_args, shift, lookahead, user_data),
+            35usize => Self::reduce_ExpList0_1(reduce_args, shift, lookahead, user_data),
+            36usize => Self::reduce_NameList_0(reduce_args, shift, lookahead, user_data),
+            37usize => Self::reduce_NameList_1(reduce_args, shift, lookahead, user_data),
+            38usize => Self::reduce_AttName_0(reduce_args, shift, lookahead, user_data),
+            39usize => Self::reduce_AttNameList_0(reduce_args, shift, lookahead, user_data),
+            40usize => Self::reduce_AttNameList_1(reduce_args, shift, lookahead, user_data),
+            41usize => Self::reduce_Attrib_0(reduce_args, shift, lookahead, user_data),
+            42usize => Self::reduce_Attrib_1(reduce_args, shift, lookahead, user_data),
+            43usize => Self::reduce_Exp_0(reduce_args, shift, lookahead, user_data),
+            44usize => Self::reduce_Exp0_0(reduce_args, shift, lookahead, user_data),
+            45usize => Self::reduce_Exp0_1(reduce_args, shift, lookahead, user_data),
+            46usize => Self::reduce_Exp0_2(reduce_args, shift, lookahead, user_data),
+            47usize => Self::reduce_Exp0_3(reduce_args, shift, lookahead, user_data),
+            48usize => Self::reduce_Exp0_4(reduce_args, shift, lookahead, user_data),
+            49usize => Self::reduce_Exp0_5(reduce_args, shift, lookahead, user_data),
+            50usize => Self::reduce_Exp0_6(reduce_args, shift, lookahead, user_data),
+            51usize => Self::reduce_Exp0_7(reduce_args, shift, lookahead, user_data),
+            52usize => Self::reduce_Exp1_0(reduce_args, shift, lookahead, user_data),
+            53usize => Self::reduce_Exp1_1(reduce_args, shift, lookahead, user_data),
+            54usize => Self::reduce_Exp2_0(reduce_args, shift, lookahead, user_data),
+            55usize => Self::reduce_Exp2_1(reduce_args, shift, lookahead, user_data),
+            56usize => Self::reduce_Exp2_2(reduce_args, shift, lookahead, user_data),
+            57usize => Self::reduce_Exp2_3(reduce_args, shift, lookahead, user_data),
+            58usize => Self::reduce_Exp2_4(reduce_args, shift, lookahead, user_data),
+            59usize => Self::reduce_Exp2_5(reduce_args, shift, lookahead, user_data),
+            60usize => Self::reduce_Exp3_0(reduce_args, shift, lookahead, user_data),
+            61usize => Self::reduce_Exp3_1(reduce_args, shift, lookahead, user_data),
+            62usize => Self::reduce_Exp3_2(reduce_args, shift, lookahead, user_data),
+            63usize => Self::reduce_Exp3_3(reduce_args, shift, lookahead, user_data),
+            64usize => Self::reduce_Exp3_4(reduce_args, shift, lookahead, user_data),
+            65usize => Self::reduce_Exp4_0(reduce_args, shift, lookahead, user_data),
+            66usize => Self::reduce_Exp4_1(reduce_args, shift, lookahead, user_data),
+            67usize => Self::reduce_Exp4_2(reduce_args, shift, lookahead, user_data),
+            68usize => Self::reduce_Exp5_0(reduce_args, shift, lookahead, user_data),
+            69usize => Self::reduce_Exp5_1(reduce_args, shift, lookahead, user_data),
+            70usize => Self::reduce_Exp6_0(reduce_args, shift, lookahead, user_data),
+            71usize => Self::reduce_Exp6_1(reduce_args, shift, lookahead, user_data),
+            72usize => Self::reduce_Exp6_2(reduce_args, shift, lookahead, user_data),
+            73usize => Self::reduce_Exp7_0(reduce_args, shift, lookahead, user_data),
+            74usize => Self::reduce_Exp7_1(reduce_args, shift, lookahead, user_data),
+            75usize => Self::reduce_Exp8_0(reduce_args, shift, lookahead, user_data),
+            76usize => Self::reduce_Exp8_1(reduce_args, shift, lookahead, user_data),
+            77usize => Self::reduce_Exp9_0(reduce_args, shift, lookahead, user_data),
+            78usize => Self::reduce_Exp9_1(reduce_args, shift, lookahead, user_data),
+            79usize => Self::reduce_Exp10_0(reduce_args, shift, lookahead, user_data),
+            80usize => Self::reduce_Exp10_1(reduce_args, shift, lookahead, user_data),
+            81usize => Self::reduce_Exp10_2(reduce_args, shift, lookahead, user_data),
+            82usize => Self::reduce_Exp10_3(reduce_args, shift, lookahead, user_data),
+            83usize => Self::reduce_Exp10_4(reduce_args, shift, lookahead, user_data),
+            84usize => Self::reduce_Exp10_5(reduce_args, shift, lookahead, user_data),
+            85usize => Self::reduce_Exp10_6(reduce_args, shift, lookahead, user_data),
+            86usize => Self::reduce_Exp11_0(reduce_args, shift, lookahead, user_data),
+            87usize => Self::reduce_Exp11_1(reduce_args, shift, lookahead, user_data),
+            88usize => Self::reduce_Exp12_0(reduce_args, shift, lookahead, user_data),
+            89usize => Self::reduce_Exp12_1(reduce_args, shift, lookahead, user_data),
+            90usize => Self::reduce_TableConstructor_0(reduce_args, shift, lookahead, user_data),
+            91usize => Self::reduce_FieldList1_0(reduce_args, shift, lookahead, user_data),
+            92usize => Self::reduce_FieldList1_1(reduce_args, shift, lookahead, user_data),
+            93usize => Self::reduce_FieldList_0(reduce_args, shift, lookahead, user_data),
+            94usize => Self::reduce_FieldList_1(reduce_args, shift, lookahead, user_data),
+            95usize => Self::reduce_Field_0(reduce_args, shift, lookahead, user_data),
+            96usize => Self::reduce_Field_1(reduce_args, shift, lookahead, user_data),
+            97usize => Self::reduce_Field_2(reduce_args, shift, lookahead, user_data),
+            98usize => Self::reduce_FieldSep_0(reduce_args, shift, lookahead, user_data),
+            99usize => Self::reduce_FieldSep_1(reduce_args, shift, lookahead, user_data),
+            100usize => Self::reduce_FunctionDef_0(reduce_args, shift, lookahead, user_data),
+            101usize => Self::reduce_FuncBody_0(reduce_args, shift, lookahead, user_data),
+            102usize => Self::reduce_FuncName1_0(reduce_args, shift, lookahead, user_data),
+            103usize => Self::reduce_FuncName1_1(reduce_args, shift, lookahead, user_data),
+            104usize => Self::reduce_FuncName_0(reduce_args, shift, lookahead, user_data),
+            105usize => Self::reduce_FuncName_1(reduce_args, shift, lookahead, user_data),
+            106usize => Self::reduce_ParList_0(reduce_args, shift, lookahead, user_data),
+            107usize => Self::reduce_ParList_1(reduce_args, shift, lookahead, user_data),
+            108usize => Self::reduce__Statement_Plus40_0(reduce_args, shift, lookahead, user_data),
+            109usize => Self::reduce__Statement_Plus40_1(reduce_args, shift, lookahead, user_data),
+            110usize => Self::reduce__Statement_Star41_0(reduce_args, shift, lookahead, user_data),
+            111usize => Self::reduce__Statement_Star41_1(reduce_args, shift, lookahead, user_data),
+            112usize => {
+                Self::reduce__ReturnStatement_Question42_0(reduce_args, shift, lookahead, user_data)
             }
-            111usize => {
-                Self::reduce__ReturnStatement_Question41_1(reduce_args, shift, lookahead, user_data)
+            113usize => {
+                Self::reduce__ReturnStatement_Question42_1(reduce_args, shift, lookahead, user_data)
             }
-            112usize => Self::reduce__Group42_0(reduce_args, shift, lookahead, user_data),
-            113usize => Self::reduce___Group42_Plus43_0(reduce_args, shift, lookahead, user_data),
-            114usize => Self::reduce___Group42_Plus43_1(reduce_args, shift, lookahead, user_data),
-            115usize => Self::reduce___Group42_Star44_0(reduce_args, shift, lookahead, user_data),
-            116usize => Self::reduce___Group42_Star44_1(reduce_args, shift, lookahead, user_data),
-            117usize => Self::reduce__Group45_0(reduce_args, shift, lookahead, user_data),
-            118usize => {
+            114usize => Self::reduce__ElseIf_Plus43_0(reduce_args, shift, lookahead, user_data),
+            115usize => Self::reduce__ElseIf_Plus43_1(reduce_args, shift, lookahead, user_data),
+            116usize => Self::reduce__ElseIf_Star44_0(reduce_args, shift, lookahead, user_data),
+            117usize => Self::reduce__ElseIf_Star44_1(reduce_args, shift, lookahead, user_data),
+            118usize => Self::reduce__Group45_0(reduce_args, shift, lookahead, user_data),
+            119usize => {
                 Self::reduce___Group45_Question46_0(reduce_args, shift, lookahead, user_data)
             }
-            119usize => {
+            120usize => {
                 Self::reduce___Group45_Question46_1(reduce_args, shift, lookahead, user_data)
             }
-            120usize => Self::reduce__Group47_0(reduce_args, shift, lookahead, user_data),
-            121usize => {
+            121usize => Self::reduce__Group47_0(reduce_args, shift, lookahead, user_data),
+            122usize => {
                 Self::reduce___Group47_Question48_0(reduce_args, shift, lookahead, user_data)
             }
-            122usize => {
+            123usize => {
                 Self::reduce___Group47_Question48_1(reduce_args, shift, lookahead, user_data)
             }
-            123usize => Self::reduce__Group49_0(reduce_args, shift, lookahead, user_data),
-            124usize => {
+            124usize => Self::reduce__Group49_0(reduce_args, shift, lookahead, user_data),
+            125usize => {
                 Self::reduce___Group49_Question50_0(reduce_args, shift, lookahead, user_data)
             }
-            125usize => {
+            126usize => {
                 Self::reduce___Group49_Question50_1(reduce_args, shift, lookahead, user_data)
             }
-            126usize => {
+            127usize => {
                 Self::reduce__semicolon_Question51_0(reduce_args, shift, lookahead, user_data)
             }
-            127usize => {
+            128usize => {
                 Self::reduce__semicolon_Question51_1(reduce_args, shift, lookahead, user_data)
             }
-            128usize => {
+            129usize => {
                 Self::reduce__FieldSep_Question52_0(reduce_args, shift, lookahead, user_data)
             }
-            129usize => {
+            130usize => {
                 Self::reduce__FieldSep_Question52_1(reduce_args, shift, lookahead, user_data)
             }
-            130usize => {
+            131usize => {
                 Self::reduce__ParList_Question53_0(reduce_args, shift, lookahead, user_data)
             }
-            131usize => {
+            132usize => {
                 Self::reduce__ParList_Question53_1(reduce_args, shift, lookahead, user_data)
             }
-            132usize => Self::reduce__Group54_0(reduce_args, shift, lookahead, user_data),
-            133usize => {
+            133usize => Self::reduce__Group54_0(reduce_args, shift, lookahead, user_data),
+            134usize => {
                 Self::reduce___Group54_Question55_0(reduce_args, shift, lookahead, user_data)
             }
-            134usize => {
+            135usize => {
                 Self::reduce___Group54_Question55_1(reduce_args, shift, lookahead, user_data)
             }
-            135usize => Self::reduce_Augmented_0(reduce_args, shift, lookahead, user_data),
+            136usize => Self::reduce_Augmented_0(reduce_args, shift, lookahead, user_data),
             _ => {
                 unreachable!("Invalid Rule: {}", rule_index);
             }
@@ -3210,8 +3482,8 @@ impl ChunkParser {
         const RUSTYLR_RULES_TOKENS: &[&[::rusty_lr::Token<u8, ChunkNonTerminals>]] = &[
             &[::rusty_lr::Token::NonTerm(ChunkNonTerminals::Block)],
             &[
-                ::rusty_lr::Token::NonTerm(ChunkNonTerminals::_Statement_Star40),
-                ::rusty_lr::Token::NonTerm(ChunkNonTerminals::_ReturnStatement_Question41),
+                ::rusty_lr::Token::NonTerm(ChunkNonTerminals::_Statement_Star41),
+                ::rusty_lr::Token::NonTerm(ChunkNonTerminals::_ReturnStatement_Question42),
             ],
             &[::rusty_lr::Token::Term(32)],
             &[
@@ -3250,7 +3522,7 @@ impl ChunkParser {
                 ::rusty_lr::Token::NonTerm(ChunkNonTerminals::Exp),
                 ::rusty_lr::Token::Term(54),
                 ::rusty_lr::Token::NonTerm(ChunkNonTerminals::Block),
-                ::rusty_lr::Token::NonTerm(ChunkNonTerminals::__Group42_Star44),
+                ::rusty_lr::Token::NonTerm(ChunkNonTerminals::_ElseIf_Star44),
                 ::rusty_lr::Token::NonTerm(ChunkNonTerminals::__Group45_Question46),
                 ::rusty_lr::Token::Term(43),
             ],
@@ -3290,6 +3562,12 @@ impl ChunkParser {
                 ::rusty_lr::Token::Term(49),
                 ::rusty_lr::Token::NonTerm(ChunkNonTerminals::AttNameList),
                 ::rusty_lr::Token::NonTerm(ChunkNonTerminals::__Group49_Question50),
+            ],
+            &[
+                ::rusty_lr::Token::Term(42),
+                ::rusty_lr::Token::NonTerm(ChunkNonTerminals::Exp),
+                ::rusty_lr::Token::Term(54),
+                ::rusty_lr::Token::NonTerm(ChunkNonTerminals::Block),
             ],
             &[
                 ::rusty_lr::Token::Term(53),
@@ -3397,6 +3675,10 @@ impl ChunkParser {
             ],
             &[
                 ::rusty_lr::Token::Term(6),
+                ::rusty_lr::Token::NonTerm(ChunkNonTerminals::Exp2),
+            ],
+            &[
+                ::rusty_lr::Token::Term(5),
                 ::rusty_lr::Token::NonTerm(ChunkNonTerminals::Exp2),
             ],
             &[
@@ -3575,30 +3857,24 @@ impl ChunkParser {
             &[::rusty_lr::Token::Term(37)],
             &[::rusty_lr::Token::NonTerm(ChunkNonTerminals::Statement)],
             &[
-                ::rusty_lr::Token::NonTerm(ChunkNonTerminals::_Statement_Plus39),
+                ::rusty_lr::Token::NonTerm(ChunkNonTerminals::_Statement_Plus40),
                 ::rusty_lr::Token::NonTerm(ChunkNonTerminals::Statement),
             ],
             &[::rusty_lr::Token::NonTerm(
-                ChunkNonTerminals::_Statement_Plus39,
+                ChunkNonTerminals::_Statement_Plus40,
             )],
             &[],
             &[::rusty_lr::Token::NonTerm(
                 ChunkNonTerminals::ReturnStatement,
             )],
             &[],
+            &[::rusty_lr::Token::NonTerm(ChunkNonTerminals::ElseIf)],
             &[
-                ::rusty_lr::Token::Term(42),
-                ::rusty_lr::Token::NonTerm(ChunkNonTerminals::Exp),
-                ::rusty_lr::Token::Term(54),
-                ::rusty_lr::Token::NonTerm(ChunkNonTerminals::Block),
-            ],
-            &[::rusty_lr::Token::NonTerm(ChunkNonTerminals::_Group42)],
-            &[
-                ::rusty_lr::Token::NonTerm(ChunkNonTerminals::__Group42_Plus43),
-                ::rusty_lr::Token::NonTerm(ChunkNonTerminals::_Group42),
+                ::rusty_lr::Token::NonTerm(ChunkNonTerminals::_ElseIf_Plus43),
+                ::rusty_lr::Token::NonTerm(ChunkNonTerminals::ElseIf),
             ],
             &[::rusty_lr::Token::NonTerm(
-                ChunkNonTerminals::__Group42_Plus43,
+                ChunkNonTerminals::_ElseIf_Plus43,
             )],
             &[],
             &[
@@ -3651,6 +3927,7 @@ impl ChunkParser {
             ChunkNonTerminals::Statement,
             ChunkNonTerminals::Statement,
             ChunkNonTerminals::Statement,
+            ChunkNonTerminals::ElseIf,
             ChunkNonTerminals::ReturnStatement,
             ChunkNonTerminals::Var,
             ChunkNonTerminals::Var,
@@ -3687,6 +3964,7 @@ impl ChunkParser {
             ChunkNonTerminals::Exp0,
             ChunkNonTerminals::Exp1,
             ChunkNonTerminals::Exp1,
+            ChunkNonTerminals::Exp2,
             ChunkNonTerminals::Exp2,
             ChunkNonTerminals::Exp2,
             ChunkNonTerminals::Exp2,
@@ -3740,17 +4018,16 @@ impl ChunkParser {
             ChunkNonTerminals::FuncName,
             ChunkNonTerminals::ParList,
             ChunkNonTerminals::ParList,
-            ChunkNonTerminals::_Statement_Plus39,
-            ChunkNonTerminals::_Statement_Plus39,
-            ChunkNonTerminals::_Statement_Star40,
-            ChunkNonTerminals::_Statement_Star40,
-            ChunkNonTerminals::_ReturnStatement_Question41,
-            ChunkNonTerminals::_ReturnStatement_Question41,
-            ChunkNonTerminals::_Group42,
-            ChunkNonTerminals::__Group42_Plus43,
-            ChunkNonTerminals::__Group42_Plus43,
-            ChunkNonTerminals::__Group42_Star44,
-            ChunkNonTerminals::__Group42_Star44,
+            ChunkNonTerminals::_Statement_Plus40,
+            ChunkNonTerminals::_Statement_Plus40,
+            ChunkNonTerminals::_Statement_Star41,
+            ChunkNonTerminals::_Statement_Star41,
+            ChunkNonTerminals::_ReturnStatement_Question42,
+            ChunkNonTerminals::_ReturnStatement_Question42,
+            ChunkNonTerminals::_ElseIf_Plus43,
+            ChunkNonTerminals::_ElseIf_Plus43,
+            ChunkNonTerminals::_ElseIf_Star44,
+            ChunkNonTerminals::_ElseIf_Star44,
             ChunkNonTerminals::_Group45,
             ChunkNonTerminals::__Group45_Question46,
             ChunkNonTerminals::__Group45_Question46,
@@ -3874,7 +4151,7 @@ impl ChunkParser {
                 0, 25, 26, 28, 30, 31, 32, 34, 39, 40, 41, 42, 43, 44, 45, 46, 47, 49, 52, 53, 54,
                 55, 56, 57,
             ],
-            &[0, 1, 2, 3, 4, 6, 11, 13, 25, 27, 28, 29, 37, 45, 50],
+            &[0, 1, 2, 3, 4, 5, 6, 11, 13, 25, 27, 28, 29, 37, 45, 50],
             &[1, 25, 27, 29, 33, 35],
             &[24, 34],
             &[41, 42, 43, 53, 55, 57],
@@ -3889,119 +4166,121 @@ impl ChunkParser {
         ];
         const RUSTYLR_RULESET_SHIFTED0_CACHE: &[&[u8]] = &[
             &[
-                0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 19, 20, 21, 22, 23,
-                24, 25, 29, 30, 106, 107, 108, 109, 135,
+                0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24,
+                25, 26, 30, 31, 108, 109, 110, 111, 136,
             ],
             &[],
             &[
-                18, 19, 20, 21, 22, 23, 24, 25, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54,
-                55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75,
-                76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 98,
-            ],
-            &[
-                18, 19, 20, 21, 22, 23, 24, 25, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55,
-                56, 57, 88, 98,
-            ],
-            &[
-                18, 19, 20, 21, 22, 23, 24, 25, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54,
-                55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75,
-                76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 98,
-            ],
-            &[99],
-            &[35, 36, 104, 105, 130, 131],
-            &[132, 133, 134],
-            &[
-                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 19, 20, 21, 22, 23, 24,
-                25, 29, 30, 106, 107, 108, 109,
-            ],
-            &[35, 36],
-            &[100, 101, 102, 103],
-            &[26, 27, 28, 88],
-            &[
-                18, 19, 20, 21, 22, 23, 24, 25, 31, 32, 33, 34, 42, 43, 44, 45, 46, 47, 48, 49, 50,
-                51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71,
-                72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 98,
-            ],
-            &[
-                18, 19, 20, 21, 22, 23, 24, 25, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 88, 98,
-            ],
-            &[37, 38, 39],
-            &[40, 41],
-            &[123, 124, 125],
-            &[
-                18, 19, 20, 21, 22, 23, 24, 25, 31, 32, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52,
-                53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73,
-                74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 98,
-            ],
-            &[
-                18, 19, 20, 21, 22, 23, 24, 25, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55,
-                56, 57, 58, 59, 60, 61, 62, 88, 98,
-            ],
-            &[
-                18, 19, 20, 21, 22, 23, 24, 25, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55,
-                56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 88, 98,
-            ],
-            &[
-                18, 19, 20, 21, 22, 23, 24, 25, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55,
-                56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 88, 98,
-            ],
-            &[
-                18, 19, 20, 21, 22, 23, 24, 25, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55,
-                56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 88, 98,
-            ],
-            &[
-                18, 19, 20, 21, 22, 23, 24, 25, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55,
-                56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 88, 98,
-            ],
-            &[
-                18, 19, 20, 21, 22, 23, 24, 25, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55,
+                19, 20, 21, 22, 23, 24, 25, 26, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55,
                 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76,
-                88, 98,
+                77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 100,
             ],
             &[
-                18, 19, 20, 21, 22, 23, 24, 25, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55,
+                19, 20, 21, 22, 23, 24, 25, 26, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56,
+                57, 58, 59, 90, 100,
+            ],
+            &[
+                19, 20, 21, 22, 23, 24, 25, 26, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55,
                 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76,
-                77, 78, 79, 80, 81, 82, 83, 88, 98,
+                77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97,
+                100,
+            ],
+            &[101],
+            &[36, 37, 106, 107, 131, 132],
+            &[133, 134, 135],
+            &[
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25,
+                26, 30, 31, 108, 109, 110, 111,
+            ],
+            &[36, 37],
+            &[102, 103, 104, 105],
+            &[27, 28, 29, 90],
+            &[
+                19, 20, 21, 22, 23, 24, 25, 26, 32, 33, 34, 35, 43, 44, 45, 46, 47, 48, 49, 50, 51,
+                52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72,
+                73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 100,
             ],
             &[
-                18, 19, 20, 21, 22, 23, 24, 25, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55,
+                19, 20, 21, 22, 23, 24, 25, 26, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 90, 100,
+            ],
+            &[38, 39, 40],
+            &[41, 42],
+            &[124, 125, 126],
+            &[
+                19, 20, 21, 22, 23, 24, 25, 26, 32, 33, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53,
+                54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74,
+                75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 100,
+            ],
+            &[
+                19, 20, 21, 22, 23, 24, 25, 26, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56,
+                57, 58, 59, 60, 61, 62, 63, 64, 90, 100,
+            ],
+            &[
+                19, 20, 21, 22, 23, 24, 25, 26, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56,
+                57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 90, 100,
+            ],
+            &[
+                19, 20, 21, 22, 23, 24, 25, 26, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56,
+                57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 90, 100,
+            ],
+            &[
+                19, 20, 21, 22, 23, 24, 25, 26, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56,
+                57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 90, 100,
+            ],
+            &[
+                19, 20, 21, 22, 23, 24, 25, 26, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56,
+                57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 90,
+                100,
+            ],
+            &[
+                19, 20, 21, 22, 23, 24, 25, 26, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56,
+                57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77,
+                78, 90, 100,
+            ],
+            &[
+                19, 20, 21, 22, 23, 24, 25, 26, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56,
+                57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77,
+                78, 79, 80, 81, 82, 83, 84, 85, 90, 100,
+            ],
+            &[
+                19, 20, 21, 22, 23, 24, 25, 26, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56,
+                57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77,
+                78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 90, 100,
+            ],
+            &[98, 99, 129, 130],
+            &[
+                19, 20, 21, 22, 23, 24, 25, 26, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55,
                 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76,
-                77, 78, 79, 80, 81, 82, 83, 84, 85, 88, 98,
+                77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 95, 96, 97, 100,
             ],
-            &[96, 97, 128, 129],
+            &[19, 20, 21, 22, 23, 24, 25, 26],
             &[
-                18, 19, 20, 21, 22, 23, 24, 25, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54,
-                55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75,
-                76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 93, 94, 95, 98,
+                2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 26,
+                30, 31,
             ],
-            &[18, 19, 20, 21, 22, 23, 24, 25],
-            &[
-                2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 19, 20, 21, 22, 23, 24, 25,
-                29, 30,
-            ],
-            &[17, 110, 111],
-            &[126, 127],
-            &[120, 121, 122],
-            &[37],
-            &[112, 113, 114, 115, 116],
-            &[112],
-            &[117, 118, 119],
+            &[18, 112, 113],
+            &[127, 128],
+            &[121, 122, 123],
+            &[38],
+            &[17, 114, 115, 116, 117],
+            &[17],
+            &[118, 119, 120],
         ];
         const RUSTYLR_SHIFT_TERM_MAP: &[&[(u8, u8)]] = &[
             &[
                 (0, 1),
                 (25, 2),
-                (31, 27),
-                (32, 30),
-                (39, 31),
-                (40, 32),
-                (44, 33),
-                (45, 38),
-                (46, 47),
-                (47, 49),
-                (49, 60),
-                (52, 72),
-                (56, 73),
+                (31, 28),
+                (32, 31),
+                (39, 32),
+                (40, 33),
+                (44, 34),
+                (45, 39),
+                (46, 48),
+                (47, 50),
+                (49, 61),
+                (52, 73),
+                (56, 74),
             ],
             &[],
             &[
@@ -4010,341 +4289,17 @@ impl ChunkParser {
                 (2, 4),
                 (3, 5),
                 (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
                 (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
             ],
             &[],
-            &[],
-            &[],
-            &[],
-            &[
-                (0, 1),
-                (1, 3),
-                (2, 4),
-                (3, 5),
-                (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
-                (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
-            ],
-            &[
-                (0, 1),
-                (1, 3),
-                (2, 4),
-                (3, 5),
-                (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
-                (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
-            ],
-            &[
-                (0, 1),
-                (1, 3),
-                (2, 4),
-                (3, 5),
-                (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
-                (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
-            ],
-            &[
-                (0, 11),
-                (1, 3),
-                (2, 4),
-                (3, 5),
-                (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
-                (25, 2),
-                (27, 10),
-                (29, 36),
-                (37, 13),
-                (45, 14),
-                (50, 37),
-            ],
-            &[(24, 12)],
-            &[
-                (0, 1),
-                (1, 3),
-                (2, 4),
-                (3, 5),
-                (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
-                (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
-            ],
-            &[],
-            &[(25, 15)],
-            &[(0, 16), (37, 17)],
-            &[],
-            &[],
-            &[(34, 19)],
-            &[(0, 20), (37, 21)],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[(26, 26)],
-            &[
-                (0, 1),
-                (25, 2),
-                (31, 27),
-                (32, 30),
-                (39, 31),
-                (40, 32),
-                (44, 33),
-                (45, 38),
-                (46, 47),
-                (47, 49),
-                (49, 60),
-                (52, 72),
-                (56, 73),
-            ],
-            &[(0, 28)],
-            &[(31, 29)],
-            &[],
-            &[],
-            &[],
-            &[
-                (0, 1),
-                (25, 2),
-                (31, 27),
-                (32, 30),
-                (39, 31),
-                (40, 32),
-                (44, 33),
-                (45, 38),
-                (46, 47),
-                (47, 49),
-                (49, 60),
-                (52, 72),
-                (56, 73),
-            ],
-            &[(0, 34)],
-            &[(24, 35)],
-            &[
-                (0, 1),
-                (1, 3),
-                (2, 4),
-                (3, 5),
-                (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
-                (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
-            ],
-            &[
-                (0, 1),
-                (1, 3),
-                (2, 4),
-                (3, 5),
-                (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
-                (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
-            ],
-            &[
-                (0, 1),
-                (1, 3),
-                (2, 4),
-                (3, 5),
-                (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
-                (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
-            ],
-            &[(0, 39)],
-            &[],
-            &[(33, 41), (35, 43)],
-            &[(0, 42)],
-            &[],
-            &[(0, 44)],
-            &[],
-            &[(25, 15)],
-            &[],
-            &[(0, 48)],
-            &[],
-            &[
-                (0, 1),
-                (1, 3),
-                (2, 4),
-                (3, 5),
-                (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
-                (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
-            ],
-            &[],
-            &[(1, 52), (25, 53), (27, 10), (29, 109), (33, 116), (35, 120)],
-            &[],
-            &[
-                (0, 1),
-                (1, 3),
-                (2, 4),
-                (3, 5),
-                (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
-                (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
-            ],
-            &[],
-            &[],
-            &[(10, 57)],
-            &[
-                (0, 1),
-                (1, 3),
-                (2, 4),
-                (3, 5),
-                (4, 6),
-                (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-            ],
-            &[(34, 59)],
-            &[
-                (0, 1),
-                (1, 3),
-                (2, 4),
-                (3, 5),
-                (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
-                (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
-            ],
-            &[(0, 61), (45, 66)],
-            &[(22, 62)],
-            &[(0, 63)],
-            &[(23, 64)],
-            &[],
-            &[],
-            &[(0, 67)],
-            &[(25, 15)],
-            &[],
-            &[],
-            &[(24, 71), (34, 194)],
-            &[
-                (0, 1),
-                (1, 3),
-                (2, 4),
-                (3, 5),
-                (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
-                (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
-            ],
-            &[
-                (0, 1),
-                (25, 2),
-                (31, 27),
-                (32, 30),
-                (39, 31),
-                (40, 32),
-                (44, 33),
-                (45, 38),
-                (46, 47),
-                (47, 49),
-                (49, 60),
-                (52, 72),
-                (56, 73),
-            ],
-            &[
-                (0, 1),
-                (1, 3),
-                (2, 4),
-                (3, 5),
-                (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
-                (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
-            ],
-            &[(26, 75)],
-            &[],
-            &[],
-            &[],
-            &[(7, 79), (8, 83), (9, 85), (17, 87)],
-            &[
-                (0, 1),
-                (1, 3),
-                (2, 4),
-                (3, 5),
-                (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
-                (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
-            ],
             &[],
             &[],
             &[],
@@ -4354,14 +4309,370 @@ impl ChunkParser {
                 (2, 4),
                 (3, 5),
                 (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
                 (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
+            ],
+            &[
+                (0, 1),
+                (1, 3),
+                (2, 4),
+                (3, 5),
+                (4, 6),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
+                (25, 2),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
+            ],
+            &[
+                (0, 1),
+                (1, 3),
+                (2, 4),
+                (3, 5),
+                (4, 6),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
+                (25, 2),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
+            ],
+            &[
+                (0, 1),
+                (1, 3),
+                (2, 4),
+                (3, 5),
+                (4, 6),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
+                (25, 2),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
+            ],
+            &[
+                (0, 12),
+                (1, 3),
+                (2, 4),
+                (3, 5),
+                (4, 6),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
+                (25, 2),
+                (27, 11),
+                (29, 37),
+                (37, 14),
+                (45, 15),
+                (50, 38),
+            ],
+            &[(24, 13)],
+            &[
+                (0, 1),
+                (1, 3),
+                (2, 4),
+                (3, 5),
+                (4, 6),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
+                (25, 2),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
+            ],
+            &[],
+            &[(25, 16)],
+            &[(0, 17), (37, 18)],
+            &[],
+            &[],
+            &[(34, 20)],
+            &[(0, 21), (37, 22)],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[(26, 27)],
+            &[
+                (0, 1),
+                (25, 2),
+                (31, 28),
+                (32, 31),
+                (39, 32),
+                (40, 33),
+                (44, 34),
+                (45, 39),
+                (46, 48),
+                (47, 50),
+                (49, 61),
+                (52, 73),
+                (56, 74),
+            ],
+            &[(0, 29)],
+            &[(31, 30)],
+            &[],
+            &[],
+            &[],
+            &[
+                (0, 1),
+                (25, 2),
+                (31, 28),
+                (32, 31),
+                (39, 32),
+                (40, 33),
+                (44, 34),
+                (45, 39),
+                (46, 48),
+                (47, 50),
+                (49, 61),
+                (52, 73),
+                (56, 74),
+            ],
+            &[(0, 35)],
+            &[(24, 36)],
+            &[
+                (0, 1),
+                (1, 3),
+                (2, 4),
+                (3, 5),
+                (4, 6),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
+                (25, 2),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
+            ],
+            &[
+                (0, 1),
+                (1, 3),
+                (2, 4),
+                (3, 5),
+                (4, 6),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
+                (25, 2),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
+            ],
+            &[
+                (0, 1),
+                (1, 3),
+                (2, 4),
+                (3, 5),
+                (4, 6),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
+                (25, 2),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
+            ],
+            &[(0, 40)],
+            &[],
+            &[(33, 42), (35, 44)],
+            &[(0, 43)],
+            &[],
+            &[(0, 45)],
+            &[],
+            &[(25, 16)],
+            &[],
+            &[(0, 49)],
+            &[],
+            &[
+                (0, 1),
+                (1, 3),
+                (2, 4),
+                (3, 5),
+                (4, 6),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
+                (25, 2),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
+            ],
+            &[],
+            &[(1, 53), (25, 54), (27, 11), (29, 110), (33, 117), (35, 121)],
+            &[],
+            &[
+                (0, 1),
+                (1, 3),
+                (2, 4),
+                (3, 5),
+                (4, 6),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
+                (25, 2),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
+            ],
+            &[],
+            &[],
+            &[(10, 58)],
+            &[
+                (0, 1),
+                (1, 3),
+                (2, 4),
+                (3, 5),
+                (4, 6),
+                (25, 2),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+            ],
+            &[(34, 60)],
+            &[
+                (0, 1),
+                (1, 3),
+                (2, 4),
+                (3, 5),
+                (4, 6),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
+                (25, 2),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
+            ],
+            &[(0, 62), (45, 67)],
+            &[(22, 63)],
+            &[(0, 64)],
+            &[(23, 65)],
+            &[],
+            &[],
+            &[(0, 68)],
+            &[(25, 16)],
+            &[],
+            &[],
+            &[(24, 72), (34, 196)],
+            &[
+                (0, 1),
+                (1, 3),
+                (2, 4),
+                (3, 5),
+                (4, 6),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
+                (25, 2),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
+            ],
+            &[
+                (0, 1),
+                (25, 2),
+                (31, 28),
+                (32, 31),
+                (39, 32),
+                (40, 33),
+                (44, 34),
+                (45, 39),
+                (46, 48),
+                (47, 50),
+                (49, 61),
+                (52, 73),
+                (56, 74),
+            ],
+            &[
+                (0, 1),
+                (1, 3),
+                (2, 4),
+                (3, 5),
+                (4, 6),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
+                (25, 2),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
+            ],
+            &[(26, 76)],
+            &[],
+            &[],
+            &[],
+            &[(7, 80), (8, 84), (9, 86), (17, 88)],
+            &[
+                (0, 1),
+                (1, 3),
+                (2, 4),
+                (3, 5),
+                (4, 6),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
+                (25, 2),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
+            ],
+            &[],
+            &[],
+            &[],
+            &[
+                (0, 1),
+                (1, 3),
+                (2, 4),
+                (3, 5),
+                (4, 6),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
+                (25, 2),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
             ],
             &[],
             &[
@@ -4370,14 +4681,15 @@ impl ChunkParser {
                 (2, 4),
                 (3, 5),
                 (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
                 (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
             ],
             &[],
             &[
@@ -4386,154 +4698,113 @@ impl ChunkParser {
                 (2, 4),
                 (3, 5),
                 (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
                 (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
             ],
             &[],
-            &[(5, 90), (6, 126), (36, 128)],
+            &[(5, 91), (6, 127), (36, 129)],
             &[
                 (0, 1),
                 (1, 3),
                 (2, 4),
                 (3, 5),
                 (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
                 (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
             ],
-            &[(26, 92)],
+            &[(26, 93)],
             &[],
             &[],
             &[],
-            &[(15, 96), (16, 131)],
+            &[(15, 97), (16, 132)],
             &[
                 (0, 1),
                 (1, 3),
                 (2, 4),
                 (3, 5),
                 (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
                 (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
             ],
-            &[(12, 98)],
+            &[(12, 99)],
             &[
                 (0, 1),
                 (1, 3),
                 (2, 4),
                 (3, 5),
                 (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
                 (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
             ],
-            &[(13, 100)],
+            &[(13, 101)],
             &[
                 (0, 1),
                 (1, 3),
                 (2, 4),
                 (3, 5),
                 (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
                 (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
             ],
-            &[(14, 102)],
+            &[(14, 103)],
             &[
                 (0, 1),
                 (1, 3),
                 (2, 4),
                 (3, 5),
                 (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
                 (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
             ],
             &[
-                (18, 104),
-                (19, 137),
-                (20, 139),
-                (21, 141),
-                (22, 143),
-                (23, 145),
-            ],
-            &[
-                (0, 1),
-                (1, 3),
-                (2, 4),
-                (3, 5),
-                (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
-                (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
-            ],
-            &[(38, 106)],
-            &[
-                (0, 1),
-                (1, 3),
-                (2, 4),
-                (3, 5),
-                (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
-                (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
-            ],
-            &[(51, 108)],
-            &[
-                (0, 1),
-                (1, 3),
-                (2, 4),
-                (3, 5),
-                (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
-                (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
+                (18, 105),
+                (19, 138),
+                (20, 140),
+                (21, 142),
+                (22, 144),
+                (23, 146),
             ],
             &[
                 (0, 1),
@@ -4541,76 +4812,130 @@ impl ChunkParser {
                 (2, 4),
                 (3, 5),
                 (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
                 (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
             ],
-            &[(32, 111), (34, 112)],
-            &[],
-            &[],
-            &[
-                (0, 11),
-                (1, 3),
-                (2, 4),
-                (3, 5),
-                (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
-                (25, 2),
-                (27, 10),
-                (29, 36),
-                (37, 13),
-                (45, 14),
-                (50, 37),
-            ],
-            &[(30, 115)],
-            &[],
-            &[(0, 117)],
-            &[(1, 52), (25, 53), (27, 10)],
-            &[],
-            &[],
-            &[(0, 121)],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[(7, 79), (8, 83), (9, 85), (17, 87)],
+            &[(38, 107)],
             &[
                 (0, 1),
                 (1, 3),
                 (2, 4),
                 (3, 5),
                 (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
                 (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
             ],
-            &[(7, 79), (8, 83), (9, 85), (17, 87)],
+            &[(51, 109)],
             &[
                 (0, 1),
                 (1, 3),
                 (2, 4),
                 (3, 5),
                 (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
                 (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
+            ],
+            &[
+                (0, 1),
+                (1, 3),
+                (2, 4),
+                (3, 5),
+                (4, 6),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
+                (25, 2),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
+            ],
+            &[(32, 112), (34, 113)],
+            &[],
+            &[],
+            &[
+                (0, 12),
+                (1, 3),
+                (2, 4),
+                (3, 5),
+                (4, 6),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
+                (25, 2),
+                (27, 11),
+                (29, 37),
+                (37, 14),
+                (45, 15),
+                (50, 38),
+            ],
+            &[(30, 116)],
+            &[],
+            &[(0, 118)],
+            &[(1, 53), (25, 54), (27, 11)],
+            &[],
+            &[],
+            &[(0, 122)],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[(7, 80), (8, 84), (9, 86), (17, 88)],
+            &[
+                (0, 1),
+                (1, 3),
+                (2, 4),
+                (3, 5),
+                (4, 6),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
+                (25, 2),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
+            ],
+            &[(7, 80), (8, 84), (9, 86), (17, 88)],
+            &[
+                (0, 1),
+                (1, 3),
+                (2, 4),
+                (3, 5),
+                (4, 6),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
+                (25, 2),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
             ],
             &[],
             &[],
@@ -4620,174 +4945,182 @@ impl ChunkParser {
                 (2, 4),
                 (3, 5),
                 (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
                 (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
             ],
             &[],
-            &[(15, 96), (16, 131)],
-            &[(12, 98)],
-            &[(13, 100)],
-            &[(14, 102)],
+            &[(15, 97), (16, 132)],
+            &[(12, 99)],
+            &[(13, 101)],
+            &[(14, 103)],
             &[
                 (0, 1),
                 (1, 3),
                 (2, 4),
                 (3, 5),
                 (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
                 (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
             ],
-            &[(14, 102)],
+            &[(14, 103)],
             &[
                 (0, 1),
                 (1, 3),
                 (2, 4),
                 (3, 5),
                 (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
                 (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
             ],
-            &[(14, 102)],
+            &[(14, 103)],
             &[
                 (0, 1),
                 (1, 3),
                 (2, 4),
                 (3, 5),
                 (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
                 (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
             ],
-            &[(14, 102)],
+            &[(14, 103)],
             &[
                 (0, 1),
                 (1, 3),
                 (2, 4),
                 (3, 5),
                 (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
                 (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
             ],
-            &[(14, 102)],
+            &[(14, 103)],
             &[
                 (0, 1),
                 (1, 3),
                 (2, 4),
                 (3, 5),
                 (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
                 (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
             ],
-            &[(14, 102)],
+            &[(14, 103)],
             &[
-                (18, 104),
-                (19, 137),
-                (20, 139),
-                (21, 141),
-                (22, 143),
-                (23, 145),
+                (18, 105),
+                (19, 138),
+                (20, 140),
+                (21, 142),
+                (22, 144),
+                (23, 146),
             ],
-            &[(38, 106)],
+            &[(38, 107)],
             &[],
             &[],
-            &[(28, 152)],
+            &[(28, 153)],
             &[],
             &[],
-            &[(43, 155)],
+            &[(43, 156)],
             &[],
             &[],
             &[],
-            &[(1, 52), (25, 53), (27, 10), (29, 109), (33, 116), (35, 120)],
+            &[(1, 53), (25, 54), (27, 11), (29, 110), (33, 117), (35, 121)],
             &[],
-            &[(24, 161), (34, 164)],
+            &[(24, 162), (34, 165)],
             &[
                 (0, 1),
                 (1, 3),
                 (2, 4),
                 (3, 5),
                 (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
                 (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
             ],
-            &[(34, 59)],
+            &[(34, 60)],
             &[],
             &[(0, 1), (25, 2)],
             &[],
             &[
                 (0, 1),
                 (25, 2),
-                (31, 27),
-                (32, 30),
-                (39, 31),
-                (40, 32),
-                (44, 33),
-                (45, 38),
-                (46, 47),
-                (47, 49),
-                (49, 60),
-                (52, 72),
-                (56, 73),
+                (31, 28),
+                (32, 31),
+                (39, 32),
+                (40, 33),
+                (44, 34),
+                (45, 39),
+                (46, 48),
+                (47, 50),
+                (49, 61),
+                (52, 73),
+                (56, 74),
             ],
             &[],
-            &[(53, 169)],
+            &[(53, 170)],
             &[
                 (0, 1),
                 (1, 3),
                 (2, 4),
                 (3, 5),
                 (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
                 (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
             ],
             &[],
-            &[(32, 172)],
+            &[(32, 173)],
             &[],
             &[],
             &[],
@@ -4795,56 +5128,41 @@ impl ChunkParser {
             &[],
             &[],
             &[],
-            &[(40, 180)],
+            &[],
+            &[(40, 182)],
             &[
                 (0, 1),
                 (25, 2),
-                (31, 27),
-                (32, 30),
-                (39, 31),
-                (40, 32),
-                (44, 33),
-                (45, 38),
-                (46, 47),
-                (47, 49),
-                (49, 60),
-                (52, 72),
-                (56, 73),
+                (31, 28),
+                (32, 31),
+                (39, 32),
+                (40, 33),
+                (44, 34),
+                (45, 39),
+                (46, 48),
+                (47, 50),
+                (49, 61),
+                (52, 73),
+                (56, 74),
             ],
-            &[(54, 182)],
+            &[(54, 184)],
             &[
                 (0, 1),
                 (25, 2),
-                (31, 27),
-                (32, 30),
-                (39, 31),
-                (40, 32),
-                (44, 33),
-                (45, 38),
-                (46, 47),
-                (47, 49),
-                (49, 60),
-                (52, 72),
-                (56, 73),
+                (31, 28),
+                (32, 31),
+                (39, 32),
+                (40, 33),
+                (44, 34),
+                (45, 39),
+                (46, 48),
+                (47, 50),
+                (49, 61),
+                (52, 73),
+                (56, 74),
             ],
-            &[(43, 184)],
+            &[(43, 186)],
             &[],
-            &[(34, 186)],
-            &[
-                (0, 1),
-                (1, 3),
-                (2, 4),
-                (3, 5),
-                (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
-                (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
-            ],
             &[(34, 188)],
             &[
                 (0, 1),
@@ -4852,299 +5170,331 @@ impl ChunkParser {
                 (2, 4),
                 (3, 5),
                 (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
                 (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
             ],
-            &[],
-            &[],
-            &[(40, 192)],
-            &[
-                (0, 1),
-                (25, 2),
-                (31, 27),
-                (32, 30),
-                (39, 31),
-                (40, 32),
-                (44, 33),
-                (45, 38),
-                (46, 47),
-                (47, 49),
-                (49, 60),
-                (52, 72),
-                (56, 73),
-            ],
-            &[(34, 59)],
-            &[(0, 61)],
-            &[],
-            &[],
-            &[],
-            &[(55, 199)],
+            &[(34, 190)],
             &[
                 (0, 1),
                 (1, 3),
                 (2, 4),
                 (3, 5),
                 (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
                 (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
             ],
             &[],
-            &[(43, 202)],
+            &[],
+            &[(40, 194)],
+            &[
+                (0, 1),
+                (25, 2),
+                (31, 28),
+                (32, 31),
+                (39, 32),
+                (40, 33),
+                (44, 34),
+                (45, 39),
+                (46, 48),
+                (47, 50),
+                (49, 61),
+                (52, 73),
+                (56, 74),
+            ],
+            &[(34, 60)],
+            &[(0, 62)],
+            &[],
+            &[],
+            &[],
+            &[(55, 201)],
+            &[
+                (0, 1),
+                (1, 3),
+                (2, 4),
+                (3, 5),
+                (4, 6),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
+                (25, 2),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
+            ],
             &[],
             &[(43, 204)],
             &[],
-            &[(34, 206), (48, 207)],
-            &[(0, 20)],
+            &[(43, 206)],
+            &[],
+            &[(34, 208), (48, 209)],
+            &[(0, 21)],
             &[
                 (0, 1),
                 (1, 3),
                 (2, 4),
                 (3, 5),
                 (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
                 (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
             ],
-            &[(34, 59), (40, 209)],
+            &[(34, 60), (40, 211)],
             &[
                 (0, 1),
                 (25, 2),
-                (31, 27),
-                (32, 30),
-                (39, 31),
-                (40, 32),
-                (44, 33),
-                (45, 38),
-                (46, 47),
-                (47, 49),
-                (49, 60),
-                (52, 72),
-                (56, 73),
+                (31, 28),
+                (32, 31),
+                (39, 32),
+                (40, 33),
+                (44, 34),
+                (45, 39),
+                (46, 48),
+                (47, 50),
+                (49, 61),
+                (52, 73),
+                (56, 74),
             ],
-            &[(43, 211)],
+            &[(43, 213)],
             &[],
-            &[(42, 213)],
-            &[
-                (0, 1),
-                (1, 3),
-                (2, 4),
-                (3, 5),
-                (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
-                (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
-            ],
-            &[(54, 215)],
-            &[
-                (0, 1),
-                (25, 2),
-                (31, 27),
-                (32, 30),
-                (39, 31),
-                (40, 32),
-                (44, 33),
-                (45, 38),
-                (46, 47),
-                (47, 49),
-                (49, 60),
-                (52, 72),
-                (56, 73),
-            ],
-            &[],
-            &[],
-            &[(42, 213)],
-            &[],
-            &[(41, 221)],
-            &[
-                (0, 1),
-                (25, 2),
-                (31, 27),
-                (32, 30),
-                (39, 31),
-                (40, 32),
-                (44, 33),
-                (45, 38),
-                (46, 47),
-                (47, 49),
-                (49, 60),
-                (52, 72),
-                (56, 73),
-            ],
-            &[],
-            &[],
-            &[(43, 225)],
-            &[],
-            &[(30, 227)],
-            &[(24, 228)],
+            &[(42, 215)],
             &[
                 (0, 1),
                 (1, 3),
                 (2, 4),
                 (3, 5),
                 (4, 6),
-                (6, 7),
-                (11, 8),
-                (13, 9),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
                 (25, 2),
-                (27, 10),
-                (37, 13),
-                (45, 14),
-                (50, 37),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
+            ],
+            &[(54, 217)],
+            &[
+                (0, 1),
+                (25, 2),
+                (31, 28),
+                (32, 31),
+                (39, 32),
+                (40, 33),
+                (44, 34),
+                (45, 39),
+                (46, 48),
+                (47, 50),
+                (49, 61),
+                (52, 73),
+                (56, 74),
             ],
             &[],
             &[],
-            &[(57, 232)],
+            &[(42, 215)],
+            &[],
+            &[(41, 223)],
+            &[
+                (0, 1),
+                (25, 2),
+                (31, 28),
+                (32, 31),
+                (39, 32),
+                (40, 33),
+                (44, 34),
+                (45, 39),
+                (46, 48),
+                (47, 50),
+                (49, 61),
+                (52, 73),
+                (56, 74),
+            ],
+            &[],
+            &[],
+            &[(43, 227)],
+            &[],
+            &[(30, 229)],
+            &[(24, 230)],
+            &[
+                (0, 1),
+                (1, 3),
+                (2, 4),
+                (3, 5),
+                (4, 6),
+                (5, 7),
+                (6, 8),
+                (11, 9),
+                (13, 10),
+                (25, 2),
+                (27, 11),
+                (37, 14),
+                (45, 15),
+                (50, 38),
+            ],
+            &[],
+            &[],
+            &[(57, 234)],
             &[],
             &[],
         ];
         const RUSTYLR_SHIFT_NONTERM_MAP: &[&[(ChunkNonTerminals, u8)]] = &[
             &[
-                (ChunkNonTerminals::Block, 233),
-                (ChunkNonTerminals::Chunk, 231),
-                (ChunkNonTerminals::FunctionCall, 159),
-                (ChunkNonTerminals::PrefixExp, 158),
-                (ChunkNonTerminals::Statement, 156),
-                (ChunkNonTerminals::Var, 157),
-                (ChunkNonTerminals::VarList, 160),
-                (ChunkNonTerminals::_Statement_Plus39, 166),
-                (ChunkNonTerminals::_Statement_Star40, 168),
+                (ChunkNonTerminals::Block, 235),
+                (ChunkNonTerminals::Chunk, 233),
+                (ChunkNonTerminals::FunctionCall, 160),
+                (ChunkNonTerminals::PrefixExp, 159),
+                (ChunkNonTerminals::Statement, 157),
+                (ChunkNonTerminals::Var, 158),
+                (ChunkNonTerminals::VarList, 161),
+                (ChunkNonTerminals::_Statement_Plus40, 167),
+                (ChunkNonTerminals::_Statement_Star41, 169),
             ],
             &[],
             &[
-                (ChunkNonTerminals::Exp, 74),
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp10, 103),
-                (ChunkNonTerminals::Exp11, 105),
-                (ChunkNonTerminals::Exp12, 107),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 94),
-                (ChunkNonTerminals::Exp6, 95),
-                (ChunkNonTerminals::Exp7, 97),
-                (ChunkNonTerminals::Exp8, 99),
-                (ChunkNonTerminals::Exp9, 101),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
+                (ChunkNonTerminals::Exp, 75),
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp10, 104),
+                (ChunkNonTerminals::Exp11, 106),
+                (ChunkNonTerminals::Exp12, 108),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 95),
+                (ChunkNonTerminals::Exp6, 96),
+                (ChunkNonTerminals::Exp7, 98),
+                (ChunkNonTerminals::Exp8, 100),
+                (ChunkNonTerminals::Exp9, 102),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
             ],
             &[],
             &[],
             &[],
             &[],
             &[
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp2, 180),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp2, 179),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
                 (ChunkNonTerminals::Exp2, 178),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
             ],
             &[
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
                 (ChunkNonTerminals::Exp2, 177),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
             ],
             &[
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp2, 176),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[
-                (ChunkNonTerminals::Exp, 55),
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp10, 103),
-                (ChunkNonTerminals::Exp11, 105),
-                (ChunkNonTerminals::Exp12, 107),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 94),
-                (ChunkNonTerminals::Exp6, 95),
-                (ChunkNonTerminals::Exp7, 97),
-                (ChunkNonTerminals::Exp8, 99),
-                (ChunkNonTerminals::Exp9, 101),
-                (ChunkNonTerminals::Field, 153),
-                (ChunkNonTerminals::FieldList, 151),
-                (ChunkNonTerminals::FieldList1, 110),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
+                (ChunkNonTerminals::Exp, 56),
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp10, 104),
+                (ChunkNonTerminals::Exp11, 106),
+                (ChunkNonTerminals::Exp12, 108),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 95),
+                (ChunkNonTerminals::Exp6, 96),
+                (ChunkNonTerminals::Exp7, 98),
+                (ChunkNonTerminals::Exp8, 100),
+                (ChunkNonTerminals::Exp9, 102),
+                (ChunkNonTerminals::Field, 154),
+                (ChunkNonTerminals::FieldList, 152),
+                (ChunkNonTerminals::FieldList1, 111),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
             ],
             &[],
             &[
-                (ChunkNonTerminals::Exp, 230),
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp10, 103),
-                (ChunkNonTerminals::Exp11, 105),
-                (ChunkNonTerminals::Exp12, 107),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 94),
-                (ChunkNonTerminals::Exp6, 95),
-                (ChunkNonTerminals::Exp7, 97),
-                (ChunkNonTerminals::Exp8, 99),
-                (ChunkNonTerminals::Exp9, 101),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
+                (ChunkNonTerminals::Exp, 232),
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp10, 104),
+                (ChunkNonTerminals::Exp11, 106),
+                (ChunkNonTerminals::Exp12, 108),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 95),
+                (ChunkNonTerminals::Exp6, 96),
+                (ChunkNonTerminals::Exp7, 98),
+                (ChunkNonTerminals::Exp8, 100),
+                (ChunkNonTerminals::Exp9, 102),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
             ],
             &[],
-            &[(ChunkNonTerminals::FuncBody, 170)],
+            &[(ChunkNonTerminals::FuncBody, 171)],
             &[
-                (ChunkNonTerminals::NameList, 18),
-                (ChunkNonTerminals::ParList, 24),
-                (ChunkNonTerminals::_ParList_Question53, 25),
+                (ChunkNonTerminals::NameList, 19),
+                (ChunkNonTerminals::ParList, 25),
+                (ChunkNonTerminals::_ParList_Question53, 26),
             ],
             &[],
             &[],
             &[
-                (ChunkNonTerminals::_Group54, 22),
-                (ChunkNonTerminals::__Group54_Question55, 23),
+                (ChunkNonTerminals::_Group54, 23),
+                (ChunkNonTerminals::__Group54_Question55, 24),
             ],
             &[],
             &[],
@@ -5154,14 +5504,14 @@ impl ChunkParser {
             &[],
             &[],
             &[
-                (ChunkNonTerminals::Block, 154),
-                (ChunkNonTerminals::FunctionCall, 159),
-                (ChunkNonTerminals::PrefixExp, 158),
-                (ChunkNonTerminals::Statement, 156),
-                (ChunkNonTerminals::Var, 157),
-                (ChunkNonTerminals::VarList, 160),
-                (ChunkNonTerminals::_Statement_Plus39, 166),
-                (ChunkNonTerminals::_Statement_Star40, 168),
+                (ChunkNonTerminals::Block, 155),
+                (ChunkNonTerminals::FunctionCall, 160),
+                (ChunkNonTerminals::PrefixExp, 159),
+                (ChunkNonTerminals::Statement, 157),
+                (ChunkNonTerminals::Var, 158),
+                (ChunkNonTerminals::VarList, 161),
+                (ChunkNonTerminals::_Statement_Plus40, 167),
+                (ChunkNonTerminals::_Statement_Star41, 169),
             ],
             &[],
             &[],
@@ -5169,920 +5519,824 @@ impl ChunkParser {
             &[],
             &[],
             &[
-                (ChunkNonTerminals::Block, 183),
-                (ChunkNonTerminals::FunctionCall, 159),
-                (ChunkNonTerminals::PrefixExp, 158),
-                (ChunkNonTerminals::Statement, 156),
-                (ChunkNonTerminals::Var, 157),
-                (ChunkNonTerminals::VarList, 160),
-                (ChunkNonTerminals::_Statement_Plus39, 166),
-                (ChunkNonTerminals::_Statement_Star40, 168),
+                (ChunkNonTerminals::Block, 185),
+                (ChunkNonTerminals::FunctionCall, 160),
+                (ChunkNonTerminals::PrefixExp, 159),
+                (ChunkNonTerminals::Statement, 157),
+                (ChunkNonTerminals::Var, 158),
+                (ChunkNonTerminals::VarList, 161),
+                (ChunkNonTerminals::_Statement_Plus40, 167),
+                (ChunkNonTerminals::_Statement_Star41, 169),
             ],
-            &[(ChunkNonTerminals::NameList, 205)],
-            &[],
-            &[
-                (ChunkNonTerminals::Exp, 185),
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp10, 103),
-                (ChunkNonTerminals::Exp11, 105),
-                (ChunkNonTerminals::Exp12, 107),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 94),
-                (ChunkNonTerminals::Exp6, 95),
-                (ChunkNonTerminals::Exp7, 97),
-                (ChunkNonTerminals::Exp8, 99),
-                (ChunkNonTerminals::Exp9, 101),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[
-                (ChunkNonTerminals::Exp, 226),
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp10, 103),
-                (ChunkNonTerminals::Exp11, 105),
-                (ChunkNonTerminals::Exp12, 107),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 94),
-                (ChunkNonTerminals::Exp6, 95),
-                (ChunkNonTerminals::Exp7, 97),
-                (ChunkNonTerminals::Exp8, 99),
-                (ChunkNonTerminals::Exp9, 101),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp2, 124),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[
-                (ChunkNonTerminals::FuncName, 45),
-                (ChunkNonTerminals::FuncName1, 40),
-            ],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[(ChunkNonTerminals::FuncBody, 46)],
-            &[],
-            &[],
-            &[],
-            &[
-                (ChunkNonTerminals::Exp, 181),
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp10, 103),
-                (ChunkNonTerminals::Exp11, 105),
-                (ChunkNonTerminals::Exp12, 107),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 94),
-                (ChunkNonTerminals::Exp6, 95),
-                (ChunkNonTerminals::Exp7, 97),
-                (ChunkNonTerminals::Exp8, 99),
-                (ChunkNonTerminals::Exp9, 101),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[],
-            &[
-                (ChunkNonTerminals::Args, 122),
-                (ChunkNonTerminals::TableConstructor, 119),
-            ],
-            &[],
-            &[
-                (ChunkNonTerminals::Exp, 93),
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp10, 103),
-                (ChunkNonTerminals::Exp11, 105),
-                (ChunkNonTerminals::Exp12, 107),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 94),
-                (ChunkNonTerminals::Exp6, 95),
-                (ChunkNonTerminals::Exp7, 97),
-                (ChunkNonTerminals::Exp8, 99),
-                (ChunkNonTerminals::Exp9, 101),
-                (ChunkNonTerminals::ExpList0, 91),
-                (ChunkNonTerminals::ExpList1, 58),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[],
-            &[],
-            &[],
-            &[
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 123),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[],
-            &[
-                (ChunkNonTerminals::Exp, 163),
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp10, 103),
-                (ChunkNonTerminals::Exp11, 105),
-                (ChunkNonTerminals::Exp12, 107),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 94),
-                (ChunkNonTerminals::Exp6, 95),
-                (ChunkNonTerminals::Exp7, 97),
-                (ChunkNonTerminals::Exp8, 99),
-                (ChunkNonTerminals::Exp9, 101),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[
-                (ChunkNonTerminals::AttName, 69),
-                (ChunkNonTerminals::AttNameList, 70),
-            ],
-            &[(ChunkNonTerminals::Attrib, 65)],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[(ChunkNonTerminals::FuncBody, 68)],
-            &[],
-            &[],
-            &[
-                (ChunkNonTerminals::_Group49, 196),
-                (ChunkNonTerminals::__Group49_Question50, 197),
-            ],
-            &[
-                (ChunkNonTerminals::Exp, 93),
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp10, 103),
-                (ChunkNonTerminals::Exp11, 105),
-                (ChunkNonTerminals::Exp12, 107),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 94),
-                (ChunkNonTerminals::Exp6, 95),
-                (ChunkNonTerminals::Exp7, 97),
-                (ChunkNonTerminals::Exp8, 99),
-                (ChunkNonTerminals::Exp9, 101),
-                (ChunkNonTerminals::ExpList1, 193),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[
-                (ChunkNonTerminals::Block, 198),
-                (ChunkNonTerminals::FunctionCall, 159),
-                (ChunkNonTerminals::PrefixExp, 158),
-                (ChunkNonTerminals::Statement, 156),
-                (ChunkNonTerminals::Var, 157),
-                (ChunkNonTerminals::VarList, 160),
-                (ChunkNonTerminals::_Statement_Plus39, 166),
-                (ChunkNonTerminals::_Statement_Star40, 168),
-            ],
-            &[
-                (ChunkNonTerminals::Exp, 179),
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp10, 103),
-                (ChunkNonTerminals::Exp11, 105),
-                (ChunkNonTerminals::Exp12, 107),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 94),
-                (ChunkNonTerminals::Exp6, 95),
-                (ChunkNonTerminals::Exp7, 97),
-                (ChunkNonTerminals::Exp8, 99),
-                (ChunkNonTerminals::Exp9, 101),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp2, 80),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[],
-            &[],
-            &[],
-            &[
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp2, 84),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[],
-            &[
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp2, 86),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[],
-            &[
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp2, 88),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[],
-            &[],
-            &[
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 125),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 130),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[],
-            &[
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 94),
-                (ChunkNonTerminals::Exp6, 133),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[],
-            &[
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 94),
-                (ChunkNonTerminals::Exp6, 95),
-                (ChunkNonTerminals::Exp7, 134),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[],
-            &[
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 94),
-                (ChunkNonTerminals::Exp6, 95),
-                (ChunkNonTerminals::Exp7, 97),
-                (ChunkNonTerminals::Exp8, 135),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[],
-            &[
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 94),
-                (ChunkNonTerminals::Exp6, 95),
-                (ChunkNonTerminals::Exp7, 97),
-                (ChunkNonTerminals::Exp8, 99),
-                (ChunkNonTerminals::Exp9, 136),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[],
-            &[
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp10, 147),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 94),
-                (ChunkNonTerminals::Exp6, 95),
-                (ChunkNonTerminals::Exp7, 97),
-                (ChunkNonTerminals::Exp8, 99),
-                (ChunkNonTerminals::Exp9, 101),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[],
-            &[
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp10, 103),
-                (ChunkNonTerminals::Exp11, 148),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 94),
-                (ChunkNonTerminals::Exp6, 95),
-                (ChunkNonTerminals::Exp7, 97),
-                (ChunkNonTerminals::Exp8, 99),
-                (ChunkNonTerminals::Exp9, 101),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[
-                (ChunkNonTerminals::Exp, 114),
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp10, 103),
-                (ChunkNonTerminals::Exp11, 105),
-                (ChunkNonTerminals::Exp12, 107),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 94),
-                (ChunkNonTerminals::Exp6, 95),
-                (ChunkNonTerminals::Exp7, 97),
-                (ChunkNonTerminals::Exp8, 99),
-                (ChunkNonTerminals::Exp9, 101),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[
-                (ChunkNonTerminals::FieldSep, 113),
-                (ChunkNonTerminals::_FieldSep_Question52, 150),
-            ],
-            &[],
-            &[],
-            &[
-                (ChunkNonTerminals::Exp, 55),
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp10, 103),
-                (ChunkNonTerminals::Exp11, 105),
-                (ChunkNonTerminals::Exp12, 107),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 94),
-                (ChunkNonTerminals::Exp6, 95),
-                (ChunkNonTerminals::Exp7, 97),
-                (ChunkNonTerminals::Exp8, 99),
-                (ChunkNonTerminals::Exp9, 101),
-                (ChunkNonTerminals::Field, 149),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[],
-            &[],
-            &[],
-            &[
-                (ChunkNonTerminals::Args, 118),
-                (ChunkNonTerminals::TableConstructor, 119),
-            ],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 127),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[],
-            &[
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 129),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[],
-            &[],
-            &[
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 132),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 94),
-                (ChunkNonTerminals::Exp6, 95),
-                (ChunkNonTerminals::Exp7, 97),
-                (ChunkNonTerminals::Exp8, 99),
-                (ChunkNonTerminals::Exp9, 138),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[],
-            &[
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 94),
-                (ChunkNonTerminals::Exp6, 95),
-                (ChunkNonTerminals::Exp7, 97),
-                (ChunkNonTerminals::Exp8, 99),
-                (ChunkNonTerminals::Exp9, 140),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[],
-            &[
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 94),
-                (ChunkNonTerminals::Exp6, 95),
-                (ChunkNonTerminals::Exp7, 97),
-                (ChunkNonTerminals::Exp8, 99),
-                (ChunkNonTerminals::Exp9, 142),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[],
-            &[
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 94),
-                (ChunkNonTerminals::Exp6, 95),
-                (ChunkNonTerminals::Exp7, 97),
-                (ChunkNonTerminals::Exp8, 99),
-                (ChunkNonTerminals::Exp9, 144),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[],
-            &[
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 94),
-                (ChunkNonTerminals::Exp6, 95),
-                (ChunkNonTerminals::Exp7, 97),
-                (ChunkNonTerminals::Exp8, 99),
-                (ChunkNonTerminals::Exp9, 146),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[
-                (ChunkNonTerminals::Args, 122),
-                (ChunkNonTerminals::TableConstructor, 119),
-            ],
-            &[],
-            &[],
-            &[
-                (ChunkNonTerminals::Exp, 93),
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp10, 103),
-                (ChunkNonTerminals::Exp11, 105),
-                (ChunkNonTerminals::Exp12, 107),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 94),
-                (ChunkNonTerminals::Exp6, 95),
-                (ChunkNonTerminals::Exp7, 97),
-                (ChunkNonTerminals::Exp8, 99),
-                (ChunkNonTerminals::Exp9, 101),
-                (ChunkNonTerminals::ExpList1, 162),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[],
-            &[],
-            &[
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::PrefixExp, 158),
-                (ChunkNonTerminals::Var, 165),
-            ],
-            &[],
-            &[
-                (ChunkNonTerminals::FunctionCall, 159),
-                (ChunkNonTerminals::PrefixExp, 158),
-                (ChunkNonTerminals::Statement, 167),
-                (ChunkNonTerminals::Var, 157),
-                (ChunkNonTerminals::VarList, 160),
-            ],
-            &[],
-            &[
-                (ChunkNonTerminals::ReturnStatement, 174),
-                (ChunkNonTerminals::_ReturnStatement_Question41, 175),
-            ],
-            &[
-                (ChunkNonTerminals::Exp, 93),
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp10, 103),
-                (ChunkNonTerminals::Exp11, 105),
-                (ChunkNonTerminals::Exp12, 107),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 94),
-                (ChunkNonTerminals::Exp6, 95),
-                (ChunkNonTerminals::Exp7, 97),
-                (ChunkNonTerminals::Exp8, 99),
-                (ChunkNonTerminals::Exp9, 101),
-                (ChunkNonTerminals::ExpList0, 171),
-                (ChunkNonTerminals::ExpList1, 58),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[],
-            &[(ChunkNonTerminals::_semicolon_Question51, 173)],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[
-                (ChunkNonTerminals::Block, 201),
-                (ChunkNonTerminals::FunctionCall, 159),
-                (ChunkNonTerminals::PrefixExp, 158),
-                (ChunkNonTerminals::Statement, 156),
-                (ChunkNonTerminals::Var, 157),
-                (ChunkNonTerminals::VarList, 160),
-                (ChunkNonTerminals::_Statement_Plus39, 166),
-                (ChunkNonTerminals::_Statement_Star40, 168),
-            ],
-            &[],
-            &[
-                (ChunkNonTerminals::Block, 212),
-                (ChunkNonTerminals::FunctionCall, 159),
-                (ChunkNonTerminals::PrefixExp, 158),
-                (ChunkNonTerminals::Statement, 156),
-                (ChunkNonTerminals::Var, 157),
-                (ChunkNonTerminals::VarList, 160),
-                (ChunkNonTerminals::_Statement_Plus39, 166),
-                (ChunkNonTerminals::_Statement_Star40, 168),
-            ],
-            &[],
-            &[],
+            &[(ChunkNonTerminals::NameList, 207)],
             &[],
             &[
                 (ChunkNonTerminals::Exp, 187),
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp10, 103),
-                (ChunkNonTerminals::Exp11, 105),
-                (ChunkNonTerminals::Exp12, 107),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 94),
-                (ChunkNonTerminals::Exp6, 95),
-                (ChunkNonTerminals::Exp7, 97),
-                (ChunkNonTerminals::Exp8, 99),
-                (ChunkNonTerminals::Exp9, 101),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp10, 104),
+                (ChunkNonTerminals::Exp11, 106),
+                (ChunkNonTerminals::Exp12, 108),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 95),
+                (ChunkNonTerminals::Exp6, 96),
+                (ChunkNonTerminals::Exp7, 98),
+                (ChunkNonTerminals::Exp8, 100),
+                (ChunkNonTerminals::Exp9, 102),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
             ],
             &[
-                (ChunkNonTerminals::_Group47, 190),
-                (ChunkNonTerminals::__Group47_Question48, 191),
+                (ChunkNonTerminals::Exp, 228),
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp10, 104),
+                (ChunkNonTerminals::Exp11, 106),
+                (ChunkNonTerminals::Exp12, 108),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 95),
+                (ChunkNonTerminals::Exp6, 96),
+                (ChunkNonTerminals::Exp7, 98),
+                (ChunkNonTerminals::Exp8, 100),
+                (ChunkNonTerminals::Exp9, 102),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
             ],
             &[
-                (ChunkNonTerminals::Exp, 189),
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp10, 103),
-                (ChunkNonTerminals::Exp11, 105),
-                (ChunkNonTerminals::Exp12, 107),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 94),
-                (ChunkNonTerminals::Exp6, 95),
-                (ChunkNonTerminals::Exp7, 97),
-                (ChunkNonTerminals::Exp8, 99),
-                (ChunkNonTerminals::Exp9, 101),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp2, 125),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
             ],
+            &[
+                (ChunkNonTerminals::FuncName, 46),
+                (ChunkNonTerminals::FuncName1, 41),
+            ],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[(ChunkNonTerminals::FuncBody, 47)],
+            &[],
+            &[],
+            &[],
+            &[
+                (ChunkNonTerminals::Exp, 183),
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp10, 104),
+                (ChunkNonTerminals::Exp11, 106),
+                (ChunkNonTerminals::Exp12, 108),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 95),
+                (ChunkNonTerminals::Exp6, 96),
+                (ChunkNonTerminals::Exp7, 98),
+                (ChunkNonTerminals::Exp8, 100),
+                (ChunkNonTerminals::Exp9, 102),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[],
+            &[
+                (ChunkNonTerminals::Args, 123),
+                (ChunkNonTerminals::TableConstructor, 120),
+            ],
+            &[],
+            &[
+                (ChunkNonTerminals::Exp, 94),
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp10, 104),
+                (ChunkNonTerminals::Exp11, 106),
+                (ChunkNonTerminals::Exp12, 108),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 95),
+                (ChunkNonTerminals::Exp6, 96),
+                (ChunkNonTerminals::Exp7, 98),
+                (ChunkNonTerminals::Exp8, 100),
+                (ChunkNonTerminals::Exp9, 102),
+                (ChunkNonTerminals::ExpList0, 92),
+                (ChunkNonTerminals::ExpList1, 59),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[],
+            &[],
+            &[],
+            &[
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 124),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[],
+            &[
+                (ChunkNonTerminals::Exp, 164),
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp10, 104),
+                (ChunkNonTerminals::Exp11, 106),
+                (ChunkNonTerminals::Exp12, 108),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 95),
+                (ChunkNonTerminals::Exp6, 96),
+                (ChunkNonTerminals::Exp7, 98),
+                (ChunkNonTerminals::Exp8, 100),
+                (ChunkNonTerminals::Exp9, 102),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[
+                (ChunkNonTerminals::AttName, 70),
+                (ChunkNonTerminals::AttNameList, 71),
+            ],
+            &[(ChunkNonTerminals::Attrib, 66)],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[(ChunkNonTerminals::FuncBody, 69)],
+            &[],
+            &[],
+            &[
+                (ChunkNonTerminals::_Group49, 198),
+                (ChunkNonTerminals::__Group49_Question50, 199),
+            ],
+            &[
+                (ChunkNonTerminals::Exp, 94),
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp10, 104),
+                (ChunkNonTerminals::Exp11, 106),
+                (ChunkNonTerminals::Exp12, 108),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 95),
+                (ChunkNonTerminals::Exp6, 96),
+                (ChunkNonTerminals::Exp7, 98),
+                (ChunkNonTerminals::Exp8, 100),
+                (ChunkNonTerminals::Exp9, 102),
+                (ChunkNonTerminals::ExpList1, 195),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[
+                (ChunkNonTerminals::Block, 200),
+                (ChunkNonTerminals::FunctionCall, 160),
+                (ChunkNonTerminals::PrefixExp, 159),
+                (ChunkNonTerminals::Statement, 157),
+                (ChunkNonTerminals::Var, 158),
+                (ChunkNonTerminals::VarList, 161),
+                (ChunkNonTerminals::_Statement_Plus40, 167),
+                (ChunkNonTerminals::_Statement_Star41, 169),
+            ],
+            &[
+                (ChunkNonTerminals::Exp, 181),
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp10, 104),
+                (ChunkNonTerminals::Exp11, 106),
+                (ChunkNonTerminals::Exp12, 108),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 95),
+                (ChunkNonTerminals::Exp6, 96),
+                (ChunkNonTerminals::Exp7, 98),
+                (ChunkNonTerminals::Exp8, 100),
+                (ChunkNonTerminals::Exp9, 102),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp2, 81),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[],
+            &[],
+            &[],
+            &[
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp2, 85),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[],
+            &[
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp2, 87),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[],
+            &[
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp2, 89),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[],
+            &[],
+            &[
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 126),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 131),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[],
+            &[
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 95),
+                (ChunkNonTerminals::Exp6, 134),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[],
+            &[
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 95),
+                (ChunkNonTerminals::Exp6, 96),
+                (ChunkNonTerminals::Exp7, 135),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[],
+            &[
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 95),
+                (ChunkNonTerminals::Exp6, 96),
+                (ChunkNonTerminals::Exp7, 98),
+                (ChunkNonTerminals::Exp8, 136),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[],
+            &[
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 95),
+                (ChunkNonTerminals::Exp6, 96),
+                (ChunkNonTerminals::Exp7, 98),
+                (ChunkNonTerminals::Exp8, 100),
+                (ChunkNonTerminals::Exp9, 137),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[],
+            &[
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp10, 148),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 95),
+                (ChunkNonTerminals::Exp6, 96),
+                (ChunkNonTerminals::Exp7, 98),
+                (ChunkNonTerminals::Exp8, 100),
+                (ChunkNonTerminals::Exp9, 102),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[],
+            &[
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp10, 104),
+                (ChunkNonTerminals::Exp11, 149),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 95),
+                (ChunkNonTerminals::Exp6, 96),
+                (ChunkNonTerminals::Exp7, 98),
+                (ChunkNonTerminals::Exp8, 100),
+                (ChunkNonTerminals::Exp9, 102),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[
+                (ChunkNonTerminals::Exp, 115),
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp10, 104),
+                (ChunkNonTerminals::Exp11, 106),
+                (ChunkNonTerminals::Exp12, 108),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 95),
+                (ChunkNonTerminals::Exp6, 96),
+                (ChunkNonTerminals::Exp7, 98),
+                (ChunkNonTerminals::Exp8, 100),
+                (ChunkNonTerminals::Exp9, 102),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[
+                (ChunkNonTerminals::FieldSep, 114),
+                (ChunkNonTerminals::_FieldSep_Question52, 151),
+            ],
+            &[],
+            &[],
+            &[
+                (ChunkNonTerminals::Exp, 56),
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp10, 104),
+                (ChunkNonTerminals::Exp11, 106),
+                (ChunkNonTerminals::Exp12, 108),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 95),
+                (ChunkNonTerminals::Exp6, 96),
+                (ChunkNonTerminals::Exp7, 98),
+                (ChunkNonTerminals::Exp8, 100),
+                (ChunkNonTerminals::Exp9, 102),
+                (ChunkNonTerminals::Field, 150),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[],
+            &[],
+            &[],
+            &[
+                (ChunkNonTerminals::Args, 119),
+                (ChunkNonTerminals::TableConstructor, 120),
+            ],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 128),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[],
+            &[
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 130),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[],
+            &[],
+            &[
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 133),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 95),
+                (ChunkNonTerminals::Exp6, 96),
+                (ChunkNonTerminals::Exp7, 98),
+                (ChunkNonTerminals::Exp8, 100),
+                (ChunkNonTerminals::Exp9, 139),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[],
+            &[
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 95),
+                (ChunkNonTerminals::Exp6, 96),
+                (ChunkNonTerminals::Exp7, 98),
+                (ChunkNonTerminals::Exp8, 100),
+                (ChunkNonTerminals::Exp9, 141),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[],
+            &[
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 95),
+                (ChunkNonTerminals::Exp6, 96),
+                (ChunkNonTerminals::Exp7, 98),
+                (ChunkNonTerminals::Exp8, 100),
+                (ChunkNonTerminals::Exp9, 143),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[],
+            &[
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 95),
+                (ChunkNonTerminals::Exp6, 96),
+                (ChunkNonTerminals::Exp7, 98),
+                (ChunkNonTerminals::Exp8, 100),
+                (ChunkNonTerminals::Exp9, 145),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[],
+            &[
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 95),
+                (ChunkNonTerminals::Exp6, 96),
+                (ChunkNonTerminals::Exp7, 98),
+                (ChunkNonTerminals::Exp8, 100),
+                (ChunkNonTerminals::Exp9, 147),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[
+                (ChunkNonTerminals::Args, 123),
+                (ChunkNonTerminals::TableConstructor, 120),
+            ],
+            &[],
+            &[],
+            &[
+                (ChunkNonTerminals::Exp, 94),
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp10, 104),
+                (ChunkNonTerminals::Exp11, 106),
+                (ChunkNonTerminals::Exp12, 108),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 95),
+                (ChunkNonTerminals::Exp6, 96),
+                (ChunkNonTerminals::Exp7, 98),
+                (ChunkNonTerminals::Exp8, 100),
+                (ChunkNonTerminals::Exp9, 102),
+                (ChunkNonTerminals::ExpList1, 163),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[],
+            &[],
+            &[
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::PrefixExp, 159),
+                (ChunkNonTerminals::Var, 166),
+            ],
+            &[],
+            &[
+                (ChunkNonTerminals::FunctionCall, 160),
+                (ChunkNonTerminals::PrefixExp, 159),
+                (ChunkNonTerminals::Statement, 168),
+                (ChunkNonTerminals::Var, 158),
+                (ChunkNonTerminals::VarList, 161),
+            ],
+            &[],
+            &[
+                (ChunkNonTerminals::ReturnStatement, 175),
+                (ChunkNonTerminals::_ReturnStatement_Question42, 176),
+            ],
+            &[
+                (ChunkNonTerminals::Exp, 94),
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp10, 104),
+                (ChunkNonTerminals::Exp11, 106),
+                (ChunkNonTerminals::Exp12, 108),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 95),
+                (ChunkNonTerminals::Exp6, 96),
+                (ChunkNonTerminals::Exp7, 98),
+                (ChunkNonTerminals::Exp8, 100),
+                (ChunkNonTerminals::Exp9, 102),
+                (ChunkNonTerminals::ExpList0, 172),
+                (ChunkNonTerminals::ExpList1, 59),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[],
+            &[(ChunkNonTerminals::_semicolon_Question51, 174)],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[],
             &[],
             &[],
             &[],
             &[
                 (ChunkNonTerminals::Block, 203),
-                (ChunkNonTerminals::FunctionCall, 159),
-                (ChunkNonTerminals::PrefixExp, 158),
-                (ChunkNonTerminals::Statement, 156),
-                (ChunkNonTerminals::Var, 157),
-                (ChunkNonTerminals::VarList, 160),
-                (ChunkNonTerminals::_Statement_Plus39, 166),
-                (ChunkNonTerminals::_Statement_Star40, 168),
+                (ChunkNonTerminals::FunctionCall, 160),
+                (ChunkNonTerminals::PrefixExp, 159),
+                (ChunkNonTerminals::Statement, 157),
+                (ChunkNonTerminals::Var, 158),
+                (ChunkNonTerminals::VarList, 161),
+                (ChunkNonTerminals::_Statement_Plus40, 167),
+                (ChunkNonTerminals::_Statement_Star41, 169),
             ],
             &[],
-            &[(ChunkNonTerminals::AttName, 195)],
+            &[
+                (ChunkNonTerminals::Block, 214),
+                (ChunkNonTerminals::FunctionCall, 160),
+                (ChunkNonTerminals::PrefixExp, 159),
+                (ChunkNonTerminals::Statement, 157),
+                (ChunkNonTerminals::Var, 158),
+                (ChunkNonTerminals::VarList, 161),
+                (ChunkNonTerminals::_Statement_Plus40, 167),
+                (ChunkNonTerminals::_Statement_Star41, 169),
+            ],
+            &[],
+            &[],
+            &[],
+            &[
+                (ChunkNonTerminals::Exp, 189),
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp10, 104),
+                (ChunkNonTerminals::Exp11, 106),
+                (ChunkNonTerminals::Exp12, 108),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 95),
+                (ChunkNonTerminals::Exp6, 96),
+                (ChunkNonTerminals::Exp7, 98),
+                (ChunkNonTerminals::Exp8, 100),
+                (ChunkNonTerminals::Exp9, 102),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[
+                (ChunkNonTerminals::_Group47, 192),
+                (ChunkNonTerminals::__Group47_Question48, 193),
+            ],
+            &[
+                (ChunkNonTerminals::Exp, 191),
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp10, 104),
+                (ChunkNonTerminals::Exp11, 106),
+                (ChunkNonTerminals::Exp12, 108),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 95),
+                (ChunkNonTerminals::Exp6, 96),
+                (ChunkNonTerminals::Exp7, 98),
+                (ChunkNonTerminals::Exp8, 100),
+                (ChunkNonTerminals::Exp9, 102),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[],
+            &[],
+            &[],
+            &[
+                (ChunkNonTerminals::Block, 205),
+                (ChunkNonTerminals::FunctionCall, 160),
+                (ChunkNonTerminals::PrefixExp, 159),
+                (ChunkNonTerminals::Statement, 157),
+                (ChunkNonTerminals::Var, 158),
+                (ChunkNonTerminals::VarList, 161),
+                (ChunkNonTerminals::_Statement_Plus40, 167),
+                (ChunkNonTerminals::_Statement_Star41, 169),
+            ],
+            &[],
+            &[(ChunkNonTerminals::AttName, 197)],
             &[],
             &[],
             &[],
             &[],
             &[
-                (ChunkNonTerminals::Exp, 200),
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp10, 103),
-                (ChunkNonTerminals::Exp11, 105),
-                (ChunkNonTerminals::Exp12, 107),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 94),
-                (ChunkNonTerminals::Exp6, 95),
-                (ChunkNonTerminals::Exp7, 97),
-                (ChunkNonTerminals::Exp8, 99),
-                (ChunkNonTerminals::Exp9, 101),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[],
-            &[
-                (ChunkNonTerminals::Exp, 93),
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp10, 103),
-                (ChunkNonTerminals::Exp11, 105),
-                (ChunkNonTerminals::Exp12, 107),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 94),
-                (ChunkNonTerminals::Exp6, 95),
-                (ChunkNonTerminals::Exp7, 97),
-                (ChunkNonTerminals::Exp8, 99),
-                (ChunkNonTerminals::Exp9, 101),
-                (ChunkNonTerminals::ExpList1, 208),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[],
-            &[
-                (ChunkNonTerminals::Block, 210),
-                (ChunkNonTerminals::FunctionCall, 159),
-                (ChunkNonTerminals::PrefixExp, 158),
-                (ChunkNonTerminals::Statement, 156),
-                (ChunkNonTerminals::Var, 157),
-                (ChunkNonTerminals::VarList, 160),
-                (ChunkNonTerminals::_Statement_Plus39, 166),
-                (ChunkNonTerminals::_Statement_Star40, 168),
-            ],
-            &[],
-            &[],
-            &[
-                (ChunkNonTerminals::_Group42, 217),
-                (ChunkNonTerminals::__Group42_Plus43, 218),
-                (ChunkNonTerminals::__Group42_Star44, 220),
-            ],
-            &[
-                (ChunkNonTerminals::Exp, 214),
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp10, 103),
-                (ChunkNonTerminals::Exp11, 105),
-                (ChunkNonTerminals::Exp12, 107),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 94),
-                (ChunkNonTerminals::Exp6, 95),
-                (ChunkNonTerminals::Exp7, 97),
-                (ChunkNonTerminals::Exp8, 99),
-                (ChunkNonTerminals::Exp9, 101),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
-            ],
-            &[],
-            &[
-                (ChunkNonTerminals::Block, 216),
-                (ChunkNonTerminals::FunctionCall, 159),
-                (ChunkNonTerminals::PrefixExp, 158),
-                (ChunkNonTerminals::Statement, 156),
-                (ChunkNonTerminals::Var, 157),
-                (ChunkNonTerminals::VarList, 160),
-                (ChunkNonTerminals::_Statement_Plus39, 166),
-                (ChunkNonTerminals::_Statement_Star40, 168),
-            ],
-            &[],
-            &[],
-            &[(ChunkNonTerminals::_Group42, 219)],
-            &[],
-            &[
-                (ChunkNonTerminals::_Group45, 223),
-                (ChunkNonTerminals::__Group45_Question46, 224),
-            ],
-            &[
-                (ChunkNonTerminals::Block, 222),
-                (ChunkNonTerminals::FunctionCall, 159),
-                (ChunkNonTerminals::PrefixExp, 158),
-                (ChunkNonTerminals::Statement, 156),
-                (ChunkNonTerminals::Var, 157),
-                (ChunkNonTerminals::VarList, 160),
-                (ChunkNonTerminals::_Statement_Plus39, 166),
-                (ChunkNonTerminals::_Statement_Star40, 168),
+                (ChunkNonTerminals::Exp, 202),
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp10, 104),
+                (ChunkNonTerminals::Exp11, 106),
+                (ChunkNonTerminals::Exp12, 108),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 95),
+                (ChunkNonTerminals::Exp6, 96),
+                (ChunkNonTerminals::Exp7, 98),
+                (ChunkNonTerminals::Exp8, 100),
+                (ChunkNonTerminals::Exp9, 102),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
             ],
             &[],
             &[],
@@ -6090,26 +6344,123 @@ impl ChunkParser {
             &[],
             &[],
             &[],
+            &[],
             &[
-                (ChunkNonTerminals::Exp, 229),
-                (ChunkNonTerminals::Exp0, 56),
-                (ChunkNonTerminals::Exp1, 76),
-                (ChunkNonTerminals::Exp10, 103),
-                (ChunkNonTerminals::Exp11, 105),
-                (ChunkNonTerminals::Exp12, 107),
-                (ChunkNonTerminals::Exp2, 77),
-                (ChunkNonTerminals::Exp3, 78),
-                (ChunkNonTerminals::Exp4, 89),
-                (ChunkNonTerminals::Exp5, 94),
-                (ChunkNonTerminals::Exp6, 95),
-                (ChunkNonTerminals::Exp7, 97),
-                (ChunkNonTerminals::Exp8, 99),
-                (ChunkNonTerminals::Exp9, 101),
-                (ChunkNonTerminals::FunctionCall, 54),
-                (ChunkNonTerminals::FunctionDef, 82),
-                (ChunkNonTerminals::PrefixExp, 51),
-                (ChunkNonTerminals::TableConstructor, 81),
-                (ChunkNonTerminals::Var, 50),
+                (ChunkNonTerminals::Exp, 94),
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp10, 104),
+                (ChunkNonTerminals::Exp11, 106),
+                (ChunkNonTerminals::Exp12, 108),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 95),
+                (ChunkNonTerminals::Exp6, 96),
+                (ChunkNonTerminals::Exp7, 98),
+                (ChunkNonTerminals::Exp8, 100),
+                (ChunkNonTerminals::Exp9, 102),
+                (ChunkNonTerminals::ExpList1, 210),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[],
+            &[
+                (ChunkNonTerminals::Block, 212),
+                (ChunkNonTerminals::FunctionCall, 160),
+                (ChunkNonTerminals::PrefixExp, 159),
+                (ChunkNonTerminals::Statement, 157),
+                (ChunkNonTerminals::Var, 158),
+                (ChunkNonTerminals::VarList, 161),
+                (ChunkNonTerminals::_Statement_Plus40, 167),
+                (ChunkNonTerminals::_Statement_Star41, 169),
+            ],
+            &[],
+            &[],
+            &[
+                (ChunkNonTerminals::ElseIf, 219),
+                (ChunkNonTerminals::_ElseIf_Plus43, 220),
+                (ChunkNonTerminals::_ElseIf_Star44, 222),
+            ],
+            &[
+                (ChunkNonTerminals::Exp, 216),
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp10, 104),
+                (ChunkNonTerminals::Exp11, 106),
+                (ChunkNonTerminals::Exp12, 108),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 95),
+                (ChunkNonTerminals::Exp6, 96),
+                (ChunkNonTerminals::Exp7, 98),
+                (ChunkNonTerminals::Exp8, 100),
+                (ChunkNonTerminals::Exp9, 102),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
+            ],
+            &[],
+            &[
+                (ChunkNonTerminals::Block, 218),
+                (ChunkNonTerminals::FunctionCall, 160),
+                (ChunkNonTerminals::PrefixExp, 159),
+                (ChunkNonTerminals::Statement, 157),
+                (ChunkNonTerminals::Var, 158),
+                (ChunkNonTerminals::VarList, 161),
+                (ChunkNonTerminals::_Statement_Plus40, 167),
+                (ChunkNonTerminals::_Statement_Star41, 169),
+            ],
+            &[],
+            &[],
+            &[(ChunkNonTerminals::ElseIf, 221)],
+            &[],
+            &[
+                (ChunkNonTerminals::_Group45, 225),
+                (ChunkNonTerminals::__Group45_Question46, 226),
+            ],
+            &[
+                (ChunkNonTerminals::Block, 224),
+                (ChunkNonTerminals::FunctionCall, 160),
+                (ChunkNonTerminals::PrefixExp, 159),
+                (ChunkNonTerminals::Statement, 157),
+                (ChunkNonTerminals::Var, 158),
+                (ChunkNonTerminals::VarList, 161),
+                (ChunkNonTerminals::_Statement_Plus40, 167),
+                (ChunkNonTerminals::_Statement_Star41, 169),
+            ],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[
+                (ChunkNonTerminals::Exp, 231),
+                (ChunkNonTerminals::Exp0, 57),
+                (ChunkNonTerminals::Exp1, 77),
+                (ChunkNonTerminals::Exp10, 104),
+                (ChunkNonTerminals::Exp11, 106),
+                (ChunkNonTerminals::Exp12, 108),
+                (ChunkNonTerminals::Exp2, 78),
+                (ChunkNonTerminals::Exp3, 79),
+                (ChunkNonTerminals::Exp4, 90),
+                (ChunkNonTerminals::Exp5, 95),
+                (ChunkNonTerminals::Exp6, 96),
+                (ChunkNonTerminals::Exp7, 98),
+                (ChunkNonTerminals::Exp8, 100),
+                (ChunkNonTerminals::Exp9, 102),
+                (ChunkNonTerminals::FunctionCall, 55),
+                (ChunkNonTerminals::FunctionDef, 83),
+                (ChunkNonTerminals::PrefixExp, 52),
+                (ChunkNonTerminals::TableConstructor, 82),
+                (ChunkNonTerminals::Var, 51),
             ],
             &[],
             &[],
@@ -6118,203 +6469,205 @@ impl ChunkParser {
             &[],
         ];
         const RUSTYLR_REDUCE_MAP: &[&[(u8, u8)]] = &[
-            &[(0, 109)],
-            &[(1, 18)],
+            &[(0, 111)],
+            &[(1, 19)],
             &[],
-            &[(2, 45)],
-            &[(2, 43)],
-            &[(2, 44)],
             &[(2, 46)],
-            &[],
-            &[],
-            &[],
-            &[(3, 92)],
-            &[(4, 18)],
-            &[],
+            &[(2, 44)],
+            &[(2, 45)],
             &[(2, 47)],
             &[],
-            &[(5, 131)],
-            &[(6, 36)],
-            &[(5, 105)],
-            &[(5, 134)],
             &[],
-            &[(7, 35)],
+            &[],
+            &[],
+            &[(3, 94)],
+            &[(4, 19)],
+            &[],
+            &[(2, 48)],
+            &[],
             &[(5, 132)],
-            &[(5, 133)],
-            &[(5, 104)],
-            &[(5, 130)],
+            &[(6, 37)],
+            &[(5, 107)],
+            &[(5, 135)],
             &[],
-            &[(8, 109)],
+            &[(7, 36)],
+            &[(5, 133)],
+            &[(5, 134)],
+            &[(5, 106)],
+            &[(5, 131)],
+            &[],
+            &[(8, 111)],
             &[],
             &[],
             &[(9, 5)],
             &[(9, 2)],
             &[(9, 6)],
-            &[(8, 109)],
+            &[(8, 111)],
             &[],
-            &[(10, 36)],
-            &[],
-            &[],
+            &[(10, 37)],
             &[],
             &[],
-            &[(11, 101)],
-            &[(12, 103)],
             &[],
-            &[(12, 102)],
             &[],
-            &[(11, 100)],
+            &[(11, 103)],
+            &[(12, 105)],
+            &[],
+            &[(12, 104)],
+            &[],
+            &[(11, 102)],
             &[],
             &[(9, 14)],
             &[],
             &[(9, 7)],
             &[],
-            &[(13, 21)],
-            &[(14, 49)],
-            &[(13, 28)],
-            &[(5, 34)],
             &[(13, 22)],
-            &[(15, 95)],
-            &[(16, 52)],
+            &[(14, 50)],
+            &[(13, 29)],
+            &[(5, 35)],
+            &[(13, 23)],
+            &[(15, 97)],
+            &[(16, 53)],
             &[],
-            &[(17, 33)],
+            &[(17, 34)],
+            &[],
+            &[],
+            &[(18, 42)],
             &[],
             &[],
             &[(18, 41)],
-            &[],
-            &[],
-            &[(18, 40)],
-            &[(18, 37)],
+            &[(18, 38)],
             &[],
             &[],
             &[(9, 15)],
-            &[(18, 39)],
-            &[(9, 125)],
+            &[(18, 40)],
+            &[(9, 126)],
             &[],
-            &[(19, 109)],
+            &[(19, 111)],
             &[],
             &[],
-            &[(13, 23)],
-            &[(16, 57)],
-            &[(16, 62)],
-            &[(20, 65)],
-            &[],
-            &[(16, 58)],
-            &[(2, 50)],
-            &[(2, 48)],
-            &[],
+            &[(13, 24)],
             &[(16, 59)],
+            &[(16, 64)],
+            &[(20, 67)],
+            &[],
+            &[(16, 60)],
+            &[(2, 51)],
+            &[(2, 49)],
             &[],
             &[(16, 61)],
             &[],
-            &[(16, 60)],
-            &[(21, 67)],
+            &[(16, 63)],
+            &[],
+            &[(16, 62)],
+            &[(21, 69)],
+            &[],
+            &[],
+            &[(13, 27)],
+            &[(22, 33)],
+            &[(21, 72)],
+            &[(23, 74)],
+            &[],
+            &[(24, 76)],
+            &[],
+            &[(25, 78)],
+            &[],
+            &[(26, 85)],
+            &[],
+            &[(27, 87)],
+            &[],
+            &[(28, 89)],
+            &[],
+            &[(29, 43)],
+            &[],
+            &[],
+            &[(3, 130)],
+            &[(30, 99)],
+            &[(30, 98)],
+            &[(3, 129)],
+            &[],
+            &[(1, 20)],
             &[],
             &[],
             &[(13, 26)],
-            &[(22, 32)],
+            &[(13, 28)],
+            &[],
+            &[(1, 21)],
+            &[(13, 25)],
+            &[(16, 52)],
+            &[(16, 54)],
+            &[(20, 65)],
+            &[],
+            &[(20, 66)],
+            &[],
+            &[(21, 68)],
             &[(21, 70)],
-            &[(23, 72)],
             &[],
-            &[(24, 74)],
-            &[],
-            &[(25, 76)],
+            &[(21, 71)],
+            &[(23, 73)],
+            &[(24, 75)],
+            &[(25, 77)],
+            &[(26, 84)],
             &[],
             &[(26, 83)],
             &[],
-            &[(27, 85)],
-            &[],
-            &[(28, 87)],
-            &[],
-            &[(29, 42)],
-            &[],
-            &[],
-            &[(3, 129)],
-            &[(30, 97)],
-            &[(30, 96)],
-            &[(3, 128)],
-            &[],
-            &[(1, 19)],
-            &[],
-            &[],
-            &[(13, 25)],
-            &[(13, 27)],
-            &[],
-            &[(1, 20)],
-            &[(13, 24)],
-            &[(16, 51)],
-            &[(16, 53)],
-            &[(20, 63)],
-            &[],
-            &[(20, 64)],
-            &[],
-            &[(21, 66)],
-            &[(21, 68)],
-            &[],
-            &[(21, 69)],
-            &[(23, 71)],
-            &[(24, 73)],
-            &[(25, 75)],
-            &[(26, 82)],
-            &[],
-            &[(26, 81)],
-            &[],
-            &[(26, 78)],
-            &[],
             &[(26, 80)],
             &[],
-            &[(26, 77)],
+            &[(26, 82)],
             &[],
             &[(26, 79)],
-            &[(27, 84)],
-            &[(28, 86)],
-            &[(15, 89)],
-            &[(3, 91)],
             &[],
-            &[(13, 88)],
-            &[(15, 90)],
+            &[(26, 81)],
+            &[(27, 86)],
+            &[(28, 88)],
+            &[(15, 91)],
+            &[(3, 93)],
             &[],
-            &[(2, 99)],
-            &[(9, 106)],
-            &[(31, 21), (32, 30)],
+            &[(13, 90)],
+            &[(15, 92)],
             &[],
-            &[(9, 4), (31, 22)],
+            &[(2, 101)],
+            &[(9, 108)],
+            &[(31, 22), (32, 31)],
+            &[],
+            &[(9, 4), (31, 23)],
             &[],
             &[],
             &[(9, 3)],
-            &[(22, 31)],
+            &[(22, 32)],
             &[],
-            &[(31, 21), (32, 29)],
-            &[(33, 108)],
-            &[(9, 107)],
-            &[(34, 111)],
-            &[(35, 34)],
-            &[(2, 98)],
+            &[(31, 22), (32, 30)],
+            &[(33, 110)],
+            &[(9, 109)],
+            &[(34, 113)],
+            &[(35, 35)],
+            &[(2, 100)],
+            &[(34, 128)],
             &[(34, 127)],
-            &[(34, 126)],
-            &[(34, 17)],
-            &[(34, 110)],
+            &[(34, 18)],
+            &[(34, 112)],
             &[(34, 1)],
-            &[(16, 56)],
-            &[(16, 54)],
+            &[(16, 58)],
             &[(16, 55)],
+            &[(16, 56)],
+            &[(16, 57)],
             &[],
-            &[(8, 109)],
+            &[(8, 111)],
             &[],
-            &[(36, 109)],
+            &[(36, 111)],
             &[],
             &[(9, 8)],
             &[],
             &[],
+            &[(37, 123)],
+            &[],
+            &[(37, 121)],
             &[(37, 122)],
             &[],
-            &[(37, 120)],
-            &[(37, 121)],
-            &[],
-            &[(8, 109)],
-            &[(9, 123)],
-            &[],
-            &[(18, 38)],
+            &[(8, 111)],
             &[(9, 124)],
+            &[],
+            &[(18, 39)],
+            &[(9, 125)],
             &[(9, 16)],
             &[],
             &[],
@@ -6327,60 +6680,61 @@ impl ChunkParser {
             &[],
             &[],
             &[],
-            &[(8, 109)],
+            &[(8, 111)],
             &[],
             &[(9, 13)],
-            &[(38, 116)],
+            &[(38, 117)],
             &[],
             &[],
-            &[(36, 109)],
-            &[(39, 112)],
-            &[(39, 113)],
-            &[(38, 115)],
+            &[(36, 111)],
+            &[(39, 17)],
             &[(39, 114)],
-            &[(40, 119)],
-            &[(8, 109)],
-            &[(40, 117)],
+            &[(38, 116)],
+            &[(39, 115)],
+            &[(40, 120)],
+            &[(8, 111)],
             &[(40, 118)],
+            &[(40, 119)],
             &[],
             &[(9, 11)],
             &[],
             &[],
             &[],
-            &[(15, 93)],
-            &[(15, 94)],
+            &[(15, 95)],
+            &[(15, 96)],
             &[],
             &[],
             &[(41, 0)],
         ];
         const RUSTYLR_RULESET_MAP: &[&[(u8, u8)]] = &[
             &[],
-            &[(18, 1)],
-            &[(23, 1)],
-            &[(45, 1)],
-            &[(43, 1)],
-            &[(44, 1)],
+            &[(19, 1)],
+            &[(24, 1)],
             &[(46, 1)],
-            &[(55, 1)],
-            &[(54, 1)],
-            &[(56, 1)],
-            &[(88, 1)],
-            &[(18, 1), (94, 1)],
-            &[(94, 2)],
+            &[(44, 1)],
+            &[(45, 1)],
             &[(47, 1)],
-            &[(98, 1)],
-            &[(99, 1)],
-            &[(36, 1)],
-            &[(105, 1)],
-            &[(35, 1), (104, 1)],
-            &[(35, 2), (132, 1)],
-            &[(35, 3)],
-            &[(132, 2)],
-            &[(133, 1)],
-            &[(104, 2)],
-            &[(130, 1)],
-            &[(99, 2)],
-            &[(99, 3)],
+            &[(57, 1)],
+            &[(56, 1)],
+            &[(55, 1)],
+            &[(58, 1)],
+            &[(90, 1)],
+            &[(19, 1), (96, 1)],
+            &[(96, 2)],
+            &[(48, 1)],
+            &[(100, 1)],
+            &[(101, 1)],
+            &[(37, 1)],
+            &[(107, 1)],
+            &[(36, 1), (106, 1)],
+            &[(36, 2), (133, 1)],
+            &[(36, 3)],
+            &[(133, 2)],
+            &[(134, 1)],
+            &[(106, 2)],
+            &[(131, 1)],
+            &[(101, 2)],
+            &[(101, 3)],
             &[(5, 1)],
             &[(5, 2)],
             &[(5, 3)],
@@ -6388,167 +6742,168 @@ impl ChunkParser {
             &[(6, 1)],
             &[(8, 1)],
             &[(12, 1), (13, 1)],
-            &[(12, 2), (36, 1)],
+            &[(12, 2), (37, 1)],
             &[(12, 3)],
-            &[(93, 1)],
-            &[(53, 1)],
+            &[(95, 1)],
+            &[(54, 1)],
             &[(14, 1)],
-            &[(101, 1)],
-            &[(100, 1), (102, 1), (103, 1)],
+            &[(103, 1)],
+            &[(102, 1), (104, 1), (105, 1)],
+            &[(104, 2)],
+            &[(104, 3)],
             &[(102, 2)],
             &[(102, 3)],
-            &[(100, 2)],
-            &[(100, 3)],
             &[(14, 2)],
             &[(14, 3)],
             &[(7, 1)],
             &[(7, 2)],
             &[(11, 1)],
-            &[(21, 1)],
-            &[(19, 1), (20, 1), (24, 1), (25, 1), (49, 1)],
-            &[(28, 1)],
-            &[(26, 1)],
             &[(22, 1)],
-            &[(95, 1)],
-            &[(51, 1), (52, 1)],
-            &[(51, 2)],
-            &[(31, 1), (33, 1)],
-            &[(31, 2)],
+            &[(20, 1), (21, 1), (25, 1), (26, 1), (50, 1)],
+            &[(29, 1)],
+            &[(27, 1)],
+            &[(23, 1)],
+            &[(97, 1)],
+            &[(52, 1), (53, 1)],
+            &[(52, 2)],
+            &[(32, 1), (34, 1)],
+            &[(32, 2)],
             &[(15, 1), (16, 1)],
-            &[(37, 1)],
-            &[(40, 1)],
-            &[(40, 2)],
-            &[(40, 3)],
-            &[(37, 2)],
+            &[(38, 1)],
+            &[(41, 1)],
+            &[(41, 2)],
+            &[(41, 3)],
+            &[(38, 2)],
             &[(15, 2)],
             &[(15, 3)],
             &[(15, 4)],
-            &[(39, 1)],
-            &[(16, 2), (38, 1)],
-            &[(123, 1)],
+            &[(40, 1)],
+            &[(16, 2), (39, 1)],
+            &[(124, 1)],
             &[(10, 1)],
             &[(9, 1)],
-            &[(23, 2)],
-            &[(23, 3)],
-            &[(57, 1)],
-            &[(62, 1)],
-            &[(58, 1), (59, 1), (60, 1), (61, 1), (65, 1)],
-            &[(58, 2)],
-            &[(58, 3)],
-            &[(50, 1)],
-            &[(48, 1)],
-            &[(59, 2)],
-            &[(59, 3)],
-            &[(61, 2)],
-            &[(61, 3)],
+            &[(24, 2)],
+            &[(24, 3)],
+            &[(59, 1)],
+            &[(64, 1)],
+            &[(60, 1), (61, 1), (62, 1), (63, 1), (67, 1)],
             &[(60, 2)],
             &[(60, 3)],
-            &[(63, 1), (64, 1), (66, 1), (67, 1)],
+            &[(51, 1)],
+            &[(49, 1)],
+            &[(61, 2)],
+            &[(61, 3)],
             &[(63, 2)],
-            &[(26, 2)],
-            &[(26, 3)],
-            &[(32, 1)],
-            &[(70, 1)],
-            &[(68, 1), (69, 1), (72, 1)],
-            &[(68, 2)],
-            &[(71, 1), (74, 1)],
-            &[(71, 2)],
+            &[(63, 3)],
+            &[(62, 2)],
+            &[(62, 3)],
+            &[(65, 1), (66, 1), (68, 1), (69, 1)],
+            &[(65, 2)],
+            &[(27, 2)],
+            &[(27, 3)],
+            &[(33, 1)],
+            &[(72, 1)],
+            &[(70, 1), (71, 1), (74, 1)],
+            &[(70, 2)],
             &[(73, 1), (76, 1)],
             &[(73, 2)],
-            &[(75, 1), (83, 1)],
+            &[(75, 1), (78, 1)],
             &[(75, 2)],
-            &[
-                (77, 1),
-                (78, 1),
-                (79, 1),
-                (80, 1),
-                (81, 1),
-                (82, 1),
-                (85, 1),
-            ],
-            &[(82, 2)],
-            &[(84, 1), (87, 1)],
-            &[(84, 2)],
-            &[(42, 1), (86, 1)],
-            &[(86, 2)],
-            &[(19, 2)],
-            &[(89, 1), (91, 1)],
-            &[(97, 1)],
-            &[(96, 1)],
-            &[(89, 2), (128, 1)],
-            &[(19, 3)],
-            &[(19, 4)],
-            &[(25, 2)],
-            &[(25, 3)],
-            &[(25, 4)],
-            &[(27, 1)],
-            &[(20, 2)],
-            &[(20, 3)],
-            &[(24, 2)],
-            &[(51, 3)],
-            &[(53, 2)],
-            &[(58, 1), (59, 1), (60, 1), (61, 1), (63, 3)],
-            &[(64, 2)],
-            &[(58, 1), (59, 1), (60, 1), (61, 1), (64, 3)],
-            &[(66, 2)],
-            &[(66, 3)],
-            &[(68, 3)],
-            &[(69, 2)],
-            &[(69, 3)],
-            &[(68, 1), (69, 1), (71, 3)],
-            &[(71, 1), (73, 3)],
-            &[(73, 1), (75, 3)],
-            &[(75, 1), (82, 3)],
-            &[(81, 2)],
-            &[(75, 1), (81, 3)],
-            &[(78, 2)],
-            &[(75, 1), (78, 3)],
-            &[(80, 2)],
-            &[(75, 1), (80, 3)],
+            &[(77, 1), (85, 1)],
             &[(77, 2)],
-            &[(75, 1), (77, 3)],
-            &[(79, 2)],
-            &[(75, 1), (79, 3)],
             &[
-                (77, 1),
-                (78, 1),
                 (79, 1),
                 (80, 1),
                 (81, 1),
                 (82, 1),
-                (84, 3),
+                (83, 1),
+                (84, 1),
+                (87, 1),
             ],
-            &[(84, 1), (86, 3)],
-            &[(89, 3)],
-            &[(91, 2)],
+            &[(84, 2)],
+            &[(86, 1), (89, 1)],
+            &[(86, 2)],
+            &[(43, 1), (88, 1)],
             &[(88, 2)],
-            &[(88, 3)],
-            &[(90, 1)],
-            &[(99, 4)],
-            &[(99, 5)],
-            &[(106, 1)],
-            &[(21, 1), (30, 1)],
-            &[(19, 1), (20, 1), (24, 1), (25, 1)],
-            &[(4, 1), (22, 1)],
-            &[(3, 1), (29, 1)],
-            &[(3, 2)],
-            &[(3, 3), (31, 1)],
-            &[(31, 3)],
-            &[(29, 2)],
-            &[(21, 1), (29, 3)],
-            &[(107, 1), (108, 1)],
-            &[(107, 2)],
-            &[(1, 1)],
-            &[(17, 1)],
-            &[(98, 2)],
-            &[(17, 2)],
-            &[(126, 1)],
-            &[(17, 3)],
-            &[(110, 1)],
-            &[(1, 2)],
-            &[(56, 2)],
+            &[(20, 2)],
+            &[(91, 1), (93, 1)],
+            &[(99, 1)],
+            &[(98, 1)],
+            &[(91, 2), (129, 1)],
+            &[(20, 3)],
+            &[(20, 4)],
+            &[(26, 2)],
+            &[(26, 3)],
+            &[(26, 4)],
+            &[(28, 1)],
+            &[(21, 2)],
+            &[(21, 3)],
+            &[(25, 2)],
+            &[(52, 3)],
             &[(54, 2)],
+            &[(60, 1), (61, 1), (62, 1), (63, 1), (65, 3)],
+            &[(66, 2)],
+            &[(60, 1), (61, 1), (62, 1), (63, 1), (66, 3)],
+            &[(68, 2)],
+            &[(68, 3)],
+            &[(70, 3)],
+            &[(71, 2)],
+            &[(71, 3)],
+            &[(70, 1), (71, 1), (73, 3)],
+            &[(73, 1), (75, 3)],
+            &[(75, 1), (77, 3)],
+            &[(77, 1), (84, 3)],
+            &[(83, 2)],
+            &[(77, 1), (83, 3)],
+            &[(80, 2)],
+            &[(77, 1), (80, 3)],
+            &[(82, 2)],
+            &[(77, 1), (82, 3)],
+            &[(79, 2)],
+            &[(77, 1), (79, 3)],
+            &[(81, 2)],
+            &[(77, 1), (81, 3)],
+            &[
+                (79, 1),
+                (80, 1),
+                (81, 1),
+                (82, 1),
+                (83, 1),
+                (84, 1),
+                (86, 3),
+            ],
+            &[(86, 1), (88, 3)],
+            &[(91, 3)],
+            &[(93, 2)],
+            &[(90, 2)],
+            &[(90, 3)],
+            &[(92, 1)],
+            &[(101, 4)],
+            &[(101, 5)],
+            &[(108, 1)],
+            &[(22, 1), (31, 1)],
+            &[(20, 1), (21, 1), (25, 1), (26, 1)],
+            &[(4, 1), (23, 1)],
+            &[(3, 1), (30, 1)],
+            &[(3, 2)],
+            &[(3, 3), (32, 1)],
+            &[(32, 3)],
+            &[(30, 2)],
+            &[(22, 1), (30, 3)],
+            &[(109, 1), (110, 1)],
+            &[(109, 2)],
+            &[(1, 1)],
+            &[(18, 1)],
+            &[(100, 2)],
+            &[(18, 2)],
+            &[(127, 1)],
+            &[(18, 3)],
+            &[(112, 1)],
+            &[(1, 2)],
+            &[(58, 2)],
             &[(55, 2)],
+            &[(56, 2)],
+            &[(57, 2)],
             &[(9, 2)],
             &[(9, 3)],
             &[(11, 2)],
@@ -6558,15 +6913,15 @@ impl ChunkParser {
             &[(12, 4)],
             &[(12, 5)],
             &[(12, 6)],
-            &[(120, 1)],
-            &[(120, 2)],
             &[(121, 1)],
+            &[(121, 2)],
+            &[(122, 1)],
             &[(12, 7)],
             &[(12, 8)],
-            &[(31, 1), (123, 2)],
-            &[(38, 2)],
-            &[(38, 3)],
-            &[(124, 1)],
+            &[(32, 1), (124, 2)],
+            &[(39, 2)],
+            &[(39, 3)],
+            &[(125, 1)],
             &[(16, 3)],
             &[(10, 2)],
             &[(10, 3)],
@@ -6575,46 +6930,46 @@ impl ChunkParser {
             &[(9, 5)],
             &[(12, 9)],
             &[(12, 10)],
-            &[(13, 2), (35, 1)],
-            &[(35, 2)],
+            &[(13, 2), (36, 1)],
+            &[(36, 2)],
             &[(13, 3)],
-            &[(13, 4), (31, 1)],
+            &[(13, 4), (32, 1)],
             &[(13, 5)],
             &[(13, 6)],
             &[(13, 7)],
             &[(11, 4)],
-            &[(112, 1)],
-            &[(112, 2)],
-            &[(112, 3)],
-            &[(112, 4)],
-            &[(113, 1)],
-            &[(114, 1), (115, 1)],
-            &[(114, 2)],
+            &[(17, 1)],
+            &[(17, 2)],
+            &[(17, 3)],
+            &[(17, 4)],
+            &[(114, 1)],
+            &[(115, 1), (116, 1)],
+            &[(115, 2)],
             &[(11, 5)],
-            &[(117, 1)],
-            &[(117, 2)],
             &[(118, 1)],
+            &[(118, 2)],
+            &[(119, 1)],
             &[(11, 6)],
             &[(11, 7)],
-            &[(93, 2)],
-            &[(93, 3)],
-            &[(93, 4)],
-            &[(93, 5)],
-            &[(94, 3)],
-            &[(135, 1)],
-            &[(135, 2)],
+            &[(95, 2)],
+            &[(95, 3)],
+            &[(95, 4)],
+            &[(95, 5)],
+            &[(96, 3)],
+            &[(136, 1)],
+            &[(136, 2)],
             &[(0, 1)],
         ];
         const RUSTYLR_RULESET_SHIFTED0_MAP: &[u8] = &[
-            0, 1, 2, 1, 1, 1, 1, 3, 3, 3, 4, 1, 2, 1, 5, 6, 1, 1, 7, 1, 1, 1, 1, 1, 1, 1, 8, 1, 1,
-            1, 1, 1, 8, 9, 1, 2, 2, 3, 10, 1, 1, 1, 1, 1, 1, 5, 1, 1, 1, 2, 1, 11, 1, 12, 1, 1, 1,
-            13, 1, 2, 14, 15, 1, 1, 1, 1, 1, 5, 1, 1, 16, 17, 8, 2, 1, 1, 1, 1, 1, 3, 1, 1, 1, 3,
-            1, 3, 1, 3, 1, 1, 18, 1, 1, 1, 1, 1, 19, 1, 20, 1, 21, 1, 22, 1, 23, 1, 24, 1, 25, 2,
-            26, 1, 1, 27, 1, 1, 1, 11, 1, 1, 1, 1, 1, 1, 1, 1, 18, 1, 19, 1, 1, 19, 1, 1, 1, 1, 1,
-            23, 1, 23, 1, 23, 1, 23, 1, 23, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 11, 1, 1, 17, 1, 1,
-            28, 1, 29, 1, 30, 12, 1, 31, 1, 1, 1, 1, 1, 1, 1, 1, 8, 1, 8, 1, 1, 1, 2, 32, 2, 1, 1,
-            1, 8, 1, 33, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 17, 1, 8, 1, 1, 34, 2, 1, 8, 1, 1, 35,
-            1, 36, 8, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1,
+            0, 1, 2, 1, 1, 1, 1, 3, 3, 3, 3, 4, 1, 2, 1, 5, 6, 1, 1, 7, 1, 1, 1, 1, 1, 1, 1, 8, 1,
+            1, 1, 1, 1, 8, 9, 1, 2, 2, 3, 10, 1, 1, 1, 1, 1, 1, 5, 1, 1, 1, 2, 1, 11, 1, 12, 1, 1,
+            1, 13, 1, 2, 14, 15, 1, 1, 1, 1, 1, 5, 1, 1, 16, 17, 8, 2, 1, 1, 1, 1, 1, 3, 1, 1, 1,
+            3, 1, 3, 1, 3, 1, 1, 18, 1, 1, 1, 1, 1, 19, 1, 20, 1, 21, 1, 22, 1, 23, 1, 24, 1, 25,
+            2, 26, 1, 1, 27, 1, 1, 1, 11, 1, 1, 1, 1, 1, 1, 1, 1, 18, 1, 19, 1, 1, 19, 1, 1, 1, 1,
+            1, 23, 1, 23, 1, 23, 1, 23, 1, 23, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 11, 1, 1, 17, 1,
+            1, 28, 1, 29, 1, 30, 12, 1, 31, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 1, 8, 1, 1, 1, 2, 32, 2,
+            1, 1, 1, 8, 1, 33, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 17, 1, 8, 1, 1, 34, 2, 1, 8, 1,
+            1, 35, 1, 36, 8, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1,
         ];
         let states: Vec<ChunkState> = RUSTYLR_SHIFT_TERM_MAP
             .iter()

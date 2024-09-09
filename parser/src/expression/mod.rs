@@ -1,7 +1,4 @@
-pub use lua_tokenizer::IntOrFloat;
-
-use crate::FloatType;
-use crate::IntType;
+use crate::Span;
 
 /// lua value & expression
 #[non_exhaustive]
@@ -14,20 +11,21 @@ pub enum Expression {
     String(ExprString),
     /// lua boolean literal value
     Bool(ExprBool),
+    /// `...`
+    Variadic(ExprVariadic),
+
+    /// just identifier
+    Ident(ExprIdent),
+
     /// table constructor
     Table(ExprTable),
     /// unnamed function object
     Function(ExprFunction),
 
-    /// `...`
-    Variadic,
-
     /// function call.
     /// `prefix(args)` or `prefix:method(args)`
     FunctionCall(ExprFunctionCall),
 
-    /// just identifier
-    Ident(ExprIdent),
     /// `table[index]`.
     /// `table.index` also matches here.
     TableIndex(ExprTableIndex),
@@ -38,8 +36,22 @@ pub enum Expression {
 }
 
 impl Expression {
-    pub fn new_ident(name: String) -> Self {
-        Expression::Ident(ExprIdent::new(name))
+    /// get the span of the expression
+    pub fn span(&self) -> Span {
+        match self {
+            Self::Nil(v) => v.span(),
+            Self::Numeric(v) => v.span(),
+            Self::String(v) => v.span(),
+            Self::Bool(v) => v.span(),
+            Self::Variadic(v) => v.span(),
+            Self::Ident(v) => v.span(),
+            Self::Table(v) => v.span(),
+            Self::Function(v) => v.span(),
+            Self::FunctionCall(v) => v.span(),
+            Self::TableIndex(v) => v.span(),
+            Self::Binary(v) => v.span(),
+            Self::Unary(v) => v.span(),
+        }
     }
 }
 
@@ -48,6 +60,7 @@ pub use literal::ExprBool;
 pub use literal::ExprNil;
 pub use literal::ExprNumeric;
 pub use literal::ExprString;
+pub use literal::ExprVariadic;
 
 mod table;
 pub use table::ExprTable;
@@ -62,9 +75,11 @@ pub use index::ExprTableIndex;
 
 mod binary;
 pub use binary::ExprBinary;
+pub use binary::ExprBinaryData;
 
 mod unary;
 pub use unary::ExprUnary;
+pub use unary::ExprUnaryData;
 
 mod function;
 pub use function::ExprFunction;
@@ -72,3 +87,4 @@ pub use function::ParameterList;
 
 mod functioncall;
 pub use functioncall::ExprFunctionCall;
+pub use functioncall::FunctionCallArguments;

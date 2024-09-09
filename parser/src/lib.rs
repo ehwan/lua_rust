@@ -32,6 +32,7 @@ pub use error::ParseError;
 pub use error::TokenizeError;
 
 pub use expression::ExprBinary;
+pub use expression::ExprBinaryData;
 pub use expression::ExprBool;
 pub use expression::ExprFunction;
 pub use expression::ExprFunctionCall;
@@ -42,7 +43,10 @@ pub use expression::ExprString;
 pub use expression::ExprTable;
 pub use expression::ExprTableIndex;
 pub use expression::ExprUnary;
+pub use expression::ExprUnaryData;
+pub use expression::ExprVariadic;
 pub use expression::Expression;
+pub use expression::FunctionCallArguments;
 pub use expression::ParameterList;
 pub use expression::TableField;
 
@@ -55,6 +59,7 @@ pub use statement::Statement;
 pub use statement::StmtAssignment;
 pub use statement::StmtBreak;
 pub use statement::StmtDo;
+pub use statement::StmtElseIf;
 pub use statement::StmtFor;
 pub use statement::StmtForGeneric;
 pub use statement::StmtFunctionCall;
@@ -64,6 +69,7 @@ pub use statement::StmtGoto;
 pub use statement::StmtIf;
 pub use statement::StmtLabel;
 pub use statement::StmtLocalDeclaration;
+pub use statement::StmtNone;
 pub use statement::StmtRepeat;
 pub use statement::StmtWhile;
 

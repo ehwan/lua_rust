@@ -1,10 +1,12 @@
+use super::ExprString;
 use super::Expression;
+use crate::Span;
 
 /// for internal use
 #[derive(Clone, Debug)]
 pub(crate) enum TableConstructorFieldBuilder {
     KeyValue(Expression, Expression),
-    NameValue(String, Expression),
+    NameValue(ExprString, Expression),
     Value(Expression),
 }
 
@@ -14,10 +16,15 @@ pub(crate) enum TableConstructorFieldBuilder {
 pub struct TableField {
     pub key: Expression,
     pub value: Expression,
+    pub span: Span,
 }
 impl TableField {
-    pub fn new(key: Expression, value: Expression) -> Self {
-        Self { key, value }
+    pub fn new(key: Expression, value: Expression, span: Span) -> Self {
+        Self { key, value, span }
+    }
+    /// get the span of the table field
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
@@ -25,9 +32,17 @@ impl TableField {
 #[derive(Clone, Debug)]
 pub struct ExprTable {
     pub fields: Vec<TableField>,
+    pub span: Span,
 }
 impl ExprTable {
-    pub fn new() -> Self {
-        Self { fields: Vec::new() }
+    pub fn new(span: Span) -> Self {
+        Self {
+            fields: Vec::new(),
+            span,
+        }
+    }
+    /// get the span of the whole table constructor
+    pub fn span(&self) -> Span {
+        self.span
     }
 }

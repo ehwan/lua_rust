@@ -1,5 +1,6 @@
 use super::Block;
-use crate::Expression;
+use crate::Span;
+use crate::{ExprString, Expression};
 
 /// for statement with start, end, step.
 #[derive(Clone, Debug)]
@@ -9,6 +10,7 @@ pub struct StmtFor {
     pub end: Expression,
     pub step: Expression,
     pub block: Block,
+    pub span: Span,
 }
 impl StmtFor {
     pub fn new(
@@ -17,6 +19,7 @@ impl StmtFor {
         end: Expression,
         step: Expression,
         block: Block,
+        span: Span,
     ) -> Self {
         Self {
             name,
@@ -24,23 +27,39 @@ impl StmtFor {
             end,
             step,
             block,
+            span,
         }
+    }
+    /// get the span of the whole for statement
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
 
 /// for statement with generic expressions.
 #[derive(Clone, Debug)]
 pub struct StmtForGeneric {
-    pub names: Vec<String>,
+    pub names: Vec<ExprString>,
     pub expressions: Vec<Expression>,
     pub block: Block,
+    pub span: Span,
 }
 impl StmtForGeneric {
-    pub fn new(names: Vec<String>, expressions: Vec<Expression>, block: Block) -> Self {
+    pub fn new(
+        names: Vec<ExprString>,
+        expressions: Vec<Expression>,
+        block: Block,
+        span: Span,
+    ) -> Self {
         Self {
             names,
             expressions,
             block,
+            span,
         }
+    }
+    /// get the span of the whole for statement
+    pub fn span(&self) -> Span {
+        self.span
     }
 }
