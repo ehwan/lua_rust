@@ -11,6 +11,7 @@ use crate::Statement;
 use crate::IntType;
 use crate::Span;
 use crate::SpannedString;
+use crate::ParseError;
 
 // @TODO Block span
 
@@ -19,6 +20,7 @@ use crate::SpannedString;
 %glr;
 %lalr;
 %tokentype Token;
+%err ParseError;
 
 %shift lparen;
 
@@ -358,13 +360,12 @@ AttNameList(Vec<statement::AttName>)
 
 Attrib(Option<statement::Attrib>)
     : less! ident greater! {
-        let s = ident.token_type.into_ident().unwrap();
+        let s:SpannedString = ident.into();
         match s.as_str() {
             "const" => Some(statement::Attrib::Const),
             "close" => Some(statement::Attrib::Close),
             _ => {
-                // @TODO return error
-                panic!("unknown attribute: {}", s);
+                return Err( ParseError::UnknownAttribute(s) );
             }
         }
     }

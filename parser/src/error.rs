@@ -12,6 +12,9 @@ pub enum ParseError {
     /// when there are multiple possible paths to parse (in GLR parser).
     /// normally, this should not happen
     Ambiguous,
+
+    /// unknown attribute in local variable definition
+    UnknownAttribute(SpannedString),
 }
 
 impl std::fmt::Display for ParseError {
@@ -23,6 +26,13 @@ impl std::fmt::Display for ParseError {
                 f,
                 "Ambiguous Grammar: I guess the source code is not complete"
             ),
+            ParseError::UnknownAttribute(attr) => {
+                write!(
+                    f,
+                    "Unknown attribute in local variable definition: {}",
+                    attr
+                )
+            }
         }
     }
 }
@@ -36,6 +46,7 @@ where
             ParseError::TokenizeError(e) => Some(e),
             ParseError::InvalidToken(e) => Some(e),
             ParseError::Ambiguous => None,
+            ParseError::UnknownAttribute(_) => None,
         }
     }
 }
@@ -81,6 +92,7 @@ use codespan_reporting::diagnostic::Diagnostic;
 use codespan_reporting::diagnostic::Label;
 
 use crate::parser_expanded;
+use crate::SpannedString;
 
 impl InvalidToken {
     #[cfg(feature = "diag")]
@@ -120,6 +132,17 @@ impl ParseError {
             ParseError::InvalidToken(e) => e.to_diag(fileid),
             ParseError::Ambiguous => Diagnostic::error()
                 .with_message("Ambiguous Grammar: I guess the source code is not complete"),
+            ParseError::UnknownAttribute(attr) => Diagnostic::error()
+                .with_message(format!(
+                    "Unknown attribute in local variable definition: {}",
+                    attr
+                ))
+                .with_labels(vec![
+                    Label::primary(fileid, attr.span).with_message("unknown attribute here")
+                ])
+                .with_notes(vec![String::from(
+                    "attribute should be one of: const, close",
+                )]),
         }
     }
 }

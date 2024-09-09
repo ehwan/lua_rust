@@ -7,6 +7,7 @@ use crate::expression;
 use crate::statement;
 use crate::Expression;
 use crate::IntType;
+use crate::ParseError;
 use crate::Span;
 use crate::SpannedString;
 use crate::Statement;
@@ -167,11 +168,8 @@ pub type ChunkRule = ::rusty_lr::ProductionRule<Token, ChunkNonTerminals>;
 pub type ChunkState = ::rusty_lr::glr::State<Token, ChunkNonTerminals>;
 #[doc = r" type alias for `InvalidTerminalError`"]
 #[allow(non_camel_case_types, dead_code)]
-pub type ChunkInvalidTerminalError = ::rusty_lr::glr::InvalidTerminalError<
-    Token,
-    ChunkNonTerminals,
-    ::rusty_lr::DefaultReduceActionError,
->;
+pub type ChunkInvalidTerminalError =
+    ::rusty_lr::glr::InvalidTerminalError<Token, ChunkNonTerminals, ParseError>;
 #[doc = r" type alias for `MultiplePathError`"]
 #[allow(non_camel_case_types, dead_code)]
 pub type ChunkMultiplePathError = ::rusty_lr::glr::MultiplePathError<Token, ChunkNonTerminals>;
@@ -418,7 +416,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Block = if let ChunkNodeEnum::Variant2(Block) = __rustylr_args.pop().unwrap() {
             Block
         } else {
@@ -431,7 +429,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Statement =
             if let ChunkNodeEnum::Variant20(Statement) = __rustylr_args.pop().unwrap() {
                 Statement
@@ -470,7 +468,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut semicolon =
             if let ChunkNodeEnum::Terminals(semicolon) = __rustylr_args.pop().unwrap() {
                 semicolon
@@ -486,7 +484,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut VarList = if let ChunkNodeEnum::Variant9(VarList) = __rustylr_args.pop().unwrap() {
             VarList
         } else {
@@ -520,7 +518,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut FunctionCall =
             if let ChunkNodeEnum::Variant7(FunctionCall) = __rustylr_args.pop().unwrap() {
                 FunctionCall
@@ -536,7 +534,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut c1 = if let ChunkNodeEnum::Terminals(c1) = __rustylr_args.pop().unwrap() {
             c1
         } else {
@@ -562,7 +560,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut break_ = if let ChunkNodeEnum::Terminals(break_) = __rustylr_args.pop().unwrap() {
             break_
         } else {
@@ -577,7 +575,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut goto_ = if let ChunkNodeEnum::Terminals(goto_) = __rustylr_args.pop().unwrap() {
             goto_
         } else {
@@ -598,7 +596,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut do_ = if let ChunkNodeEnum::Terminals(do_) = __rustylr_args.pop().unwrap() {
             do_
         } else {
@@ -624,7 +622,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut while_ = if let ChunkNodeEnum::Terminals(while_) = __rustylr_args.pop().unwrap() {
             while_
         } else {
@@ -656,7 +654,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut repeat_ = if let ChunkNodeEnum::Terminals(repeat_) = __rustylr_args.pop().unwrap() {
             repeat_
         } else {
@@ -683,7 +681,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut if_ = if let ChunkNodeEnum::Terminals(if_) = __rustylr_args.pop().unwrap() {
             if_
         } else {
@@ -725,7 +723,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut for_ = if let ChunkNodeEnum::Terminals(for_) = __rustylr_args.pop().unwrap() {
             for_
         } else {
@@ -783,7 +781,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut for_ = if let ChunkNodeEnum::Terminals(for_) = __rustylr_args.pop().unwrap() {
             for_
         } else {
@@ -825,7 +823,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut function_ =
             if let ChunkNodeEnum::Terminals(function_) = __rustylr_args.pop().unwrap() {
                 function_
@@ -856,7 +854,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut local_ = if let ChunkNodeEnum::Terminals(local_) = __rustylr_args.pop().unwrap() {
             local_
         } else {
@@ -888,7 +886,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut local_ = if let ChunkNodeEnum::Terminals(local_) = __rustylr_args.pop().unwrap() {
             local_
         } else {
@@ -930,7 +928,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut elseif_ = if let ChunkNodeEnum::Terminals(elseif_) = __rustylr_args.pop().unwrap() {
             elseif_
         } else {
@@ -965,7 +963,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut return_ = if let ChunkNodeEnum::Terminals(return_) = __rustylr_args.pop().unwrap() {
             return_
         } else {
@@ -1002,7 +1000,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut ident = if let ChunkNodeEnum::Terminals(ident) = __rustylr_args.pop().unwrap() {
             ident
         } else {
@@ -1015,7 +1013,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut PrefixExp =
             if let ChunkNodeEnum::Variant6(PrefixExp) = __rustylr_args.pop().unwrap() {
                 PrefixExp
@@ -1044,7 +1042,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut PrefixExp =
             if let ChunkNodeEnum::Variant6(PrefixExp) = __rustylr_args.pop().unwrap() {
                 PrefixExp
@@ -1072,7 +1070,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Var = if let ChunkNodeEnum::Variant6(Var) = __rustylr_args.pop().unwrap() {
             Var
         } else {
@@ -1085,7 +1083,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut FunctionCall =
             if let ChunkNodeEnum::Variant7(FunctionCall) = __rustylr_args.pop().unwrap() {
                 FunctionCall
@@ -1101,7 +1099,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         __rustylr_args.pop();
         let mut Exp = if let ChunkNodeEnum::Variant6(Exp) = __rustylr_args.pop().unwrap() {
             Exp
@@ -1116,7 +1114,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut PrefixExp =
             if let ChunkNodeEnum::Variant6(PrefixExp) = __rustylr_args.pop().unwrap() {
                 PrefixExp
@@ -1138,7 +1136,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut PrefixExp =
             if let ChunkNodeEnum::Variant6(PrefixExp) = __rustylr_args.pop().unwrap() {
                 PrefixExp
@@ -1166,7 +1164,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut lparen = if let ChunkNodeEnum::Terminals(lparen) = __rustylr_args.pop().unwrap() {
             lparen
         } else {
@@ -1193,7 +1191,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut TableConstructor =
             if let ChunkNodeEnum::Variant14(TableConstructor) = __rustylr_args.pop().unwrap() {
                 TableConstructor
@@ -1212,7 +1210,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut string_literal =
             if let ChunkNodeEnum::Terminals(string_literal) = __rustylr_args.pop().unwrap() {
                 string_literal
@@ -1230,7 +1228,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut VarList = if let ChunkNodeEnum::Variant9(VarList) = __rustylr_args.pop().unwrap() {
             VarList
         } else {
@@ -1256,7 +1254,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Var = if let ChunkNodeEnum::Variant6(Var) = __rustylr_args.pop().unwrap() {
             Var
         } else {
@@ -1269,7 +1267,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut ExpList1 = if let ChunkNodeEnum::Variant9(ExpList1) = __rustylr_args.pop().unwrap()
         {
             ExpList1
@@ -1296,7 +1294,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp = if let ChunkNodeEnum::Variant6(Exp) = __rustylr_args.pop().unwrap() {
             Exp
         } else {
@@ -1309,7 +1307,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut ExpList1 = if let ChunkNodeEnum::Variant9(ExpList1) = __rustylr_args.pop().unwrap()
         {
             ExpList1
@@ -1323,7 +1321,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         Ok(ChunkNodeEnum::Variant9({ vec![] }))
     }
     fn reduce_NameList_0(
@@ -1331,7 +1329,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut NameList = if let ChunkNodeEnum::Variant10(NameList) = __rustylr_args.pop().unwrap()
         {
             NameList
@@ -1354,7 +1352,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut ident = if let ChunkNodeEnum::Terminals(ident) = __rustylr_args.pop().unwrap() {
             ident
         } else {
@@ -1367,7 +1365,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut ident = if let ChunkNodeEnum::Terminals(ident) = __rustylr_args.pop().unwrap() {
             ident
         } else {
@@ -1388,7 +1386,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut AttNameList =
             if let ChunkNodeEnum::Variant12(AttNameList) = __rustylr_args.pop().unwrap() {
                 AttNameList
@@ -1411,7 +1409,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut AttName = if let ChunkNodeEnum::Variant11(AttName) = __rustylr_args.pop().unwrap() {
             AttName
         } else {
@@ -1424,7 +1422,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         __rustylr_args.pop();
         let mut ident = if let ChunkNodeEnum::Terminals(ident) = __rustylr_args.pop().unwrap() {
             ident
@@ -1433,12 +1431,12 @@ impl ChunkNodeEnum {
         };
         __rustylr_args.pop();
         Ok(ChunkNodeEnum::Variant13({
-            let s = ident.token_type.into_ident().unwrap();
+            let s: SpannedString = ident.into();
             match s.as_str() {
                 "const" => Some(statement::Attrib::Const),
                 "close" => Some(statement::Attrib::Close),
                 _ => {
-                    panic!("unknown attribute: {}", s);
+                    return Err(ParseError::UnknownAttribute(s));
                 }
             }
         }))
@@ -1448,7 +1446,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         Ok(ChunkNodeEnum::Variant13({ None }))
     }
     fn reduce_Exp_0(
@@ -1456,7 +1454,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp12 = if let ChunkNodeEnum::Variant6(Exp12) = __rustylr_args.pop().unwrap() {
             Exp12
         } else {
@@ -1469,7 +1467,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut numeric_literal =
             if let ChunkNodeEnum::Terminals(numeric_literal) = __rustylr_args.pop().unwrap() {
                 numeric_literal
@@ -1485,7 +1483,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut nil = if let ChunkNodeEnum::Terminals(nil) = __rustylr_args.pop().unwrap() {
             nil
         } else {
@@ -1498,7 +1496,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut string_literal =
             if let ChunkNodeEnum::Terminals(string_literal) = __rustylr_args.pop().unwrap() {
                 string_literal
@@ -1514,7 +1512,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut bool_ = if let ChunkNodeEnum::Terminals(bool_) = __rustylr_args.pop().unwrap() {
             bool_
         } else {
@@ -1527,7 +1525,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut dotdotdot =
             if let ChunkNodeEnum::Terminals(dotdotdot) = __rustylr_args.pop().unwrap() {
                 dotdotdot
@@ -1543,7 +1541,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut FunctionDef =
             if let ChunkNodeEnum::Variant17(FunctionDef) = __rustylr_args.pop().unwrap() {
                 FunctionDef
@@ -1559,7 +1557,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut PrefixExp =
             if let ChunkNodeEnum::Variant6(PrefixExp) = __rustylr_args.pop().unwrap() {
                 PrefixExp
@@ -1573,7 +1571,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut TableConstructor =
             if let ChunkNodeEnum::Variant14(TableConstructor) = __rustylr_args.pop().unwrap() {
                 TableConstructor
@@ -1589,7 +1587,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp0 = if let ChunkNodeEnum::Variant6(Exp0) = __rustylr_args.pop().unwrap() {
             Exp0
         } else {
@@ -1617,7 +1615,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp0 = if let ChunkNodeEnum::Variant6(Exp0) = __rustylr_args.pop().unwrap() {
             Exp0
         } else {
@@ -1630,7 +1628,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut not_ = if let ChunkNodeEnum::Terminals(not_) = __rustylr_args.pop().unwrap() {
             not_
         } else {
@@ -1653,7 +1651,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut hash = if let ChunkNodeEnum::Terminals(hash) = __rustylr_args.pop().unwrap() {
             hash
         } else {
@@ -1676,7 +1674,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut minus = if let ChunkNodeEnum::Terminals(minus) = __rustylr_args.pop().unwrap() {
             minus
         } else {
@@ -1699,7 +1697,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut plus = if let ChunkNodeEnum::Terminals(plus) = __rustylr_args.pop().unwrap() {
             plus
         } else {
@@ -1722,7 +1720,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut tilde = if let ChunkNodeEnum::Terminals(tilde) = __rustylr_args.pop().unwrap() {
             tilde
         } else {
@@ -1745,7 +1743,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp1 = if let ChunkNodeEnum::Variant6(Exp1) = __rustylr_args.pop().unwrap() {
             Exp1
         } else {
@@ -1758,7 +1756,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp3 = if let ChunkNodeEnum::Variant6(Exp3) = __rustylr_args.pop().unwrap() {
             Exp3
         } else {
@@ -1787,7 +1785,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp3 = if let ChunkNodeEnum::Variant6(Exp3) = __rustylr_args.pop().unwrap() {
             Exp3
         } else {
@@ -1815,7 +1813,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp3 = if let ChunkNodeEnum::Variant6(Exp3) = __rustylr_args.pop().unwrap() {
             Exp3
         } else {
@@ -1844,7 +1842,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp3 = if let ChunkNodeEnum::Variant6(Exp3) = __rustylr_args.pop().unwrap() {
             Exp3
         } else {
@@ -1872,7 +1870,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp2 = if let ChunkNodeEnum::Variant6(Exp2) = __rustylr_args.pop().unwrap() {
             Exp2
         } else {
@@ -1885,7 +1883,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp4 = if let ChunkNodeEnum::Variant6(Exp4) = __rustylr_args.pop().unwrap() {
             Exp4
         } else {
@@ -1913,7 +1911,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp4 = if let ChunkNodeEnum::Variant6(Exp4) = __rustylr_args.pop().unwrap() {
             Exp4
         } else {
@@ -1941,7 +1939,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp3 = if let ChunkNodeEnum::Variant6(Exp3) = __rustylr_args.pop().unwrap() {
             Exp3
         } else {
@@ -1954,7 +1952,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp4 = if let ChunkNodeEnum::Variant6(Exp4) = __rustylr_args.pop().unwrap() {
             Exp4
         } else {
@@ -1982,7 +1980,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp4 = if let ChunkNodeEnum::Variant6(Exp4) = __rustylr_args.pop().unwrap() {
             Exp4
         } else {
@@ -1995,7 +1993,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp6 = if let ChunkNodeEnum::Variant6(Exp6) = __rustylr_args.pop().unwrap() {
             Exp6
         } else {
@@ -2024,7 +2022,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp6 = if let ChunkNodeEnum::Variant6(Exp6) = __rustylr_args.pop().unwrap() {
             Exp6
         } else {
@@ -2053,7 +2051,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp5 = if let ChunkNodeEnum::Variant6(Exp5) = __rustylr_args.pop().unwrap() {
             Exp5
         } else {
@@ -2066,7 +2064,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp7 = if let ChunkNodeEnum::Variant6(Exp7) = __rustylr_args.pop().unwrap() {
             Exp7
         } else {
@@ -2095,7 +2093,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp6 = if let ChunkNodeEnum::Variant6(Exp6) = __rustylr_args.pop().unwrap() {
             Exp6
         } else {
@@ -2108,7 +2106,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp8 = if let ChunkNodeEnum::Variant6(Exp8) = __rustylr_args.pop().unwrap() {
             Exp8
         } else {
@@ -2136,7 +2134,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp7 = if let ChunkNodeEnum::Variant6(Exp7) = __rustylr_args.pop().unwrap() {
             Exp7
         } else {
@@ -2149,7 +2147,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp9 = if let ChunkNodeEnum::Variant6(Exp9) = __rustylr_args.pop().unwrap() {
             Exp9
         } else {
@@ -2177,7 +2175,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp8 = if let ChunkNodeEnum::Variant6(Exp8) = __rustylr_args.pop().unwrap() {
             Exp8
         } else {
@@ -2190,7 +2188,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp10 = if let ChunkNodeEnum::Variant6(Exp10) = __rustylr_args.pop().unwrap() {
             Exp10
         } else {
@@ -2218,7 +2216,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp10 = if let ChunkNodeEnum::Variant6(Exp10) = __rustylr_args.pop().unwrap() {
             Exp10
         } else {
@@ -2247,7 +2245,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp10 = if let ChunkNodeEnum::Variant6(Exp10) = __rustylr_args.pop().unwrap() {
             Exp10
         } else {
@@ -2275,7 +2273,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp10 = if let ChunkNodeEnum::Variant6(Exp10) = __rustylr_args.pop().unwrap() {
             Exp10
         } else {
@@ -2304,7 +2302,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp10 = if let ChunkNodeEnum::Variant6(Exp10) = __rustylr_args.pop().unwrap() {
             Exp10
         } else {
@@ -2333,7 +2331,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp10 = if let ChunkNodeEnum::Variant6(Exp10) = __rustylr_args.pop().unwrap() {
             Exp10
         } else {
@@ -2362,7 +2360,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp9 = if let ChunkNodeEnum::Variant6(Exp9) = __rustylr_args.pop().unwrap() {
             Exp9
         } else {
@@ -2375,7 +2373,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp11 = if let ChunkNodeEnum::Variant6(Exp11) = __rustylr_args.pop().unwrap() {
             Exp11
         } else {
@@ -2403,7 +2401,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp10 = if let ChunkNodeEnum::Variant6(Exp10) = __rustylr_args.pop().unwrap() {
             Exp10
         } else {
@@ -2416,7 +2414,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp12 = if let ChunkNodeEnum::Variant6(Exp12) = __rustylr_args.pop().unwrap() {
             Exp12
         } else {
@@ -2444,7 +2442,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp11 = if let ChunkNodeEnum::Variant6(Exp11) = __rustylr_args.pop().unwrap() {
             Exp11
         } else {
@@ -2457,7 +2455,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut lbrace = if let ChunkNodeEnum::Terminals(lbrace) = __rustylr_args.pop().unwrap() {
             lbrace
         } else {
@@ -2515,7 +2513,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut FieldList1 =
             if let ChunkNodeEnum::Variant15(FieldList1) = __rustylr_args.pop().unwrap() {
                 FieldList1
@@ -2538,7 +2536,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Field = if let ChunkNodeEnum::Variant16(Field) = __rustylr_args.pop().unwrap() {
             Field
         } else {
@@ -2551,7 +2549,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut FieldList1 =
             if let ChunkNodeEnum::Variant15(FieldList1) = __rustylr_args.pop().unwrap() {
                 FieldList1
@@ -2566,7 +2564,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         Ok(ChunkNodeEnum::Variant15({ vec![] }))
     }
     fn reduce_Field_0(
@@ -2574,7 +2572,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         __rustylr_args.pop();
         let mut k = if let ChunkNodeEnum::Variant6(k) = __rustylr_args.pop().unwrap() {
             k
@@ -2597,7 +2595,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut ident = if let ChunkNodeEnum::Terminals(ident) = __rustylr_args.pop().unwrap() {
             ident
         } else {
@@ -2618,7 +2616,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Exp = if let ChunkNodeEnum::Variant6(Exp) = __rustylr_args.pop().unwrap() {
             Exp
         } else {
@@ -2633,7 +2631,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         __rustylr_args.clear();
         Ok(ChunkNodeEnum::NonTerminals)
     }
@@ -2642,7 +2640,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         __rustylr_args.clear();
         Ok(ChunkNodeEnum::NonTerminals)
     }
@@ -2651,7 +2649,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut function_ =
             if let ChunkNodeEnum::Terminals(function_) = __rustylr_args.pop().unwrap() {
                 function_
@@ -2675,7 +2673,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut lparen = if let ChunkNodeEnum::Terminals(lparen) = __rustylr_args.pop().unwrap() {
             lparen
         } else {
@@ -2707,7 +2705,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut FuncName1 =
             if let ChunkNodeEnum::Variant10(FuncName1) = __rustylr_args.pop().unwrap() {
                 FuncName1
@@ -2734,7 +2732,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut ident = if let ChunkNodeEnum::Terminals(ident) = __rustylr_args.pop().unwrap() {
             ident
         } else {
@@ -2747,7 +2745,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut FuncName1 =
             if let ChunkNodeEnum::Variant10(FuncName1) = __rustylr_args.pop().unwrap() {
                 FuncName1
@@ -2774,7 +2772,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut FuncName1 =
             if let ChunkNodeEnum::Variant10(FuncName1) = __rustylr_args.pop().unwrap() {
                 FuncName1
@@ -2795,7 +2793,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut NameList = if let ChunkNodeEnum::Variant10(NameList) = __rustylr_args.pop().unwrap()
         {
             NameList
@@ -2822,7 +2820,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut dotdotdot =
             if let ChunkNodeEnum::Terminals(dotdotdot) = __rustylr_args.pop().unwrap() {
                 dotdotdot
@@ -2838,7 +2836,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut A = if let ChunkNodeEnum::Variant3(A) = __rustylr_args.pop().unwrap() {
             A
         } else {
@@ -2851,7 +2849,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Ap = if let ChunkNodeEnum::Variant20(Ap) = __rustylr_args.pop().unwrap() {
             Ap
         } else {
@@ -2872,7 +2870,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Ap = if let ChunkNodeEnum::Variant20(Ap) = __rustylr_args.pop().unwrap() {
             Ap
         } else {
@@ -2885,7 +2883,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         Ok(ChunkNodeEnum::Variant20({ vec![] }))
     }
     fn reduce__ReturnStatement_Question42_0(
@@ -2893,7 +2891,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut A = if let ChunkNodeEnum::Variant5(A) = __rustylr_args.pop().unwrap() {
             A
         } else {
@@ -2906,7 +2904,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         Ok(ChunkNodeEnum::Variant21({ None }))
     }
     fn reduce__ElseIf_Plus43_0(
@@ -2914,7 +2912,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut A = if let ChunkNodeEnum::Variant4(A) = __rustylr_args.pop().unwrap() {
             A
         } else {
@@ -2927,7 +2925,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Ap = if let ChunkNodeEnum::Variant22(Ap) = __rustylr_args.pop().unwrap() {
             Ap
         } else {
@@ -2948,7 +2946,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut Ap = if let ChunkNodeEnum::Variant22(Ap) = __rustylr_args.pop().unwrap() {
             Ap
         } else {
@@ -2961,7 +2959,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         Ok(ChunkNodeEnum::Variant22({ vec![] }))
     }
     fn reduce__Group45_0(
@@ -2969,7 +2967,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         __rustylr_args.pop();
         let mut __rustylr_group_elem1 =
             if let ChunkNodeEnum::Variant2(__rustylr_group_elem1) = __rustylr_args.pop().unwrap() {
@@ -2984,7 +2982,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut A = if let ChunkNodeEnum::Variant2(A) = __rustylr_args.pop().unwrap() {
             A
         } else {
@@ -2997,7 +2995,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         Ok(ChunkNodeEnum::Variant23({ None }))
     }
     fn reduce__Group47_0(
@@ -3005,7 +3003,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         __rustylr_args.pop();
         let mut __rustylr_group_elem1 =
             if let ChunkNodeEnum::Variant6(__rustylr_group_elem1) = __rustylr_args.pop().unwrap() {
@@ -3020,7 +3018,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut A = if let ChunkNodeEnum::Variant6(A) = __rustylr_args.pop().unwrap() {
             A
         } else {
@@ -3033,7 +3031,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         Ok(ChunkNodeEnum::Variant24({ None }))
     }
     fn reduce__Group49_0(
@@ -3041,7 +3039,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         __rustylr_args.pop();
         let mut __rustylr_group_elem1 =
             if let ChunkNodeEnum::Variant9(__rustylr_group_elem1) = __rustylr_args.pop().unwrap() {
@@ -3056,7 +3054,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut A = if let ChunkNodeEnum::Variant9(A) = __rustylr_args.pop().unwrap() {
             A
         } else {
@@ -3069,7 +3067,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         Ok(ChunkNodeEnum::Variant25({ None }))
     }
     fn reduce__semicolon_Question51_0(
@@ -3077,7 +3075,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut A = if let ChunkNodeEnum::Terminals(A) = __rustylr_args.pop().unwrap() {
             A
         } else {
@@ -3090,7 +3088,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         Ok(ChunkNodeEnum::Variant26({ None }))
     }
     fn reduce__FieldSep_Question52_0(
@@ -3098,7 +3096,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         __rustylr_args.clear();
         Ok(ChunkNodeEnum::NonTerminals)
     }
@@ -3107,7 +3105,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         __rustylr_args.clear();
         Ok(ChunkNodeEnum::NonTerminals)
     }
@@ -3116,7 +3114,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut A = if let ChunkNodeEnum::Variant19(A) = __rustylr_args.pop().unwrap() {
             A
         } else {
@@ -3129,7 +3127,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         Ok(ChunkNodeEnum::Variant27({ None }))
     }
     fn reduce__Group54_0(
@@ -3137,7 +3135,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         __rustylr_args.pop();
         let mut __rustylr_group_elem1 = if let ChunkNodeEnum::Terminals(__rustylr_group_elem1) =
             __rustylr_args.pop().unwrap()
@@ -3153,7 +3151,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         let mut A = if let ChunkNodeEnum::Terminals(A) = __rustylr_args.pop().unwrap() {
             A
         } else {
@@ -3166,7 +3164,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         Ok(ChunkNodeEnum::Variant26({ None }))
     }
     fn reduce_Augmented_0(
@@ -3174,7 +3172,7 @@ impl ChunkNodeEnum {
         shift: &mut bool,
         lookahead: &Token,
         data: &mut (),
-    ) -> Result<ChunkNodeEnum, ::rusty_lr::DefaultReduceActionError> {
+    ) -> Result<ChunkNodeEnum, ParseError> {
         __rustylr_args.clear();
         Ok(ChunkNodeEnum::NonTerminals)
     }
@@ -3189,7 +3187,7 @@ impl ChunkNodeEnum {
 impl ::rusty_lr::glr::NodeData for ChunkNodeEnum {
     type Term = Token;
     type NonTerm = ChunkNonTerminals;
-    type ReduceActionError = ::rusty_lr::DefaultReduceActionError;
+    type ReduceActionError = ParseError;
     type UserData = ();
     type StartType = statement::Block;
     fn new_term(term: Token) -> Self {

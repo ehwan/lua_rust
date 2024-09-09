@@ -95,18 +95,22 @@ pub fn parse_str(source: &str) -> Result<Block, ParseError> {
         match context.feed(&parser, token, &mut ()) {
             Ok(_) => {}
             Err(err) => {
-                let token = err.term;
-                let expected = context.expected(&parser).cloned().collect::<Vec<_>>();
-                let expected_nonterm = context
-                    .expected_nonterm(&parser)
-                    .cloned()
-                    .collect::<Vec<_>>();
-                let error = InvalidToken {
-                    token: Some(token),
-                    expected,
-                    expected_nonterm,
-                };
-                return Err(ParseError::InvalidToken(error));
+                if err.reduce_errors.is_empty() {
+                    let token = err.term;
+                    let expected = context.expected(&parser).cloned().collect::<Vec<_>>();
+                    let expected_nonterm = context
+                        .expected_nonterm(&parser)
+                        .cloned()
+                        .collect::<Vec<_>>();
+                    let error = InvalidToken {
+                        token: Some(token),
+                        expected,
+                        expected_nonterm,
+                    };
+                    return Err(ParseError::InvalidToken(error));
+                } else {
+                    return Err(err.reduce_errors.into_iter().next().unwrap());
+                }
             }
         }
     }
