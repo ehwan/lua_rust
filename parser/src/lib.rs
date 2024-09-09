@@ -41,6 +41,7 @@ pub use expression::ExprNumeric;
 pub use expression::ExprString;
 pub use expression::ExprTable;
 pub use expression::ExprTableIndex;
+pub use expression::ExprUnary;
 pub use expression::Expression;
 pub use expression::ParameterList;
 pub use expression::TableField;
