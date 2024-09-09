@@ -10,6 +10,7 @@ use crate::statement;
 use crate::Statement;
 use crate::IntType;
 use crate::Span;
+use crate::SpannedString;
 
 // @TODO Block span
 
@@ -329,7 +330,7 @@ ExpList0(Vec<Expression>)
     ;
 
 // one or more comma-separated names
-NameList(Vec<expression::ExprString>)
+NameList(Vec<SpannedString>)
     : NameList comma! ident {
         NameList.push(ident.into());
         NameList
@@ -737,9 +738,11 @@ TableConstructor(expression::ExprTable)
                 // 'k' = v
                 expression::TableConstructorFieldBuilder::NameValue(name, v) => {
                     let span = name.span().merge_ordered(&v.span());
-                    table
-                        .fields
-                        .push(expression::TableField::new(Expression::String(name), v, span));
+                    table.fields.push(expression::TableField::new(
+                        Expression::String(name.into()),
+                        v,
+                        span,
+                    ));
                 }
                 // v
                 expression::TableConstructorFieldBuilder::Value(v) => {
@@ -815,7 +818,7 @@ FuncBody(expression::ExprFunction)
     ;
 
 // dot chained ident
-FuncName1(Vec<expression::ExprString>)
+FuncName1(Vec<SpannedString>)
     : FuncName1 dot ident {
         FuncName1.push( ident.into() );
         FuncName1

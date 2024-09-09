@@ -19,8 +19,11 @@ mod statement;
 // mod parser;
 mod parser_expanded;
 use parser_expanded as parser;
+mod spannedstring;
 
 // re-exports
+pub use spannedstring::SpannedString;
+
 pub use lua_tokenizer::FloatType;
 pub use lua_tokenizer::IntOrFloat;
 pub use lua_tokenizer::IntType;

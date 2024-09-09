@@ -1,5 +1,5 @@
-use super::{ExprString, Expression};
-use crate::Span;
+use super::Expression;
+use crate::{Span, SpannedString};
 
 #[derive(Clone, Debug)]
 pub struct FunctionCallArguments {
@@ -22,14 +22,14 @@ impl FunctionCallArguments {
 #[derive(Clone, Debug)]
 pub struct ExprFunctionCall {
     pub prefix: Box<Expression>,
-    pub method: Option<ExprString>,
+    pub method: Option<SpannedString>,
     pub args: FunctionCallArguments,
     pub span: Span,
 }
 impl ExprFunctionCall {
     pub fn new(
         prefix: Expression,
-        method: Option<ExprString>,
+        method: Option<SpannedString>,
         args: FunctionCallArguments,
         span: Span,
     ) -> Self {

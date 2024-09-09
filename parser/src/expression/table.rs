@@ -1,12 +1,12 @@
-use super::ExprString;
 use super::Expression;
 use crate::Span;
+use crate::SpannedString;
 
 /// for internal use
 #[derive(Clone, Debug)]
 pub(crate) enum TableConstructorFieldBuilder {
     KeyValue(Expression, Expression),
-    NameValue(ExprString, Expression),
+    NameValue(SpannedString, Expression),
     Value(Expression),
 }
 

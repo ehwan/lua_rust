@@ -1,6 +1,6 @@
 use super::Block;
-use crate::Span;
-use crate::{ExprString, Expression};
+use crate::Expression;
+use crate::{Span, SpannedString};
 
 /// for statement with start, end, step.
 #[derive(Clone, Debug)]
@@ -39,14 +39,14 @@ impl StmtFor {
 /// for statement with generic expressions.
 #[derive(Clone, Debug)]
 pub struct StmtForGeneric {
-    pub names: Vec<ExprString>,
+    pub names: Vec<SpannedString>,
     pub expressions: Vec<Expression>,
     pub block: Block,
     pub span: Span,
 }
 impl StmtForGeneric {
     pub fn new(
-        names: Vec<ExprString>,
+        names: Vec<SpannedString>,
         expressions: Vec<Expression>,
         block: Block,
         span: Span,

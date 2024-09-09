@@ -1,5 +1,6 @@
 use crate::IntOrFloat;
 use crate::Span;
+use crate::SpannedString;
 use crate::Token;
 use lua_tokenizer::TokenType;
 
@@ -68,6 +69,11 @@ impl From<Token> for ExprString {
             TokenType::Ident(s) => Self::new(s, t.span),
             _ => unreachable!(),
         }
+    }
+}
+impl From<SpannedString> for ExprString {
+    fn from(s: SpannedString) -> Self {
+        Self::new(s.string, s.span)
     }
 }
 

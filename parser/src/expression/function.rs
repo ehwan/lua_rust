@@ -1,19 +1,18 @@
 use crate::statement;
 use crate::Span;
-
-use super::ExprString;
+use crate::SpannedString;
 
 /// parameter list for named & anonymous function definition
 #[derive(Clone, Debug)]
 pub struct ParameterList {
-    pub names: Vec<ExprString>,
+    pub names: Vec<SpannedString>,
     /// is `...` present?
     pub variadic: bool,
 
     pub span: Span,
 }
 impl ParameterList {
-    pub fn new(names: Vec<ExprString>, variadic: bool, span: Span) -> Self {
+    pub fn new(names: Vec<SpannedString>, variadic: bool, span: Span) -> Self {
         Self {
             names,
             variadic,

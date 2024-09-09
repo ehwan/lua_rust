@@ -1,6 +1,6 @@
-use crate::ExprString;
 use crate::Expression;
 use crate::Span;
+use crate::SpannedString;
 
 /// local variable attribute.
 /// either `const` or `close`.
@@ -13,12 +13,12 @@ pub enum Attrib {
 /// pair of variable name and attribute.
 #[derive(Clone, Debug)]
 pub struct AttName {
-    pub name: ExprString,
+    pub name: SpannedString,
     pub attrib: Option<Attrib>,
     pub span: Span,
 }
 impl AttName {
-    pub fn new(name: ExprString, attrib: Option<Attrib>, span: Span) -> Self {
+    pub fn new(name: SpannedString, attrib: Option<Attrib>, span: Span) -> Self {
         Self { name, attrib, span }
     }
     /// get the span of the whole variable name and attribute.

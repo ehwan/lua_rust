@@ -8,6 +8,7 @@ use crate::statement;
 use crate::Expression;
 use crate::IntType;
 use crate::Span;
+use crate::SpannedString;
 use crate::Statement;
 use lua_tokenizer::IntOrFloat;
 use lua_tokenizer::Token;
@@ -384,7 +385,7 @@ pub enum ChunkNodeEnum {
     Variant7(expression::ExprFunctionCall),
     Variant8(expression::FunctionCallArguments),
     Variant9(Vec<Expression>),
-    Variant10(Vec<expression::ExprString>),
+    Variant10(Vec<SpannedString>),
     Variant11(statement::AttName),
     Variant12(Vec<statement::AttName>),
     Variant13(Option<statement::Attrib>),
@@ -2486,7 +2487,7 @@ impl ChunkNodeEnum {
                     expression::TableConstructorFieldBuilder::NameValue(name, v) => {
                         let span = name.span().merge_ordered(&v.span());
                         table.fields.push(expression::TableField::new(
-                            Expression::String(name),
+                            Expression::String(name.into()),
                             v,
                             span,
                         ));

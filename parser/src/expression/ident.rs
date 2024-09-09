@@ -1,27 +1,23 @@
 use crate::Span;
+use crate::SpannedString;
 use crate::Token;
-use lua_tokenizer::TokenType;
 
 /// just identifier
 #[derive(Clone, Debug)]
 pub struct ExprIdent {
-    pub name: String,
-    pub span: Span,
+    pub name: SpannedString,
 }
 impl ExprIdent {
-    pub fn new(name: String, span: Span) -> Self {
-        Self { name, span }
+    pub fn new(name: SpannedString) -> Self {
+        Self { name }
     }
     /// get the span of the identifier
     pub fn span(&self) -> Span {
-        self.span
+        self.name.span()
     }
 }
 impl From<Token> for ExprIdent {
     fn from(t: Token) -> Self {
-        match t.token_type {
-            TokenType::Ident(name) => Self::new(name, t.span),
-            _ => unreachable!(),
-        }
+        Self::new(t.into())
     }
 }
