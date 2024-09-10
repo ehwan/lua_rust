@@ -8,7 +8,6 @@ use crate::expression;
 use crate::Expression;
 use crate::statement;
 use crate::Statement;
-use crate::IntType;
 use crate::Span;
 use crate::SpannedString;
 use crate::ParseError;
@@ -724,51 +723,13 @@ Exp12(Expression)
 TableConstructor(expression::ExprTable)
     : lbrace FieldList rbrace {
         let span = lbrace.span().merge_ordered(&rbrace.span());
-        let mut table = expression::ExprTable::new(span);
-        // for no-key value in FieldList
-        let mut consecutive:IntType = 1;
-        for field in FieldList.into_iter() {
-            match field {
-                // [k] = v
-                expression::TableConstructorFieldBuilder::KeyValue(k, v) => {
-                    let span = k.span().merge_ordered(&v.span());
-                    table.fields.push(
-                        expression::TableField::new(k, v, span)
-                    );
-                }
-                // 'k' = v
-                expression::TableConstructorFieldBuilder::NameValue(name, v) => {
-                    let span = name.span().merge_ordered(&v.span());
-                    table.fields.push(expression::TableField::new(
-                        Expression::String(name.into()),
-                        v,
-                        span,
-                    ));
-                }
-                // v
-                expression::TableConstructorFieldBuilder::Value(v) => {
-                    let idx = consecutive;
-                    consecutive += 1;
-                    let span = v.span();
-                    table.fields.push(expression::TableField::new(
-                        Expression::Numeric(expression::ExprNumeric::new(
-                            idx.into(),
-                            // @TODO no none span
-                            Span::new_none(),
-                        )),
-                        v,
-                        span,
-                    ));
-                }
-            }
-        }
-        table
+        expression::ExprTable::new( FieldList, span )
     }
     ;
 
 
 // one or more separated Fields
-FieldList1(Vec<expression::TableConstructorFieldBuilder>)
+FieldList1(Vec<expression::TableField>)
     : FieldList1 FieldSep Field {
         FieldList1.push(Field);
         FieldList1
@@ -779,7 +740,7 @@ FieldList1(Vec<expression::TableConstructorFieldBuilder>)
     ;
 
 // zero or more separated Fields, with optional trailing separator
-FieldList(Vec<expression::TableConstructorFieldBuilder>)
+FieldList(Vec<expression::TableField>)
     : FieldList1 FieldSep? {
         FieldList1
     }
@@ -788,15 +749,23 @@ FieldList(Vec<expression::TableConstructorFieldBuilder>)
     }
     ;
 
-Field(expression::TableConstructorFieldBuilder)
-    : lbracket! k=Exp rbracket! equal! v=Exp {
-        expression::TableConstructorFieldBuilder::KeyValue(k, v)
+Field(expression::TableField)
+    : lbracket k=Exp rbracket! equal! v=Exp {
+        let span = lbracket.span().merge_ordered(&v.span());
+        expression::TableField::KeyValue(
+            expression::TableFieldKeyValue::new(k, v, span)
+        )
     }
     | ident equal! Exp {
-        expression::TableConstructorFieldBuilder::NameValue(ident.into(), Exp)
+        let span = ident.span().merge_ordered(&Exp.span());
+        expression::TableField::NameValue(
+            expression::TableFieldNameValue::new(ident.into(), Exp, span)
+        )
     }
     | Exp {
-        expression::TableConstructorFieldBuilder::Value(Exp)
+        expression::TableField::Value(
+            expression::TableFieldValue::new(Exp)
+        )
     }
     ;
 

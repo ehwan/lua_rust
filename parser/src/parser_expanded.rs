@@ -6,7 +6,6 @@
 use crate::expression;
 use crate::statement;
 use crate::Expression;
-use crate::IntType;
 use crate::ParseError;
 use crate::Span;
 use crate::SpannedString;
@@ -388,8 +387,8 @@ pub enum ChunkNodeEnum {
     Variant12(Vec<statement::AttName>),
     Variant13(Option<statement::Attrib>),
     Variant14(expression::ExprTable),
-    Variant15(Vec<expression::TableConstructorFieldBuilder>),
-    Variant16(expression::TableConstructorFieldBuilder),
+    Variant15(Vec<expression::TableField>),
+    Variant16(expression::TableField),
     Variant17(expression::ExprFunction),
     Variant18(statement::FunctionName),
     Variant19(expression::ParameterList),
@@ -2474,38 +2473,7 @@ impl ChunkNodeEnum {
         };
         Ok(ChunkNodeEnum::Variant14({
             let span = lbrace.span().merge_ordered(&rbrace.span());
-            let mut table = expression::ExprTable::new(span);
-            let mut consecutive: IntType = 1;
-            for field in FieldList.into_iter() {
-                match field {
-                    expression::TableConstructorFieldBuilder::KeyValue(k, v) => {
-                        let span = k.span().merge_ordered(&v.span());
-                        table.fields.push(expression::TableField::new(k, v, span));
-                    }
-                    expression::TableConstructorFieldBuilder::NameValue(name, v) => {
-                        let span = name.span().merge_ordered(&v.span());
-                        table.fields.push(expression::TableField::new(
-                            Expression::String(name.into()),
-                            v,
-                            span,
-                        ));
-                    }
-                    expression::TableConstructorFieldBuilder::Value(v) => {
-                        let idx = consecutive;
-                        consecutive += 1;
-                        let span = v.span();
-                        table.fields.push(expression::TableField::new(
-                            Expression::Numeric(expression::ExprNumeric::new(
-                                idx.into(),
-                                Span::new_none(),
-                            )),
-                            v,
-                            span,
-                        ));
-                    }
-                }
-            }
-            table
+            expression::ExprTable::new(FieldList, span)
         }))
     }
     fn reduce_FieldList1_0(
@@ -2573,7 +2541,12 @@ impl ChunkNodeEnum {
         lookahead: &Token,
         data: &mut (),
     ) -> Result<ChunkNodeEnum, ParseError> {
-        __rustylr_args.pop();
+        let mut lbracket = if let ChunkNodeEnum::Terminals(lbracket) = __rustylr_args.pop().unwrap()
+        {
+            lbracket
+        } else {
+            unreachable!()
+        };
         let mut k = if let ChunkNodeEnum::Variant6(k) = __rustylr_args.pop().unwrap() {
             k
         } else {
@@ -2587,7 +2560,8 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant16({
-            expression::TableConstructorFieldBuilder::KeyValue(k, v)
+            let span = lbracket.span().merge_ordered(&v.span());
+            expression::TableField::KeyValue(expression::TableFieldKeyValue::new(k, v, span))
         }))
     }
     fn reduce_Field_1(
@@ -2608,7 +2582,12 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant16({
-            expression::TableConstructorFieldBuilder::NameValue(ident.into(), Exp)
+            let span = ident.span().merge_ordered(&Exp.span());
+            expression::TableField::NameValue(expression::TableFieldNameValue::new(
+                ident.into(),
+                Exp,
+                span,
+            ))
         }))
     }
     fn reduce_Field_2(
@@ -2623,7 +2602,7 @@ impl ChunkNodeEnum {
             unreachable!()
         };
         Ok(ChunkNodeEnum::Variant16({
-            expression::TableConstructorFieldBuilder::Value(Exp)
+            expression::TableField::Value(expression::TableFieldValue::new(Exp))
         }))
     }
     fn reduce_FieldSep_0(

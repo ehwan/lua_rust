@@ -64,8 +64,10 @@ pub use literal::ExprVariadic;
 
 mod table;
 pub use table::ExprTable;
-pub(crate) use table::TableConstructorFieldBuilder;
 pub use table::TableField;
+pub use table::TableFieldKeyValue;
+pub use table::TableFieldNameValue;
+pub use table::TableFieldValue;
 
 mod ident;
 pub use ident::ExprIdent;

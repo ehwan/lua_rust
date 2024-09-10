@@ -52,6 +52,9 @@ pub use expression::Expression;
 pub use expression::FunctionCallArguments;
 pub use expression::ParameterList;
 pub use expression::TableField;
+pub use expression::TableFieldKeyValue;
+pub use expression::TableFieldNameValue;
+pub use expression::TableFieldValue;
 
 pub use statement::AttName;
 pub use statement::Attrib;
