@@ -1,7 +1,4 @@
 # lua_rust
-[![crates.io](https://img.shields.io/crates/v/lua_parser.svg)](https://crates.io/crates/lua_parser)
-[![docs.rs](https://docs.rs/lua_parser/badge.svg)](https://docs.rs/lua_parser)
-
 lua syntax parser in Rust
 
  - Greatly in progress
@@ -9,9 +6,12 @@ lua syntax parser in Rust
  - syntax referenced from [lua 5.4 reference manual](https://www.lua.org/manual/5.4/manual.html)
 
 ## project structure
- - `tokenizer`: tokenizing lua code string
- - `parser`: parsing tokenized lua code into AST
- - `exec`: executable version of the `parser`
+ - `tokenizer`: tokenizing lua code string.
+ - `parser`: parsing tokenized lua code into AST.
+ - `semantics`: semantic analysis of generated AST. It generates a `Enhanced AST` which contains more information than the original AST.
+      - stack offset of local variables
+      - scope checking for `return`, `break`, `goto`, `label`, ...
+      - split function definition into separated Chunks
 
 ## Cargo Features
  - `32bit`: use 32bit integer and float for `lua numeric` type

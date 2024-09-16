@@ -1,0 +1,19 @@
+[package]
+name = "lua_semantics"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "semantic analysis and enhanced AST converter for lua_parser crate"
+repository = "https://github.com/ehwan/lua_rust"
+readme = "../README.md"
+keywords = ["parser", "lua", "glr"]
+categories = ["parsing"]
+
+[dependencies]
+lua_parser = { version = "0.4.0", path = "../parser" }
+codespan-reporting = { version = "0.11", optional = true }
+
+[features]
+default = []
+32bit = ["lua_parser/32bit"]
+diag = ["dep:codespan-reporting", "lua_parser/diag"]
