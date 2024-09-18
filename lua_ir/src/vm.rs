@@ -60,6 +60,9 @@ impl Program {
         }
         let instruction = &self.instructions[stack.counter];
         match instruction {
+            Instruction::Clear(stack_offset) => {
+                stack.data_stack[stack.bp + *stack_offset] = LuaValue::Nil;
+            }
             Instruction::Clone => {
                 let top = stack.data_stack.last().unwrap().deref();
                 stack.data_stack.push(top);
@@ -210,7 +213,7 @@ impl Program {
                 *upvalue.value.borrow_mut() = rhs;
             }
 
-            Instruction::InitRef(stack_offset) => {
+            Instruction::Ref(stack_offset) => {
                 let data = stack.data_stack[stack.bp + *stack_offset].clone();
                 let data_ref = match data {
                     LuaValue::Ref(r) => r,
@@ -219,6 +222,10 @@ impl Program {
                     },
                 };
                 stack.data_stack[stack.bp + *stack_offset] = LuaValue::Ref(data_ref);
+            }
+            Instruction::Deref(stack_offset) => {
+                let data = stack.data_stack[stack.bp + *stack_offset].deref();
+                stack.data_stack[stack.bp + *stack_offset] = data;
             }
 
             Instruction::BinaryAdd => {

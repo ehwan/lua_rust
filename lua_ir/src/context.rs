@@ -448,11 +448,35 @@ impl Context {
 impl Context {
     fn emit_statement_for(&mut self, stmt: lua_semantics::StmtFor) {
         let break_label = self.generate_label();
+        let continue_label = self.generate_label();
         self.loop_stack.push(break_label.clone());
+        let control_offset = stmt.control_variable.borrow().offset;
 
-        // @TODO
+        self.emit_expression(stmt.start, Some(1));
+
+        self.set_label(continue_label.clone());
+        self.instructions.push(Instruction::Clear(control_offset));
+        self.instructions
+            .push(Instruction::SetStack(control_offset));
+        if stmt.control_variable.borrow().is_reference {
+            self.instructions.push(Instruction::Ref(control_offset));
+        }
+        // check range
+        self.instructions
+            .push(Instruction::GetStack(control_offset));
+        self.emit_expression(stmt.end, Some(1));
+        self.instructions.push(Instruction::BinaryLessThan); // @TODO less, overflow check
+        self.instructions
+            .push(Instruction::JumpFalse(break_label.clone()));
 
         self.emit_block(stmt.block);
+        self.instructions
+            .push(Instruction::GetStack(control_offset));
+        self.emit_expression(stmt.step, Some(1));
+        self.instructions.push(Instruction::BinaryAdd);
+        self.instructions
+            .push(Instruction::Jump(continue_label.clone()));
+
         self.set_label(break_label);
         self.loop_stack.pop();
     }
@@ -566,11 +590,11 @@ impl Context {
         } else {
             self.emit_expression_nil(Some(stmt.decls.len()));
         }
-        for (lhs_info, attrib) in stmt.decls.into_iter().rev() {
+        for (lhs_info, _attrib) in stmt.decls.into_iter().rev() {
             let offset = lhs_info.borrow().offset;
             self.instructions.push(Instruction::SetStack(offset));
             if lhs_info.borrow().is_reference {
-                self.instructions.push(Instruction::InitRef(offset));
+                self.instructions.push(Instruction::Ref(offset));
             }
         }
     }

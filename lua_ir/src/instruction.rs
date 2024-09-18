@@ -4,6 +4,7 @@ use crate::IntOrFloat;
 
 #[derive(Debug, Clone)]
 pub enum Instruction {
+    Clear(usize),
     /// clone stack top and push it to stack
     Clone,
     /// swap top two elements of stack
@@ -63,7 +64,9 @@ pub enum Instruction {
     FunctionUpvalueSet(usize),
 
     /// set reference
-    InitRef(usize),
+    Ref(usize),
+    /// Dereference
+    Deref(usize),
 
     BinaryAdd,
     BinarySub,
