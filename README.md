@@ -1,5 +1,5 @@
 # lua_rust
-lua syntax parser in Rust
+lua syntax parser & interpreter in Rust
 
  - Greatly in progress
  - LALR(1), GLR parser
