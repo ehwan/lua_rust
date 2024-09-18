@@ -12,6 +12,7 @@ lua syntax parser in Rust
       - stack offset of local variables
       - scope checking for `return`, `break`, `goto`, `label`, ...
       - split function definition into separated Chunks
+ - `lua_ir` : generate IRs from enhanced AST, and run on virtual machine.
 
 ## Cargo Features
  - `32bit`: use 32bit integer and float for `lua numeric` type

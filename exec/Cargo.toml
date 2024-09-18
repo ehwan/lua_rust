@@ -5,10 +5,10 @@ edition = "2021"
 
 [dependencies]
 lua_parser = { version = "0.4.0", path = "../parser", features = ["diag"] }
-lua_semantics = { version = "0.1.0", path = "../semantics", features = [
+lua_semantics = { version = "0.2.0", path = "../semantics", features = [
   "diag",
 ] }
-# lua_ir = { version = "0.1.0", path = "../lua_ir" }
+lua_ir = { version = "0.1.0", path = "../lua_ir" }
 codespan-reporting = { version = "0.11" }
 
 [features]

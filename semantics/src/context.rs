@@ -743,11 +743,6 @@ impl Context {
         stmt: lua_parser::ReturnStatement,
         blk: &mut crate::Block,
     ) -> Result<(), ProcessError> {
-        // check if return is inside function
-        if self.nearest_function_scope().is_none() {
-            return Err(ProcessError::ReturnOutsideFunction(stmt.span()));
-        }
-
         let mut exprs = Vec::with_capacity(stmt.values.len());
         for expr in stmt.values.into_iter() {
             exprs.push(self.process_expression(expr)?);

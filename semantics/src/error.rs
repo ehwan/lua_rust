@@ -9,7 +9,6 @@ pub enum ProcessError {
     VariadicOutsideFunction(Span),
     VariadicInNonVariadicFunction(Span),
     BreakOutsideLoop(Span),
-    ReturnOutsideFunction(Span),
     InvalidGotoScope(Span, Span),
     InvalidLabel(Span),
 }
@@ -25,9 +24,6 @@ impl Display for ProcessError {
                 write!(f, "Variadic in non-variadic function")
             }
             ProcessError::BreakOutsideLoop(_) => write!(f, "Break outside loop"),
-            ProcessError::ReturnOutsideFunction(_) => {
-                write!(f, "Return outside function")
-            }
             ProcessError::InvalidGotoScope(_, _) => {
                 write!(f, "Invalid goto")
             }
@@ -57,9 +53,6 @@ impl ProcessError {
                 .with_message(message)
                 .with_labels(vec![Label::primary(fileid, *span)]),
             ProcessError::BreakOutsideLoop(span) => Diagnostic::error()
-                .with_message(message)
-                .with_labels(vec![Label::primary(fileid, *span)]),
-            ProcessError::ReturnOutsideFunction(span) => Diagnostic::error()
                 .with_message(message)
                 .with_labels(vec![Label::primary(fileid, *span)]),
             ProcessError::InvalidGotoScope(label_span, goto_span) => {

@@ -1,2 +1,2 @@
 [workspace]
-members = ["exec", "semantics", "parser", "tokenizer"]
+members = ["exec", "semantics", "parser", "tokenizer", "lua_ir"]
