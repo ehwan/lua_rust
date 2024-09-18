@@ -162,8 +162,9 @@ impl Context {
     fn emit_expression_set(&mut self, entry: lua_semantics::Expression) {
         match entry {
             lua_semantics::Expression::LocalVariable(expr) => match expr {
-                ExprLocalVariable::Stack(offset) => {
-                    self.instructions.push(Instruction::SetStack(offset));
+                ExprLocalVariable::Stack(local_id) => {
+                    self.instructions
+                        .push(Instruction::SetLocalVariable(local_id));
                 }
                 ExprLocalVariable::Upvalue(index) => {
                     self.instructions
@@ -371,8 +372,10 @@ impl Context {
 
                 let lhs_false_label = self.generate_label();
                 self.emit_expression(*expr.lhs, Some(1));
+                self.instructions.push(Instruction::Clone);
                 self.instructions
                     .push(Instruction::JumpFalse(lhs_false_label.clone()));
+                self.instructions.push(Instruction::Pop);
                 self.emit_expression(*expr.rhs, Some(1));
                 self.set_label(lhs_false_label);
             }
@@ -388,8 +391,10 @@ impl Context {
                 */
                 let lhs_true_label = self.generate_label();
                 self.emit_expression(*expr.lhs, Some(1));
+                self.instructions.push(Instruction::Clone);
                 self.instructions
                     .push(Instruction::JumpTrue(lhs_true_label.clone()));
+                self.instructions.push(Instruction::Pop);
                 self.emit_expression(*expr.rhs, Some(1));
                 self.set_label(lhs_true_label);
             }
@@ -404,8 +409,9 @@ impl Context {
         expected: Option<usize>,
     ) {
         match expr {
-            lua_semantics::ExprLocalVariable::Stack(offset) => {
-                self.instructions.push(Instruction::GetStack(offset));
+            lua_semantics::ExprLocalVariable::Stack(local_id) => {
+                self.instructions
+                    .push(Instruction::GetLocalVariable(local_id));
             }
             lua_semantics::ExprLocalVariable::Upvalue(index) => {
                 self.instructions.push(Instruction::FunctionUpvalue(index));
@@ -457,13 +463,10 @@ impl Context {
         self.set_label(continue_label.clone());
         self.instructions.push(Instruction::Clear(control_offset));
         self.instructions
-            .push(Instruction::SetStack(control_offset));
-        if stmt.control_variable.borrow().is_reference {
-            self.instructions.push(Instruction::Ref(control_offset));
-        }
+            .push(Instruction::SetLocalVariable(control_offset));
         // check range
         self.instructions
-            .push(Instruction::GetStack(control_offset));
+            .push(Instruction::GetLocalVariable(control_offset));
         self.emit_expression(stmt.end, Some(1));
         self.instructions.push(Instruction::BinaryLessThan); // @TODO less, overflow check
         self.instructions
@@ -471,7 +474,7 @@ impl Context {
 
         self.emit_block(stmt.block);
         self.instructions
-            .push(Instruction::GetStack(control_offset));
+            .push(Instruction::GetLocalVariable(control_offset));
         self.emit_expression(stmt.step, Some(1));
         self.instructions.push(Instruction::BinaryAdd);
         self.instructions
@@ -503,13 +506,13 @@ impl Context {
             .push(Instruction::FunctionInit(expr.function_id, upvalues_len));
         for upvalue in expr.upvalues_source {
             match upvalue {
-                ExprLocalVariable::Stack(offset) => {
+                ExprLocalVariable::Stack(local_id) => {
                     self.instructions
-                        .push(Instruction::FunctionUpvaluePushWithStack(offset));
+                        .push(Instruction::FunctionUpvaluePushFromLocalVar(local_id));
                 }
                 ExprLocalVariable::Upvalue(index) => {
                     self.instructions
-                        .push(Instruction::FunctionUpvaluePushWithUpvalue(index));
+                        .push(Instruction::FunctionUpvaluePushFromUpvalue(index));
                 }
             }
         }
@@ -591,11 +594,9 @@ impl Context {
             self.emit_expression_nil(Some(stmt.decls.len()));
         }
         for (lhs_info, _attrib) in stmt.decls.into_iter().rev() {
-            let offset = lhs_info.borrow().offset;
-            self.instructions.push(Instruction::SetStack(offset));
-            if lhs_info.borrow().is_reference {
-                self.instructions.push(Instruction::Ref(offset));
-            }
+            let local_id = lhs_info.borrow().offset;
+            self.instructions
+                .push(Instruction::SetLocalVariable(local_id));
         }
     }
     fn emit_statement_while(&mut self, stmt: lua_semantics::StmtWhile) {

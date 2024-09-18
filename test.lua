@@ -1,0 +1,32 @@
+
+function func()
+    return 1, 2
+end
+
+local a, b, c, d = 4,5, 6, 7
+
+print( a, b, c, d )
+
+a, b, c, d = func()
+
+
+print( a, b, c, d )
+
+function factorial( n )
+    if n == 0 then
+        return 1;
+    else
+        return n * factorial(n - 1);
+    end
+end
+
+for i = 1, 10, 2 do
+    print( "Factorial of "..i.." is: ".. factorial(i) );
+end
+
+
+do
+    return 0;
+end
+
+print(10);

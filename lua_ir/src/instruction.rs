@@ -4,25 +4,29 @@ use crate::IntOrFloat;
 
 #[derive(Debug, Clone)]
 pub enum Instruction {
+    /// clear i'th local variable to Nil
     Clear(usize),
-    /// clone stack top and push it to stack
+    /// clone top of the data_stack and push it
     Clone,
     /// swap top two elements of stack
     Swap,
-    /// push length of stack to usize_stack
+    /// push current length of data_stack to usize_stack
     Sp,
+    ///
+    Pop,
 
     /// jump to label
     Jump(String),
-    /// jump to label if stack_top is true
+    /// pops data_stack and jump to label if stack_top is true.
     JumpTrue(String),
-    /// jump to label if stack_top is false
+    /// pops data_stack and jump to label if stack_top is false
     JumpFalse(String),
 
-    /// push stack[i] to stack_top
-    GetStack(usize),
-    /// set stack[i] from stack_top
-    SetStack(usize),
+    /// get i'th local variable and push the value to stack_top
+    GetLocalVariable(usize),
+    /// pops data_stack and set i'th local variable to the value.
+    /// If i'th local variable is `Ref`, the internal value will be set.
+    SetLocalVariable(usize),
 
     /// push nil
     Nil,
@@ -54,19 +58,14 @@ pub enum Instruction {
     FunctionInit(usize, usize),
     /// func -> top.
     /// src_stack_id
-    FunctionUpvaluePushWithStack(usize),
+    FunctionUpvaluePushFromLocalVar(usize),
     /// src_upvalue_id
-    FunctionUpvaluePushWithUpvalue(usize),
+    FunctionUpvaluePushFromUpvalue(usize),
 
     /// get i'th upvalue of current function
     FunctionUpvalue(usize),
     /// set i'th upvalue of current function
     FunctionUpvalueSet(usize),
-
-    /// set reference
-    Ref(usize),
-    /// Dereference
-    Deref(usize),
 
     BinaryAdd,
     BinarySub,

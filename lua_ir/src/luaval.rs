@@ -7,6 +7,47 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 #[derive(Debug, Clone)]
+pub enum RefOrValue {
+    Ref(Rc<RefCell<LuaValue>>),
+    Value(LuaValue),
+}
+impl Default for RefOrValue {
+    fn default() -> Self {
+        RefOrValue::Value(LuaValue::Nil)
+    }
+}
+impl From<RefOrValue> for LuaValue {
+    fn from(rv: RefOrValue) -> Self {
+        match rv {
+            RefOrValue::Ref(r) => r.borrow().clone(),
+            RefOrValue::Value(v) => v,
+        }
+    }
+}
+impl RefOrValue {
+    pub fn set(&mut self, value: LuaValue) {
+        match self {
+            RefOrValue::Ref(r) => {
+                *r.borrow_mut() = value;
+            }
+            RefOrValue::Value(v) => {
+                *v = value;
+            }
+        }
+    }
+    pub fn to_ref(&mut self) -> Rc<RefCell<LuaValue>> {
+        match self.clone() {
+            RefOrValue::Value(v) => {
+                let r = Rc::new(RefCell::new(v));
+                *self = RefOrValue::Ref(r.clone());
+                r
+            }
+            RefOrValue::Ref(r) => r,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum LuaValue {
     Nil,
     Boolean(bool),
@@ -17,8 +58,6 @@ pub enum LuaValue {
     Function(LuaFunction),
     UserData(LuaUserData),
     Thread(LuaThread),
-
-    Ref(LuaRef),
 }
 
 impl std::fmt::Display for LuaValue {
@@ -42,7 +81,6 @@ impl std::fmt::Display for LuaValue {
             },
             LuaValue::UserData(_) => write!(f, "userdata"),
             LuaValue::Thread(_) => write!(f, "thread"),
-            LuaValue::Ref(r) => write!(f, "{}", r.value.borrow()),
         }
     }
 }
@@ -73,12 +111,6 @@ impl LuaValue {
 }
 
 impl LuaValue {
-    pub fn deref(&self) -> LuaValue {
-        match self {
-            LuaValue::Ref(r) => LuaValue::deref(&r.value.borrow()),
-            _ => self.clone(),
-        }
-    }
     pub fn to_bool(&self) -> bool {
         match self {
             LuaValue::Nil | LuaValue::Boolean(false) => false,
@@ -210,6 +242,7 @@ impl LuaValue {
         }
     }
 
+    /// convert float to int, if float has exact integer representation.
     pub fn strict_to_int(&self) -> Result<IntType, RuntimeError> {
         match self {
             LuaValue::Int(i) => Ok(*i),
@@ -289,19 +322,14 @@ impl LuaValue {
         // @TODO
         match self {
             LuaValue::String(s) => Ok(s.len() as IntType),
-            // LuaValue::Table(t) => Ok(t.internal.borrow().map.len()),
+            LuaValue::Table(t) => Ok(t.internal.borrow().map.len() as IntType),
             _ => Err(RuntimeError::InvalidArith),
         }
     }
     pub fn concat(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
         // @TODO
-        match self {
-            LuaValue::String(lhs) => match other {
-                LuaValue::String(rhs) => Ok(LuaValue::String(lhs.clone() + rhs)),
-                _ => Err(RuntimeError::InvalidArith),
-            },
-            _ => Err(RuntimeError::InvalidArith),
-        }
+        let str = format!("{}{}", self, other);
+        Ok(LuaValue::String(str))
     }
     pub fn not(&self) -> LuaValue {
         LuaValue::Boolean(!self.to_bool())
@@ -343,7 +371,6 @@ impl LuaValue {
             LuaValue::Function(_) => "function".to_string(),
             LuaValue::UserData(_) => "userdata".to_string(),
             LuaValue::Thread(_) => "thread".to_string(),
-            LuaValue::Ref(_) => "ref".to_string(),
         })
     }
 }
@@ -402,11 +429,6 @@ impl From<LuaUserData> for LuaValue {
 impl From<LuaThread> for LuaValue {
     fn from(t: LuaThread) -> Self {
         LuaValue::Thread(t)
-    }
-}
-impl From<LuaRef> for LuaValue {
-    fn from(r: LuaRef) -> Self {
-        LuaValue::Ref(r)
     }
 }
 
@@ -469,14 +491,8 @@ impl LuaFunction {
 }
 #[derive(Debug, Clone)]
 pub struct LuaFunctionInternal {
-    pub upvalues: Vec<LuaRef>,
+    pub upvalues: Vec<Rc<RefCell<LuaValue>>>,
     pub function_id: usize,
-}
-
-impl LuaFunctionInternal {
-    pub fn upvalue(&self, i: usize) -> LuaRef {
-        self.upvalues[i].clone()
-    }
 }
 
 pub type RustFuncType = dyn Fn(Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError>;
@@ -495,16 +511,3 @@ pub struct LuaUserData {}
 
 #[derive(Debug, Clone)]
 pub struct LuaThread {}
-
-#[derive(Debug, Clone)]
-pub struct LuaRef {
-    pub value: Rc<RefCell<LuaValue>>,
-}
-
-impl Default for LuaRef {
-    fn default() -> Self {
-        LuaRef {
-            value: Rc::new(RefCell::new(LuaValue::Nil)),
-        }
-    }
-}
