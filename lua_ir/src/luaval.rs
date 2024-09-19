@@ -5,7 +5,6 @@ use crate::LuaTable;
 use crate::RuntimeError;
 
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::rc::Rc;
 
 /// for local variables and upvalues.
@@ -78,32 +77,6 @@ impl std::fmt::Display for LuaValue {
             LuaValue::UserData(_) => write!(f, "userdata"),
             LuaValue::Thread(_) => write!(f, "thread"),
         }
-    }
-}
-
-impl LuaValue {
-    pub fn new_global() -> Self {
-        // @TODO
-        let mut table_map: HashMap<String, LuaValue> = HashMap::new();
-        table_map.insert(
-            "\"print\"".to_string(),
-            LuaFunction::from_func(|args| {
-                for (idx, arg) in args.into_iter().enumerate() {
-                    if idx > 0 {
-                        print!("\t");
-                    }
-                    print!("{}", arg);
-                }
-                println!();
-                Ok(vec![])
-            })
-            .into(),
-        );
-
-        LuaValue::Table(Rc::new(RefCell::new(LuaTable {
-            map: table_map,
-            meta: HashMap::new(),
-        })))
     }
 }
 
@@ -299,6 +272,16 @@ impl LuaValue {
             _ => false,
         }
     }
+    pub fn eq_raw(&self, other: &LuaValue) -> bool {
+        match (self, other) {
+            (LuaValue::Nil, LuaValue::Nil) => true,
+            (LuaValue::Boolean(a), LuaValue::Boolean(b)) => a == b,
+            (LuaValue::Int(a), LuaValue::Int(b)) => a == b,
+            (LuaValue::Float(a), LuaValue::Float(b)) => a == b,
+            (LuaValue::String(a), LuaValue::String(b)) => a == b,
+            _ => false,
+        }
+    }
     pub fn lt(&self, other: &LuaValue) -> Result<bool, RuntimeError> {
         match self {
             LuaValue::Int(lhs) => match other {
@@ -316,6 +299,14 @@ impl LuaValue {
     }
 
     pub fn len(&self) -> Result<IntType, RuntimeError> {
+        // @TODO
+        match self {
+            LuaValue::String(s) => Ok(s.len() as IntType),
+            LuaValue::Table(t) => Ok(t.borrow().map.len() as IntType),
+            _ => Err(RuntimeError::InvalidArith),
+        }
+    }
+    pub fn len_raw(&self) -> Result<IntType, RuntimeError> {
         // @TODO
         match self {
             LuaValue::String(s) => Ok(s.len() as IntType),

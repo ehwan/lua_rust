@@ -3,4 +3,5 @@ pub enum RuntimeError {
     InvalidArith,
     ExpectedMultire,
     FunctionCallOnNonFunction,
+    TypeError,
 }

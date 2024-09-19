@@ -4,6 +4,7 @@ use std::rc::Rc;
 use lua_tokenizer::IntOrFloat;
 use lua_tokenizer::IntType;
 
+use crate::builtin;
 use crate::luaval::RefOrValue;
 use crate::FunctionInfo;
 use crate::LuaFunction;
@@ -64,8 +65,9 @@ impl Program {
     pub fn new_stack(&self) -> Stack {
         let mut local_variables = Vec::new();
         local_variables.resize_with(self.stack_size, || RefOrValue::Value(LuaValue::Nil));
+        let env = builtin::init_env().unwrap();
         Stack {
-            global: LuaValue::new_global(),
+            global: LuaValue::Table(Rc::new(RefCell::new(env))),
             local_variables,
             data_stack: Vec::new(),
             usize_stack: Vec::new(),
