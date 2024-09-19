@@ -1,6 +1,7 @@
 use lua_semantics::IntType;
 
 use crate::IntOrFloat;
+use crate::LabelType;
 
 #[derive(Debug, Clone)]
 pub enum Instruction {
@@ -16,11 +17,11 @@ pub enum Instruction {
     Pop,
 
     /// jump to label
-    Jump(String),
+    Jump(LabelType),
     /// pops data_stack and jump to label if stack_top is true.
-    JumpTrue(String),
+    JumpTrue(LabelType),
     /// pops data_stack and jump to label if stack_top is false
-    JumpFalse(String),
+    JumpFalse(LabelType),
 
     /// get i'th local variable and push the value to stack_top
     GetLocalVariable(usize),

@@ -8,66 +8,78 @@ use lua_semantics::Scope;
 use lua_semantics::Statement;
 
 use crate::vm::Program;
+use crate::FunctionInfo;
 use crate::Instruction;
+use crate::LabelType;
 
 #[derive(Debug)]
 pub struct Context {
     pub instructions: Vec<Instruction>,
 
-    pub label_map: HashMap<String, usize>,
-    pub function_label: Vec<String>,
-    pub functions: Vec<FunctionDefinition>,
-    pub label_counter: usize,
+    /// this stack holds the break label of the current loop
+    pub loop_stack: Vec<LabelType>,
 
-    pub loop_stack: Vec<String>,
+    /// label_type -> instruction index map
+    pub label_map: Vec<Option<usize>>,
+    /// user defined label -> label_type map
+    pub user_defined_label: HashMap<String, LabelType>,
+
+    pub functions: Vec<FunctionInfo>,
 }
 
 impl Context {
     pub fn new() -> Self {
         Context {
             instructions: Vec::new(),
-            label_counter: 0,
-            label_map: HashMap::new(),
+            label_map: Default::default(),
             loop_stack: Vec::new(),
-            function_label: Vec::new(),
             functions: Vec::new(),
+            user_defined_label: HashMap::new(),
         }
     }
 
     /// generate unique label id
-    fn generate_label(&mut self) -> String {
-        let label = format!(".__L{}", self.label_counter);
-        self.label_counter += 1;
+    fn generate_label(&mut self) -> LabelType {
+        let label = self.label_map.len();
+        self.label_map.push(None);
         label
     }
     /// set label to the current instruction index
-    fn set_label(&mut self, label: String) {
+    fn set_label(&mut self, label: LabelType) {
+        // current instruction index
         let index = self.instructions.len();
-        if let Some(_) = self.label_map.insert(label.clone(), index) {}
+        self.label_map[label] = Some(index);
     }
 
     pub fn emit(mut self, mut block: Block, ctx: lua_semantics::Context) -> Program {
         if block.return_statement.is_none() {
             block.return_statement = Some(lua_semantics::ReturnStatement::new(Vec::new()));
         }
+        // any function definition will not be emitted, but stored in the context
         self.emit_block(block);
+
+        // emit function definitions
         for func in ctx.functions {
-            self.functions.push(func.clone());
-            let label = self.generate_label();
-            self.set_label(label.clone());
-            self.function_label.push(label);
+            let func_info = FunctionInfo {
+                args: func.args.len(),
+                is_variadic: func.variadic,
+                stack_size: func.stack_size,
+                address: self.instructions.len(),
+            };
+            self.functions.push(func_info);
             self.emit_function_definition(func);
         }
+
+        debug_assert!(ctx.scopes.len() == 1);
 
         let stack_size = match &ctx.scopes[0] {
             Scope::Block(block) => block.max_variables,
             _ => unreachable!("main scope must be block"),
         };
         let program = Program {
-            function_map: self.function_label,
             instructions: self.instructions,
             functions: self.functions,
-            label_map: self.label_map,
+            label_map: self.label_map.into_iter().map(|x| x.unwrap()).collect(),
             stack_size,
         };
         program
@@ -468,7 +480,7 @@ impl Context {
         self.instructions
             .push(Instruction::GetLocalVariable(control_offset));
         self.emit_expression(stmt.end, Some(1));
-        self.instructions.push(Instruction::BinaryLessThan); // @TODO less, overflow check
+        self.instructions.push(Instruction::BinaryLessEqual); // @TODO less, overflow check
         self.instructions
             .push(Instruction::JumpFalse(break_label.clone()));
 
@@ -658,10 +670,25 @@ impl Context {
         self.instructions.push(Instruction::Jump(break_label));
     }
     fn emit_statement_goto(&mut self, stmt: lua_semantics::StmtGoto) {
-        self.instructions
-            .push(Instruction::Jump(stmt.label.borrow().name.clone()));
+        let name = &stmt.label.borrow().name;
+        let label = if let Some(label) = self.user_defined_label.get(name) {
+            *label
+        } else {
+            let label = self.generate_label();
+            self.user_defined_label.insert(name.clone(), label);
+            label
+        };
+        self.instructions.push(Instruction::Jump(label));
     }
     fn emit_statement_label(&mut self, stmt: lua_semantics::StmtLabel) {
-        self.set_label(stmt.label.borrow().name.clone());
+        let name = &stmt.label.borrow().name;
+        let label = if let Some(label) = self.user_defined_label.get(name) {
+            *label
+        } else {
+            let label = self.generate_label();
+            self.user_defined_label.insert(name.clone(), label);
+            label
+        };
+        self.set_label(label);
     }
 }

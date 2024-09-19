@@ -1,16 +1,31 @@
 mod context;
 mod error;
+mod function;
 mod instruction;
 mod luaval;
+mod table;
 mod vm;
+
+/// The type of a label in the program.
+/// It is actually `usize`,
+/// we just use this type alias to make the code more readable,
+/// and distinguish it from other `usize` like index of instructions.
+pub type LabelType = usize;
 
 pub use lua_semantics::FloatType;
 pub use lua_semantics::IntOrFloat;
 pub use lua_semantics::IntType;
 
+pub use function::FunctionInfo;
+pub use function::LuaFunction;
+pub use function::LuaFunctionLua;
+pub use function::LuaFunctionRust;
+pub use luaval::LuaValue;
+pub use luaval::RefOrValue;
+pub use table::LuaTable;
+
 pub use context::Context;
 pub use error::RuntimeError;
 pub use instruction::Instruction;
-pub use luaval::LuaValue;
 pub use vm::Program;
 pub use vm::Stack;

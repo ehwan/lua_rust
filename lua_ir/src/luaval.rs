@@ -1,11 +1,14 @@
 use crate::FloatType;
 use crate::IntType;
+use crate::LuaFunction;
+use crate::LuaTable;
 use crate::RuntimeError;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
+/// for local variables and upvalues.
 #[derive(Debug, Clone)]
 pub enum RefOrValue {
     Ref(Rc<RefCell<LuaValue>>),
@@ -35,14 +38,14 @@ impl RefOrValue {
             }
         }
     }
-    pub fn to_ref(&mut self) -> Rc<RefCell<LuaValue>> {
+    /// set `self` to `Ref` if it is `Value`.
+    pub fn to_ref(&mut self) {
         match self.clone() {
             RefOrValue::Value(v) => {
                 let r = Rc::new(RefCell::new(v));
-                *self = RefOrValue::Ref(r.clone());
-                r
+                *self = RefOrValue::Ref(r);
             }
-            RefOrValue::Ref(r) => r,
+            RefOrValue::Ref(_) => {}
         }
     }
 }
@@ -54,7 +57,7 @@ pub enum LuaValue {
     Int(IntType),
     Float(FloatType),
     String(String),
-    Table(LuaTable),
+    Table(Rc<RefCell<LuaTable>>),
     Function(LuaFunction),
     UserData(LuaUserData),
     Thread(LuaThread),
@@ -69,16 +72,9 @@ impl std::fmt::Display for LuaValue {
             LuaValue::Float(n) => write!(f, "{}", n),
             LuaValue::String(s) => write!(f, "{}", s),
             LuaValue::Table(t) => {
-                write!(f, "table {:p}", Rc::as_ptr(&t.internal))
+                write!(f, "table {:p}", Rc::as_ptr(t))
             }
-            LuaValue::Function(func) => match func {
-                LuaFunction::LuaFunc(internal) => {
-                    write!(f, "function{:p}", Rc::as_ptr(&internal))
-                }
-                LuaFunction::RustFunc(_) => {
-                    write!(f, "built-in function")
-                }
-            },
+            LuaValue::Function(func) => write!(f, "{}", func),
             LuaValue::UserData(_) => write!(f, "userdata"),
             LuaValue::Thread(_) => write!(f, "thread"),
         }
@@ -104,9 +100,10 @@ impl LuaValue {
             .into(),
         );
 
-        LuaValue::Table(LuaTable {
-            internal: Rc::new(RefCell::new(LuaTableInternal { map: table_map })),
-        })
+        LuaValue::Table(Rc::new(RefCell::new(LuaTable {
+            map: table_map,
+            meta: HashMap::new(),
+        })))
     }
 }
 
@@ -322,7 +319,7 @@ impl LuaValue {
         // @TODO
         match self {
             LuaValue::String(s) => Ok(s.len() as IntType),
-            LuaValue::Table(t) => Ok(t.internal.borrow().map.len() as IntType),
+            LuaValue::Table(t) => Ok(t.borrow().map.len() as IntType),
             _ => Err(RuntimeError::InvalidArith),
         }
     }
@@ -337,7 +334,7 @@ impl LuaValue {
 
     pub fn table_index_get(&self, idx: LuaValue) -> Result<LuaValue, RuntimeError> {
         match self {
-            LuaValue::Table(table) => table.table_index_get(idx),
+            LuaValue::Table(table) => table.borrow().table_index_get(idx),
             _ => Ok(LuaValue::Nil),
         }
     }
@@ -349,13 +346,13 @@ impl LuaValue {
     }
     pub fn table_index_set(&mut self, idx: LuaValue, value: LuaValue) -> Result<(), RuntimeError> {
         match self {
-            LuaValue::Table(table) => table.table_index_set(idx, value),
+            LuaValue::Table(table) => table.borrow_mut().table_index_set(idx, value),
             _ => Err(RuntimeError::InvalidArith),
         }
     }
     pub fn table_index_init(&mut self, idx: LuaValue, value: LuaValue) -> Result<(), RuntimeError> {
         match self {
-            LuaValue::Table(table) => table.table_index_init(idx, value),
+            LuaValue::Table(table) => table.borrow_mut().table_index_init(idx, value),
             _ => Err(RuntimeError::InvalidArith),
         }
     }
@@ -413,7 +410,7 @@ impl From<&str> for LuaValue {
 }
 impl From<LuaTable> for LuaValue {
     fn from(t: LuaTable) -> Self {
-        LuaValue::Table(t)
+        LuaValue::Table(Rc::new(RefCell::new(t)))
     }
 }
 impl From<LuaFunction> for LuaValue {
@@ -429,80 +426,6 @@ impl From<LuaUserData> for LuaValue {
 impl From<LuaThread> for LuaValue {
     fn from(t: LuaThread) -> Self {
         LuaValue::Thread(t)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct LuaTable {
-    pub internal: Rc<RefCell<LuaTableInternal>>,
-}
-impl LuaTable {
-    pub fn with_capacity(capacity: usize) -> Self {
-        LuaTable {
-            internal: Rc::new(RefCell::new(LuaTableInternal {
-                map: HashMap::with_capacity(capacity),
-            })),
-        }
-    }
-
-    pub fn table_index_get(&self, idx: LuaValue) -> Result<LuaValue, RuntimeError> {
-        Ok(self
-            .internal
-            .borrow()
-            .map
-            .get(&idx.as_key()?)
-            .unwrap_or(&LuaValue::Nil)
-            .clone())
-    }
-    pub fn table_index_set(&mut self, idx: LuaValue, value: LuaValue) -> Result<(), RuntimeError> {
-        if idx.is_nil() {
-            return Ok(());
-        }
-        self.internal.borrow_mut().map.insert(idx.as_key()?, value);
-        Ok(())
-    }
-    pub fn table_index_init(&mut self, idx: LuaValue, value: LuaValue) -> Result<(), RuntimeError> {
-        if idx.is_nil() {
-            return Ok(());
-        }
-        self.internal.borrow_mut().map.insert(idx.as_key()?, value);
-        Ok(())
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct LuaTableInternal {
-    pub map: HashMap<String, LuaValue>,
-}
-
-#[derive(Debug, Clone)]
-pub enum LuaFunction {
-    LuaFunc(Rc<RefCell<LuaFunctionInternal>>),
-    RustFunc(LuaFunctionRust),
-}
-impl LuaFunction {
-    pub fn from_func<F: Fn(Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> + 'static>(
-        func: F,
-    ) -> LuaFunction {
-        LuaFunction::RustFunc(LuaFunctionRust {
-            func: Rc::new(func),
-        })
-    }
-}
-#[derive(Debug, Clone)]
-pub struct LuaFunctionInternal {
-    pub upvalues: Vec<Rc<RefCell<LuaValue>>>,
-    pub function_id: usize,
-}
-
-pub type RustFuncType = dyn Fn(Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError>;
-#[derive(Clone)]
-pub struct LuaFunctionRust {
-    pub func: Rc<RustFuncType>,
-}
-impl std::fmt::Debug for LuaFunctionRust {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "LuaFunctionRust")
     }
 }
 
