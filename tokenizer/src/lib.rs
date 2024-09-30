@@ -301,6 +301,7 @@ impl<'a> Tokenizer<'a> {
             // decimals
             if let Some(b'0'..=b'9') = self.peek() {
             } else {
+                self.set_cursor(i0);
                 return Ok(None);
             }
 
@@ -768,6 +769,7 @@ impl<'a> Tokenizer<'a> {
                     };
                     Ok(Some(token))
                 } else {
+                    self.set_cursor(i0);
                     Ok(None)
                 }
             }
