@@ -70,7 +70,7 @@ mod test {
 
             assert_eq!(token.span(), Span::new(0, 6));
             if let TokenType::String(s) = token.token_type {
-                assert_eq!(s, "abcd");
+                assert_eq!(s, "abcd".as_bytes());
             } else {
                 panic!("Expected String Literal");
             }
@@ -88,7 +88,7 @@ mod test {
 
             assert_eq!(token.span().start, 0);
             if let TokenType::String(s) = token.token_type {
-                assert_eq!(s, "ab");
+                assert_eq!(s, "ab".as_bytes());
             } else {
                 panic!("Expected StringLiteral");
             }
@@ -184,6 +184,24 @@ mod test {
                 assert!(abs < 0.00001);
             } else {
                 panic!("Expected Integer");
+            }
+        } else {
+            panic!("Expected Ok");
+        }
+    }
+
+    #[test]
+    fn invalid_unicode() {
+        let string = r#""a\u{11ffff}b"  x"#;
+        let mut tokenizer = Tokenizer::new(string);
+        if let Ok(Some(ret)) = tokenizer.tokenize_string() {
+            if let TokenType::String(s) = &ret.token_type {
+                println!("{:?}", s);
+                let str = String::from_utf8_lossy(s);
+                let expected = "a����b";
+                assert_eq!(str, expected);
+            } else {
+                panic!("Expected StringLiteral");
             }
         } else {
             panic!("Expected Ok");

@@ -3399,7 +3399,7 @@ impl ChunkParser {
     pub fn new() -> Self {
         let __rustylr_terminals: Vec<Token> = vec![
             Token::new_type(TokenType::Ident("".to_string())),
-            Token::new_type(TokenType::String("".to_string())),
+            Token::new_type(TokenType::String(vec![])),
             Token::new_type(TokenType::Numeric(IntOrFloat::Int(0))),
             Token::new_type(TokenType::Nil),
             Token::new_type(TokenType::Bool(false)),

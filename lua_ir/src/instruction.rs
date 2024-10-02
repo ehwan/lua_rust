@@ -36,7 +36,7 @@ pub enum Instruction {
     /// push int or float
     Numeric(IntOrFloat),
     /// push string
-    String(String),
+    String(Vec<u8>),
 
     /// push _G
     GetGlobal,

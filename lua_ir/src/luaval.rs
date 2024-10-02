@@ -55,7 +55,7 @@ pub enum LuaValue {
     Boolean(bool),
     Int(IntType),
     Float(FloatType),
-    String(String),
+    String(Vec<u8>),
     Table(Rc<RefCell<LuaTable>>),
     Function(LuaFunction),
     UserData(LuaUserData),
@@ -69,7 +69,7 @@ impl std::fmt::Display for LuaValue {
             LuaValue::Boolean(b) => write!(f, "{}", b),
             LuaValue::Int(n) => write!(f, "{}", n),
             LuaValue::Float(n) => write!(f, "{}", n),
-            LuaValue::String(s) => write!(f, "{}", s),
+            LuaValue::String(s) => write!(f, "{}", String::from_utf8_lossy(s)),
             LuaValue::Table(t) => {
                 write!(f, "table {:p}", Rc::as_ptr(t))
             }
@@ -317,7 +317,7 @@ impl LuaValue {
     pub fn concat(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
         // @TODO
         let str = format!("{}{}", self, other);
-        Ok(LuaValue::String(str))
+        unimplemented!("concat: {}", str);
     }
     pub fn not(&self) -> LuaValue {
         LuaValue::Boolean(!self.to_bool())
@@ -354,7 +354,7 @@ impl LuaValue {
             LuaValue::Boolean(b) => b.to_string(),
             LuaValue::Int(n) => n.to_string(),
             LuaValue::Float(n) => n.to_string(),
-            LuaValue::String(s) => format!("\"{}\"", s),
+            LuaValue::String(s) => format!("\"{}\"", String::from_utf8_lossy(s)),
             LuaValue::Table(_) => "table".to_string(),
             LuaValue::Function(_) => "function".to_string(),
             LuaValue::UserData(_) => "userdata".to_string(),
@@ -391,12 +391,12 @@ impl From<FloatType> for LuaValue {
 }
 impl From<String> for LuaValue {
     fn from(s: String) -> Self {
-        LuaValue::String(s)
+        LuaValue::String(s.into_bytes())
     }
 }
 impl From<&str> for LuaValue {
     fn from(s: &str) -> Self {
-        LuaValue::String(s.to_string())
+        LuaValue::String(s.bytes().collect())
     }
 }
 impl From<LuaTable> for LuaValue {

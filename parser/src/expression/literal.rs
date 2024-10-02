@@ -1,6 +1,5 @@
 use crate::IntOrFloat;
 use crate::Span;
-use crate::SpannedString;
 use crate::Token;
 use lua_tokenizer::TokenType;
 
@@ -50,11 +49,11 @@ impl From<Token> for ExprNumeric {
 /// lua string literal value
 #[derive(Clone, Debug)]
 pub struct ExprString {
-    pub value: String,
+    pub value: Vec<u8>,
     pub span: Span,
 }
 impl ExprString {
-    pub fn new(value: String, span: Span) -> Self {
+    pub fn new(value: Vec<u8>, span: Span) -> Self {
         Self { value, span }
     }
     /// get the span of the string literal
@@ -66,14 +65,9 @@ impl From<Token> for ExprString {
     fn from(t: Token) -> Self {
         match t.token_type {
             TokenType::String(s) => Self::new(s, t.span),
-            TokenType::Ident(s) => Self::new(s, t.span),
+            TokenType::Ident(s) => Self::new(s.into_bytes(), t.span),
             _ => unreachable!(),
         }
-    }
-}
-impl From<SpannedString> for ExprString {
-    fn from(s: SpannedString) -> Self {
-        Self::new(s.string, s.span)
     }
 }
 
