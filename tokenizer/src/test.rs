@@ -70,7 +70,7 @@ mod test {
 
             assert_eq!(token.span(), Span::new(0, 6));
             if let TokenType::String(s) = token.token_type {
-                assert_eq!(s, "abcd");
+                assert_eq!(s, "abcd".as_bytes());
             } else {
                 panic!("Expected String Literal");
             }
@@ -88,7 +88,7 @@ mod test {
 
             assert_eq!(token.span().start, 0);
             if let TokenType::String(s) = token.token_type {
-                assert_eq!(s, "ab");
+                assert_eq!(s, "ab".as_bytes());
             } else {
                 panic!("Expected StringLiteral");
             }

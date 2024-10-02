@@ -6,7 +6,7 @@ pub enum TokenType {
     Ident(String),
 
     Numeric(IntOrFloat),
-    String(String),
+    String(Vec<u8>),
     Bool(bool),
     Nil,
 
@@ -76,7 +76,7 @@ impl TokenType {
             _ => None,
         }
     }
-    pub fn into_string(self) -> Option<String> {
+    pub fn into_string(self) -> Option<Vec<u8>> {
         match self {
             Self::String(string) => Some(string),
             _ => None,
@@ -122,6 +122,7 @@ impl std::fmt::Display for TokenType {
                 write!(f, "{}", num)
             }
             Self::String(string) => {
+                let string = String::from_utf8_lossy(string);
                 write!(f, "\"{}\"", string)
             }
             Self::Bool(boolean) => {

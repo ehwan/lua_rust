@@ -2,7 +2,7 @@
 //! ```rust
 //! let source = " <source code here> ";
 //!
-//! let tokenizer = Tokenizer::new(source);
+//! let tokenizer = lua_tokenizer::Tokenizer::new(source);
 //! // tokenizer itself is a lazy iterator.
 //! for token in tokenizer {
 //!     match token {
@@ -417,21 +417,12 @@ impl<'a> Tokenizer<'a> {
         &mut self,
         delim: u8,
         start: usize,
-    ) -> Result<String, TokenizeError> {
+    ) -> Result<Vec<u8>, TokenizeError> {
         let mut s = Vec::<u8>::new();
         while let Some(ch) = self.peek() {
             if ch == delim {
                 self.advance();
-                match String::from_utf8(s) {
-                    Ok(s) => return Ok(s),
-                    Err(e) => {
-                        return Err(TokenizeError::InvalidUtf8 {
-                            start,
-                            end: self.byte_offset,
-                            error: e,
-                        });
-                    }
-                }
+                return Ok(s);
             }
             match ch {
                 b'\\' => {
@@ -697,7 +688,7 @@ impl<'a> Tokenizer<'a> {
         &mut self,
         equal_count: usize,
         start: usize,
-    ) -> Result<String, TokenizeError> {
+    ) -> Result<Vec<u8>, TokenizeError> {
         let mut s = Vec::<u8>::new();
         while let Some(ch) = self.peek() {
             match ch {
@@ -706,16 +697,7 @@ impl<'a> Tokenizer<'a> {
                     let cursor0 = self.get_cursor();
                     if let Some(count) = self.long_bracket(b']') {
                         if count == equal_count {
-                            match String::from_utf8(s) {
-                                Ok(s) => return Ok(s),
-                                Err(e) => {
-                                    return Err(TokenizeError::InvalidUtf8 {
-                                        start: cursor0,
-                                        end: self.byte_offset,
-                                        error: e,
-                                    });
-                                }
-                            }
+                            return Ok(s);
                         } else {
                             self.set_cursor(cursor0);
                             self.advance();
