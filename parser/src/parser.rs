@@ -25,7 +25,7 @@ use crate::ParseError;
 
 %token ident Token::new_type(TokenType::Ident("".to_string()));
 
-%token string_literal Token::new_type(TokenType::String("".to_string()));
+%token string_literal Token::new_type(TokenType::String(vec![]));
 %token numeric_literal Token::new_type(TokenType::Numeric(IntOrFloat::Int(0)));
 %token nil Token::new_type(TokenType::Nil);
 %token bool_ Token::new_type(TokenType::Bool(false));
