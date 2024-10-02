@@ -189,4 +189,22 @@ mod test {
             panic!("Expected Ok");
         }
     }
+
+    #[test]
+    fn invalid_unicode() {
+        let string = r#""a\u{11ffff}b"  x"#;
+        let mut tokenizer = Tokenizer::new(string);
+        if let Ok(Some(ret)) = tokenizer.tokenize_string() {
+            if let TokenType::String(s) = &ret.token_type {
+                println!("{:?}", s);
+                let str = String::from_utf8_lossy(s);
+                let expected = "a����b";
+                assert_eq!(str, expected);
+            } else {
+                panic!("Expected StringLiteral");
+            }
+        } else {
+            panic!("Expected Ok");
+        }
+    }
 }

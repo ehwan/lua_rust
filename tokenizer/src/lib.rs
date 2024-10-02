@@ -141,6 +141,7 @@ impl<'a> Tokenizer<'a> {
                     // checks for keyword
                     let i1 = self.byte_offset;
                     let slice = &self.source[i0..i1];
+                    // source is from `&str`, so it is guaranteed to be valid utf-8.
                     let s = unsafe { str::from_utf8_unchecked(slice) };
                     if let Some(keyword) = self.keyword_map.get(s) {
                         let token = Token {
@@ -624,14 +625,101 @@ impl<'a> Tokenizer<'a> {
                                         });
                                     }
 
-                                    let codepoint: char =
-                                        std::char::from_u32(codepoint as u32).unwrap();
-                                    let mut buffer = [0u8; 4];
-                                    let len = codepoint.len_utf8();
-                                    codepoint.encode_utf8(&mut buffer);
-                                    for i in 0..len {
-                                        s.push(buffer[i]);
+                                    fn encode_u32_to_extended_utf8(u: i32) -> Vec<u8> {
+                                        if u < 0 {
+                                            unreachable!("encode_u32_to_extended_utf8: u < 0");
+                                        }
+                                        let u = u as u32;
+                                        // Determine how many bytes are needed based on the value
+                                        let bytes_needed = match u {
+                                            0x0000_0000..=0x0000_007F => 1,
+                                            0x0000_0080..=0x0000_07FF => 2,
+                                            0x0000_0800..=0x0000_FFFF => 3,
+                                            0x0001_0000..=0x001F_FFFF => 4,
+                                            0x0020_0000..=0x03FF_FFFF => 5,
+                                            0x0400_0000..=0x7FFF_FFFF => 6,
+                                            _ => unreachable!(),
+                                        };
+
+                                        let mut bytes = Vec::with_capacity(bytes_needed);
+
+                                        match bytes_needed {
+                                            1 => {
+                                                // 0xxxxxxx
+                                                bytes.push(u as u8);
+                                            }
+                                            2 => {
+                                                // 110xxxxx 10xxxxxx
+                                                bytes.push(
+                                                    0b1100_0000 | ((u >> 6) as u8 & 0b0001_1111),
+                                                );
+                                                bytes.push(0b1000_0000 | (u as u8 & 0b0011_1111));
+                                            }
+                                            3 => {
+                                                // 1110xxxx 10xxxxxx 10xxxxxx
+                                                bytes.push(
+                                                    0b1110_0000 | ((u >> 12) as u8 & 0b0000_1111),
+                                                );
+                                                bytes.push(
+                                                    0b1000_0000 | ((u >> 6) as u8 & 0b0011_1111),
+                                                );
+                                                bytes.push(0b1000_0000 | (u as u8 & 0b0011_1111));
+                                            }
+                                            4 => {
+                                                // 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+                                                bytes.push(
+                                                    0b1111_0000 | ((u >> 18) as u8 & 0b0000_0111),
+                                                );
+                                                bytes.push(
+                                                    0b1000_0000 | ((u >> 12) as u8 & 0b0011_1111),
+                                                );
+                                                bytes.push(
+                                                    0b1000_0000 | ((u >> 6) as u8 & 0b0011_1111),
+                                                );
+                                                bytes.push(0b1000_0000 | (u as u8 & 0b0011_1111));
+                                            }
+                                            5 => {
+                                                // 111110xx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx
+                                                bytes.push(
+                                                    0b1111_1000 | ((u >> 24) as u8 & 0b0000_0011),
+                                                );
+                                                bytes.push(
+                                                    0b1000_0000 | ((u >> 18) as u8 & 0b0011_1111),
+                                                );
+                                                bytes.push(
+                                                    0b1000_0000 | ((u >> 12) as u8 & 0b0011_1111),
+                                                );
+                                                bytes.push(
+                                                    0b1000_0000 | ((u >> 6) as u8 & 0b0011_1111),
+                                                );
+                                                bytes.push(0b1000_0000 | (u as u8 & 0b0011_1111));
+                                            }
+                                            6 => {
+                                                // 1111110x 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx
+                                                bytes.push(
+                                                    0b1111_1100 | ((u >> 30) as u8 & 0b0000_0001),
+                                                );
+                                                bytes.push(
+                                                    0b1000_0000 | ((u >> 24) as u8 & 0b0011_1111),
+                                                );
+                                                bytes.push(
+                                                    0b1000_0000 | ((u >> 18) as u8 & 0b0011_1111),
+                                                );
+                                                bytes.push(
+                                                    0b1000_0000 | ((u >> 12) as u8 & 0b0011_1111),
+                                                );
+                                                bytes.push(
+                                                    0b1000_0000 | ((u >> 6) as u8 & 0b0011_1111),
+                                                );
+                                                bytes.push(0b1000_0000 | (u as u8 & 0b0011_1111));
+                                            }
+                                            _ => unreachable!(),
+                                        }
+
+                                        bytes
                                     }
+
+                                    s.append(&mut encode_u32_to_extended_utf8(codepoint));
                                 } else {
                                     // '{' not present
                                     return Err(TokenizeError::ShortStringNoOpenBrace {
