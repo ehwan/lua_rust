@@ -17,7 +17,7 @@ pub enum Expression {
     Nil,
     Boolean(bool),
     Numeric(IntOrFloat),
-    String(String),
+    String(Vec<u8>),
 
     /// load from stack
     LocalVariable(ExprLocalVariable),
@@ -66,9 +66,14 @@ impl From<FloatType> for Expression {
         Expression::Numeric(value.into())
     }
 }
+impl From<Vec<u8>> for Expression {
+    fn from(value: Vec<u8>) -> Self {
+        Expression::String(value)
+    }
+}
 impl From<String> for Expression {
     fn from(value: String) -> Self {
-        Expression::String(value)
+        Expression::String(value.into_bytes())
     }
 }
 
