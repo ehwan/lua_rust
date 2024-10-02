@@ -233,7 +233,7 @@ impl Context {
             self.emit_expression_nil(Some(expected - 1));
         }
     }
-    fn emit_expression_string(&mut self, value: String, expected: Option<usize>) {
+    fn emit_expression_string(&mut self, value: Vec<u8>, expected: Option<usize>) {
         self.instructions.push(Instruction::String(value));
         if let Some(expected) = expected {
             self.emit_expression_nil(Some(expected - 1));
@@ -543,7 +543,8 @@ impl Context {
         if let Some(method) = expr.method {
             self.emit_expression(*expr.prefix, Some(1));
             self.instructions.push(Instruction::Clone);
-            self.instructions.push(Instruction::String(method));
+            self.instructions
+                .push(Instruction::String(method.into_bytes()));
             self.instructions.push(Instruction::TableIndex);
             self.instructions.push(Instruction::Swap);
         } else {
