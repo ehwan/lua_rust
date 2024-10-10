@@ -3,6 +3,7 @@ use codespan_reporting::{
     files::SimpleFiles,
     term::termcolor::{ColorChoice, StandardStream},
 };
+use lua_ir::Stack;
 
 fn main() {
     let filename = std::env::args().nth(1).expect("no filename given");
@@ -43,11 +44,11 @@ fn main() {
     println!("{:#?}", enhanced);
 
     let context = lua_ir::Context::new();
-    let program = context.emit(enhanced, semantics);
-    let mut stack = program.new_stack();
+    let chunk = context.emit(enhanced, semantics);
+    let mut stack = Stack::new(chunk.stack_size);
 
     loop {
-        match program.cycle(&mut stack) {
+        match stack.cycle(&chunk) {
             Ok(b) => {
                 if b {
                     break;
@@ -71,7 +72,7 @@ fn main() {
         }
     }
 
-    for (i, instr) in program.instructions.iter().enumerate() {
+    for (i, instr) in chunk.instructions.iter().enumerate() {
         println!("{:04}: {:?}", i, instr);
     }
 }

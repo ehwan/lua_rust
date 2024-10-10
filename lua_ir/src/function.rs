@@ -3,6 +3,7 @@ use std::rc::Rc;
 
 use crate::LuaValue;
 use crate::RuntimeError;
+use crate::Stack;
 
 /// function information
 #[derive(Debug, Clone, Copy)]
@@ -18,33 +19,31 @@ pub struct FunctionInfo {
 }
 
 /// lua function object
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum LuaFunction {
     /// functions written in Lua
     LuaFunc(LuaFunctionLua),
     /// built-in functions written in Rust
-    RustFunc(LuaFunctionRust),
+    RustFunc(Rc<dyn Fn(&mut Stack, Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError>>),
 }
 impl std::fmt::Display for LuaFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "LuaFunction")
     }
 }
-impl From<LuaFunctionLua> for LuaFunction {
-    fn from(func: LuaFunctionLua) -> Self {
-        LuaFunction::LuaFunc(func)
-    }
-}
-impl LuaFunction {
-    pub fn from_func<F: Fn(Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> + 'static>(
-        func: F,
-    ) -> LuaFunction {
-        LuaFunction::RustFunc(LuaFunctionRust {
-            func: Rc::new(func),
-        })
+impl std::fmt::Debug for LuaFunction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "LuaFunction")
     }
 }
 
+impl LuaFunction {
+    pub fn from_func(
+        func: impl Fn(&mut Stack, Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> + 'static,
+    ) -> Self {
+        LuaFunction::RustFunc(Rc::new(func))
+    }
+}
 /// functions written in Lua
 #[derive(Debug, Clone)]
 pub struct LuaFunctionLua {
@@ -52,17 +51,4 @@ pub struct LuaFunctionLua {
     pub upvalues: Vec<Rc<RefCell<LuaValue>>>,
     /// actual set of instructions connected to this function object
     pub function_id: usize,
-}
-
-pub type RustFuncType = dyn Fn(Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError>;
-
-/// built-in functions written in Rust
-#[derive(Clone)]
-pub struct LuaFunctionRust {
-    pub func: Rc<RustFuncType>,
-}
-impl std::fmt::Debug for LuaFunctionRust {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "LuaFunctionRust")
-    }
 }

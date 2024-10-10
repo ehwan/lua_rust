@@ -18,6 +18,7 @@ impl Default for RefOrValue {
         RefOrValue::Value(LuaValue::Nil)
     }
 }
+/*
 impl From<RefOrValue> for LuaValue {
     fn from(rv: RefOrValue) -> Self {
         match rv {
@@ -26,6 +27,7 @@ impl From<RefOrValue> for LuaValue {
         }
     }
 }
+*/
 impl RefOrValue {
     pub fn set(&mut self, value: LuaValue) {
         match self {
@@ -61,6 +63,54 @@ pub enum LuaValue {
     UserData(LuaUserData),
     Thread(LuaThread),
 }
+impl std::hash::Hash for LuaValue {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        std::mem::discriminant(self).hash(state);
+
+        match self {
+            LuaValue::Nil => {
+                unreachable!("hash for nil; this should be filtered out");
+            }
+            LuaValue::Boolean(b) => b.hash(state),
+            LuaValue::Int(n) => n.hash(state),
+            LuaValue::Float(n) => n.to_bits().hash(state),
+            LuaValue::String(s) => s.hash(state),
+            LuaValue::Table(t) => Rc::as_ptr(t).hash(state),
+            LuaValue::Function(_) => {
+                unimplemented!("hash for function");
+                // func.hash(state)
+            }
+            LuaValue::UserData(_) => {
+                unimplemented!("hash for userdata")
+            }
+            LuaValue::Thread(_) => {
+                unimplemented!("hash for thread")
+            }
+        }
+    }
+}
+impl std::cmp::PartialEq for LuaValue {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (LuaValue::Nil, LuaValue::Nil) => true,
+            (LuaValue::Boolean(a), LuaValue::Boolean(b)) => a == b,
+            (LuaValue::Int(a), LuaValue::Int(b)) => a == b,
+            // @TODO int <-> float comparison
+            (LuaValue::Int(a), LuaValue::Float(b)) => *a as FloatType == *b,
+            (LuaValue::Float(a), LuaValue::Int(b)) => *a == *b as FloatType,
+            (LuaValue::Float(a), LuaValue::Float(b)) => a == b,
+            (LuaValue::String(a), LuaValue::String(b)) => a == b,
+            (LuaValue::Table(a), LuaValue::Table(b)) => Rc::ptr_eq(a, b),
+            (LuaValue::Function(a), LuaValue::Function(b)) => {
+                unimplemented!("function equality")
+            }
+            (LuaValue::UserData(_), LuaValue::UserData(_)) => false,
+            (LuaValue::Thread(_), LuaValue::Thread(_)) => false,
+            _ => false,
+        }
+    }
+}
+impl std::cmp::Eq for LuaValue {}
 
 impl std::fmt::Display for LuaValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -317,34 +367,17 @@ impl LuaValue {
     pub fn concat(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
         // @TODO
         let str = format!("{}{}", self, other);
-        unimplemented!("concat: {}", str);
+        return Ok(LuaValue::String(str.into_bytes()));
+        // unimplemented!("concat");
     }
     pub fn not(&self) -> LuaValue {
         LuaValue::Boolean(!self.to_bool())
     }
 
-    pub fn table_index_get(&self, idx: LuaValue) -> Result<LuaValue, RuntimeError> {
-        match self {
-            LuaValue::Table(table) => table.borrow().table_index_get(idx),
-            _ => Ok(LuaValue::Nil),
-        }
-    }
     pub fn is_nil(&self) -> bool {
         match self {
             LuaValue::Nil => true,
             _ => false,
-        }
-    }
-    pub fn table_index_set(&mut self, idx: LuaValue, value: LuaValue) -> Result<(), RuntimeError> {
-        match self {
-            LuaValue::Table(table) => table.borrow_mut().table_index_set(idx, value),
-            _ => Err(RuntimeError::InvalidArith),
-        }
-    }
-    pub fn table_index_init(&mut self, idx: LuaValue, value: LuaValue) -> Result<(), RuntimeError> {
-        match self {
-            LuaValue::Table(table) => table.borrow_mut().table_index_init(idx, value),
-            _ => Err(RuntimeError::InvalidArith),
         }
     }
 

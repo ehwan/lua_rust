@@ -7,7 +7,7 @@ use lua_semantics::FunctionDefinition;
 use lua_semantics::Scope;
 use lua_semantics::Statement;
 
-use crate::vm::Program;
+use crate::vm::Chunk;
 use crate::FunctionInfo;
 use crate::Instruction;
 use crate::LabelType;
@@ -51,7 +51,7 @@ impl Context {
         self.label_map[label] = Some(index);
     }
 
-    pub fn emit(mut self, mut block: Block, ctx: lua_semantics::Context) -> Program {
+    pub fn emit(mut self, mut block: Block, ctx: lua_semantics::Context) -> Chunk {
         if block.return_statement.is_none() {
             block.return_statement = Some(lua_semantics::ReturnStatement::new(Vec::new()));
         }
@@ -76,7 +76,7 @@ impl Context {
             Scope::Block(block) => block.max_variables,
             _ => unreachable!("main scope must be block"),
         };
-        let program = Program {
+        let program = Chunk {
             instructions: self.instructions,
             functions: self.functions,
             label_map: self.label_map.into_iter().map(|x| x.unwrap()).collect(),

@@ -4,6 +4,7 @@ use crate::LuaFunction;
 use crate::LuaTable;
 use crate::LuaValue;
 use crate::RuntimeError;
+use crate::Stack;
 
 mod math;
 
@@ -11,21 +12,26 @@ mod math;
 pub fn init_env() -> Result<LuaTable, RuntimeError> {
     // @TODO
     let mut env = LuaTable::new();
-    env.table_index_init("print".into(), LuaFunction::from_func(builtin_print).into())?;
-    env.table_index_init(
+    env.map
+        .insert("print".into(), LuaFunction::from_func(builtin_print).into());
+    env.map.insert(
         "rawequal".into(),
         LuaFunction::from_func(builtin_rawequal).into(),
-    )?;
-    env.table_index_init(
+    );
+    env.map.insert(
         "rawlen".into(),
         LuaFunction::from_func(builtin_rawlen).into(),
-    )?;
-    env.table_index_init("type".into(), LuaFunction::from_func(builtin_type).into())?;
-    env.table_index_init("math".into(), math::init_math()?.into())?;
+    );
+    env.map
+        .insert("type".into(), LuaFunction::from_func(builtin_type).into());
+    env.map.insert("math".into(), math::init_math()?.into());
     Ok(env)
 }
 
-pub fn builtin_print(args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
+pub fn builtin_print(
+    stack: &mut Stack,
+    args: Vec<LuaValue>,
+) -> Result<Vec<LuaValue>, RuntimeError> {
     for (idx, arg) in args.into_iter().enumerate() {
         if idx > 0 {
             print!("\t");
@@ -35,7 +41,10 @@ pub fn builtin_print(args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError>
     println!();
     Ok(vec![])
 }
-pub fn builtin_rawequal(args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
+pub fn builtin_rawequal(
+    stack: &mut Stack,
+    args: Vec<LuaValue>,
+) -> Result<Vec<LuaValue>, RuntimeError> {
     let mut it = args.into_iter();
     let lhs = it.next().unwrap_or(LuaValue::Nil);
     let rhs = it.next().unwrap_or(LuaValue::Nil);
@@ -45,7 +54,10 @@ pub fn builtin_rawequal(args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeErr
 
     Ok(vec![LuaValue::Boolean(eq)])
 }
-pub fn builtin_rawlen(args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
+pub fn builtin_rawlen(
+    stack: &mut Stack,
+    args: Vec<LuaValue>,
+) -> Result<Vec<LuaValue>, RuntimeError> {
     let mut it = args.into_iter();
     let arg = it.next().unwrap_or(LuaValue::Nil);
     drop(it);
@@ -68,7 +80,7 @@ pub fn builtin_rawlen(args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError
 //     Ok(vec![LuaValue::String(arg.to_string())])
 // }
 
-pub fn builtin_type(args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
+pub fn builtin_type(stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
     let mut it = args.into_iter();
     let arg = it.next().unwrap_or(LuaValue::Nil);
     drop(it);
