@@ -18,38 +18,6 @@ impl Default for RefOrValue {
         RefOrValue::Value(LuaValue::Nil)
     }
 }
-/*
-impl From<RefOrValue> for LuaValue {
-    fn from(rv: RefOrValue) -> Self {
-        match rv {
-            RefOrValue::Ref(r) => r.borrow().clone(),
-            RefOrValue::Value(v) => v,
-        }
-    }
-}
-*/
-impl RefOrValue {
-    pub fn set(&mut self, value: LuaValue) {
-        match self {
-            RefOrValue::Ref(r) => {
-                *r.borrow_mut() = value;
-            }
-            RefOrValue::Value(v) => {
-                *v = value;
-            }
-        }
-    }
-    /// set `self` to `Ref` if it is `Value`.
-    pub fn to_ref(&mut self) {
-        match self.clone() {
-            RefOrValue::Value(v) => {
-                let r = Rc::new(RefCell::new(v));
-                *self = RefOrValue::Ref(r);
-            }
-            RefOrValue::Ref(_) => {}
-        }
-    }
-}
 
 #[derive(Debug, Clone)]
 pub enum LuaValue {

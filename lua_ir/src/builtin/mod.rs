@@ -1,5 +1,7 @@
 use lua_tokenizer::IntType;
 
+use std::rc::Rc;
+
 use crate::LuaFunction;
 use crate::LuaTable;
 use crate::LuaValue;
@@ -24,6 +26,10 @@ pub fn init_env() -> Result<LuaTable, RuntimeError> {
     );
     env.map
         .insert("type".into(), LuaFunction::from_func(builtin_type).into());
+    env.map.insert(
+        "tostring".into(),
+        LuaFunction::from_func(builtin_tostring).into(),
+    );
     env.map.insert("math".into(), math::init_math()?.into());
     Ok(env)
 }
@@ -42,27 +48,28 @@ pub fn builtin_print(
     Ok(vec![])
 }
 pub fn builtin_rawequal(
-    stack: &mut Stack,
+    _stack: &mut Stack,
     args: Vec<LuaValue>,
 ) -> Result<Vec<LuaValue>, RuntimeError> {
     let mut it = args.into_iter();
     let lhs = it.next().unwrap_or(LuaValue::Nil);
     let rhs = it.next().unwrap_or(LuaValue::Nil);
     drop(it);
-
-    let eq = lhs.eq_raw(&rhs);
-
-    Ok(vec![LuaValue::Boolean(eq)])
+    Ok(vec![LuaValue::Boolean(lhs == rhs)])
 }
 pub fn builtin_rawlen(
-    stack: &mut Stack,
+    _stack: &mut Stack,
     args: Vec<LuaValue>,
 ) -> Result<Vec<LuaValue>, RuntimeError> {
     let mut it = args.into_iter();
     let arg = it.next().unwrap_or(LuaValue::Nil);
     drop(it);
 
-    let len = arg.len_raw()?;
+    let len = match arg {
+        LuaValue::String(s) => s.len(),
+        LuaValue::Table(t) => unimplemented!("table length"),
+        _ => 0,
+    };
 
     Ok(vec![LuaValue::Int(len as IntType)])
 }
@@ -72,15 +79,28 @@ pub fn builtin_rawlen(
 // setmetatable
 // tonumber
 
-// pub fn builtin_tostring(args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
-//     let mut it = args.into_iter();
-//     let arg = it.next().unwrap_or(LuaValue::Nil);
-//     drop(it);
+pub fn builtin_tostring(
+    stack: &mut Stack,
+    args: Vec<LuaValue>,
+) -> Result<Vec<LuaValue>, RuntimeError> {
+    let mut it = args.into_iter();
+    let arg = it.next().unwrap_or(LuaValue::Nil);
+    drop(it);
+    let string = match arg {
+        LuaValue::Table(table) => {
+            // format!("table: {:p}", Rc::as_ptr(&table))
+            unimplemented!("table to string");
+        }
+        _ => arg.to_string(),
+    };
 
-//     Ok(vec![LuaValue::String(arg.to_string())])
-// }
+    Ok(vec![LuaValue::String(string.into())])
+}
 
-pub fn builtin_type(stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
+pub fn builtin_type(
+    _stack: &mut Stack,
+    args: Vec<LuaValue>,
+) -> Result<Vec<LuaValue>, RuntimeError> {
     let mut it = args.into_iter();
     let arg = it.next().unwrap_or(LuaValue::Nil);
     drop(it);
