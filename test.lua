@@ -17,6 +17,16 @@ print( math.abs( -math.pi ) )
 print( math.abs( "3.5" ) )
 print( math.abs( "-13.2" ) )
 
+math.randomseed( )
+print( math.random(10) )
+print( math.random() )
+print( math.random( 5, 10 ) )
+
+print( math.deg(math.atan( 1 )) )
+
+print( math.modf( 3.14 ) )
+print( math.modf( 5 ) )
+
 
 
 function func()

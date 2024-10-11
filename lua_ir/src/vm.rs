@@ -3,6 +3,7 @@ use std::rc::Rc;
 
 use lua_tokenizer::IntOrFloat;
 use lua_tokenizer::IntType;
+use rand::SeedableRng;
 
 use crate::builtin;
 use crate::luaval::RefOrValue;
@@ -28,6 +29,8 @@ pub struct Stack {
     /// _env
     pub env: LuaValue,
 
+    pub(crate) rng: rand::rngs::StdRng,
+
     /// local variable stack
     pub local_variables: Vec<RefOrValue>,
     /// offset of local variables for current scope
@@ -52,6 +55,7 @@ impl Stack {
         let env = builtin::init_env().unwrap();
         Stack {
             env: LuaValue::Table(Rc::new(RefCell::new(env))),
+            rng: rand::rngs::StdRng::from_entropy(),
             local_variables,
             data_stack: Vec::new(),
             usize_stack: Vec::new(),
