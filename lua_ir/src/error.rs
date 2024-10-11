@@ -4,4 +4,17 @@ pub enum RuntimeError {
     ExpectedMultire,
     FunctionCallOnNonFunction,
     TypeError,
+    GetOnNonTable,
+    SetOnNonTable,
+    /// table index is nil
+    TableIndexNil,
+    /// table index is NaN
+    TableIndexNan,
+    /// float has no integer representation
+    FloatToInt,
+    CannotConvertToInteger,
+    InvalidArgument(usize),
+    OutOfRange,
+
+    NotString,
 }

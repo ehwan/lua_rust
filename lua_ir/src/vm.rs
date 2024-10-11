@@ -77,6 +77,75 @@ impl Stack {
         self.data_stack.drain(sp..)
     }
 
+    pub fn function_call(
+        &mut self,
+        chunk: &Chunk,
+        mut args: Vec<LuaValue>,
+        func: LuaFunction,
+        expected_ret: Option<usize>,
+    ) -> Result<(), RuntimeError> {
+        match func {
+            LuaFunction::LuaFunc(lua_internal) => {
+                let func_id = lua_internal.function_id;
+                let func_info = &chunk.functions[func_id];
+                let variadic = if args.len() < func_info.args {
+                    args.resize_with(func_info.args, Default::default);
+                    Vec::new()
+                } else {
+                    if func_info.is_variadic {
+                        args.split_off(func_info.args)
+                    } else {
+                        args.truncate(func_info.args);
+                        Vec::new()
+                    }
+                };
+
+                let func_stack = FunctionStackElem {
+                    function_object: lua_internal.clone(),
+                    return_expected: expected_ret,
+                    variadic,
+                };
+
+                let usize_len0 = self.usize_stack.len();
+
+                self.usize_stack.push(self.counter + 1);
+                self.usize_stack.push(self.bp);
+                self.usize_stack.push(self.data_stack.len());
+                self.bp = self.local_variables.len();
+                self.local_variables.resize_with(
+                    self.local_variables.len() + func_info.stack_size,
+                    Default::default,
+                );
+                for (idx, arg) in args.into_iter().enumerate() {
+                    match &mut self.local_variables[self.bp + idx] {
+                        RefOrValue::Ref(r) => {
+                            *r.borrow_mut() = arg;
+                        }
+                        RefOrValue::Value(v) => {
+                            *v = arg;
+                        }
+                    }
+                }
+
+                self.function_stack.push(func_stack);
+                self.counter = func_info.address;
+                while self.usize_stack.len() > usize_len0 {
+                    self.cycle(chunk)?;
+                }
+            }
+            LuaFunction::RustFunc(rust_internal) => {
+                let mut ret = rust_internal(self, args)?;
+                if let Some(expected) = expected_ret {
+                    ret.resize_with(expected, Default::default);
+                }
+                for v in ret.into_iter() {
+                    self.data_stack.push(v);
+                }
+            }
+        }
+        Ok(())
+    }
+
     pub fn cycle(&mut self, chunk: &Chunk) -> Result<bool, RuntimeError> {
         match chunk.instructions.get(self.counter) {
             Some(instruction) => {
@@ -460,7 +529,14 @@ impl Stack {
                                     Default::default,
                                 );
                                 for (idx, arg) in args.into_iter().enumerate() {
-                                    self.local_variables[self.bp + idx].set(arg);
+                                    match &mut self.local_variables[self.bp + idx] {
+                                        RefOrValue::Ref(r) => {
+                                            *r.borrow_mut() = arg;
+                                        }
+                                        RefOrValue::Value(v) => {
+                                            *v = arg;
+                                        }
+                                    }
                                 }
 
                                 self.function_stack.push(func_stack);

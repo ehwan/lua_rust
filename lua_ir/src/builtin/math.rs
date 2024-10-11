@@ -9,18 +9,19 @@ use crate::LuaValue;
 use crate::RuntimeError;
 use crate::Stack;
 
-pub fn init_math() -> Result<LuaValue, RuntimeError> {
+/// init math module
+pub fn init() -> Result<LuaValue, RuntimeError> {
     let mut math = LuaTable::new();
     math.map
-        .insert("abs".into(), LuaFunction::from_func(builtin_abs).into());
+        .insert("abs".into(), LuaFunction::from_func(abs).into());
     math.map
-        .insert("acos".into(), LuaFunction::from_func(builtin_acos).into());
+        .insert("acos".into(), LuaFunction::from_func(acos).into());
     math.map
-        .insert("asin".into(), LuaFunction::from_func(builtin_asin).into());
+        .insert("asin".into(), LuaFunction::from_func(asin).into());
     Ok(LuaValue::Table(Rc::new(RefCell::new(math))))
 }
 
-pub fn builtin_abs(stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
+pub fn abs(stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
     let mut it = args.into_iter();
     let arg = it.next().unwrap_or(LuaValue::Nil);
     drop(it);
@@ -37,7 +38,7 @@ pub fn builtin_abs(stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValu
         _ => Err(RuntimeError::TypeError),
     }
 }
-pub fn builtin_acos(stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
+pub fn acos(stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
     let mut it = args.into_iter();
     let arg = it.next().unwrap_or(LuaValue::Nil);
     drop(it);
@@ -54,7 +55,7 @@ pub fn builtin_acos(stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaVal
         _ => Err(RuntimeError::TypeError),
     }
 }
-pub fn builtin_asin(stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
+pub fn asin(stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
     let mut it = args.into_iter();
     let arg = it.next().unwrap_or(LuaValue::Nil);
     drop(it);

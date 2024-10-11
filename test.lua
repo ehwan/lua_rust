@@ -1,3 +1,13 @@
+a = _VERSION
+print(a)
+print( string.byte(a, 1, 5) )
+print( string.rep( a, 3, "::" ) )
+lowered = string.lower(a)
+uppered = string.upper(lowered)
+print( lowered )
+print( uppered )
+
+
 
 function func()
     return 1, 2

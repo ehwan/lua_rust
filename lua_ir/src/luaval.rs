@@ -18,38 +18,6 @@ impl Default for RefOrValue {
         RefOrValue::Value(LuaValue::Nil)
     }
 }
-/*
-impl From<RefOrValue> for LuaValue {
-    fn from(rv: RefOrValue) -> Self {
-        match rv {
-            RefOrValue::Ref(r) => r.borrow().clone(),
-            RefOrValue::Value(v) => v,
-        }
-    }
-}
-*/
-impl RefOrValue {
-    pub fn set(&mut self, value: LuaValue) {
-        match self {
-            RefOrValue::Ref(r) => {
-                *r.borrow_mut() = value;
-            }
-            RefOrValue::Value(v) => {
-                *v = value;
-            }
-        }
-    }
-    /// set `self` to `Ref` if it is `Value`.
-    pub fn to_ref(&mut self) {
-        match self.clone() {
-            RefOrValue::Value(v) => {
-                let r = Rc::new(RefCell::new(v));
-                *self = RefOrValue::Ref(r);
-            }
-            RefOrValue::Ref(_) => {}
-        }
-    }
-}
 
 #[derive(Debug, Clone)]
 pub enum LuaValue {
@@ -131,6 +99,15 @@ impl std::fmt::Display for LuaValue {
 }
 
 impl LuaValue {
+    /// convert float to int, if float has exact integer representation.
+    pub fn float_to_int(f: FloatType) -> Result<IntType, RuntimeError> {
+        // @TODO
+        if f.fract() == 0.0 {
+            Ok(f as IntType)
+        } else {
+            Err(RuntimeError::FloatToInt)
+        }
+    }
     pub fn to_bool(&self) -> bool {
         match self {
             LuaValue::Nil | LuaValue::Boolean(false) => false,
