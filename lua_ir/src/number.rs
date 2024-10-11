@@ -33,6 +33,75 @@ impl LuaNumber {
         }
     }
 
+    pub fn abs(self) -> LuaNumber {
+        match self {
+            LuaNumber::Int(i) => LuaNumber::Int(i.abs()),
+            LuaNumber::Float(f) => LuaNumber::Float(f.abs()),
+        }
+    }
+    pub fn ceil(self) -> LuaNumber {
+        match self {
+            LuaNumber::Int(i) => LuaNumber::Int(i),
+            LuaNumber::Float(f) => LuaNumber::Float(f.ceil()),
+        }
+    }
+    pub fn floor(self) -> LuaNumber {
+        match self {
+            LuaNumber::Int(i) => LuaNumber::Int(i),
+            LuaNumber::Float(f) => LuaNumber::Float(f.floor()),
+        }
+    }
+    pub fn cos(self) -> LuaNumber {
+        match self {
+            LuaNumber::Int(i) => LuaNumber::Float((i as FloatType).cos()),
+            LuaNumber::Float(f) => LuaNumber::Float(f.cos()),
+        }
+    }
+    pub fn sin(self) -> LuaNumber {
+        match self {
+            LuaNumber::Int(i) => LuaNumber::Float((i as FloatType).sin()),
+            LuaNumber::Float(f) => LuaNumber::Float(f.sin()),
+        }
+    }
+
+    pub fn deg(self) -> LuaNumber {
+        match self {
+            LuaNumber::Int(i) => LuaNumber::Float((i as FloatType).to_degrees()),
+            LuaNumber::Float(f) => LuaNumber::Float(f.to_degrees()),
+        }
+    }
+    pub fn rad(self) -> LuaNumber {
+        match self {
+            LuaNumber::Int(i) => LuaNumber::Float((i as FloatType).to_radians()),
+            LuaNumber::Float(f) => LuaNumber::Float(f.to_radians()),
+        }
+    }
+    pub fn exp(self) -> LuaNumber {
+        match self {
+            LuaNumber::Int(i) => LuaNumber::Float((i as FloatType).exp()),
+            LuaNumber::Float(f) => LuaNumber::Float(f.exp()),
+        }
+    }
+    pub fn log(self, base: LuaNumber) -> LuaNumber {
+        let base = base.to_float();
+        match self {
+            LuaNumber::Int(i) => LuaNumber::Float((i as FloatType).log(base)),
+            LuaNumber::Float(f) => LuaNumber::Float(f.log(base)),
+        }
+    }
+    pub fn ln(self) -> LuaNumber {
+        match self {
+            LuaNumber::Int(i) => LuaNumber::Float((i as FloatType).ln()),
+            LuaNumber::Float(f) => LuaNumber::Float(f.ln()),
+        }
+    }
+    pub fn sqrt(self) -> LuaNumber {
+        match self {
+            LuaNumber::Int(i) => LuaNumber::Float((i as FloatType).sqrt()),
+            LuaNumber::Float(f) => LuaNumber::Float(f.sqrt()),
+        }
+    }
+
     pub fn floor_div(self, rhs: Self) -> Self {
         match (self, rhs) {
             (LuaNumber::Int(a), LuaNumber::Int(b)) => {

@@ -184,42 +184,42 @@ impl LuaValue {
         // @TODO metatable
         match (self.try_to_int(), other.try_to_int()) {
             (Some(a), Some(b)) => Ok((a & b).into()),
-            _ => Err(RuntimeError::CannotConvertToInteger),
+            _ => Err(RuntimeError::NotInteger),
         }
     }
     pub fn bit_or(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
         // @TODO metatable
         match (self.try_to_int(), other.try_to_int()) {
             (Some(a), Some(b)) => Ok((a | b).into()),
-            _ => Err(RuntimeError::CannotConvertToInteger),
+            _ => Err(RuntimeError::NotInteger),
         }
     }
     pub fn bit_xor(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
         // @TODO metatable
         match (self.try_to_int(), other.try_to_int()) {
             (Some(a), Some(b)) => Ok((a ^ b).into()),
-            _ => Err(RuntimeError::CannotConvertToInteger),
+            _ => Err(RuntimeError::NotInteger),
         }
     }
     pub fn bit_lshift(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
         // @TODO metatable
         match (self.try_to_int(), other.try_to_int()) {
             (Some(a), Some(b)) => Ok((a << b).into()),
-            _ => Err(RuntimeError::CannotConvertToInteger),
+            _ => Err(RuntimeError::NotInteger),
         }
     }
     pub fn bit_rshift(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
         // @TODO metatable
         match (self.try_to_int(), other.try_to_int()) {
             (Some(a), Some(b)) => Ok((a >> b).into()),
-            _ => Err(RuntimeError::CannotConvertToInteger),
+            _ => Err(RuntimeError::NotInteger),
         }
     }
     pub fn bit_not(&self) -> Result<LuaValue, RuntimeError> {
         // @TODO metatable
         match self.try_to_int() {
             Some(a) => Ok((!a).into()),
-            _ => Err(RuntimeError::CannotConvertToInteger),
+            _ => Err(RuntimeError::NotInteger),
         }
     }
 

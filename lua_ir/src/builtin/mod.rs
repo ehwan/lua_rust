@@ -6,6 +6,7 @@ use crate::LuaValue;
 use crate::RuntimeError;
 use crate::Stack;
 
+mod io;
 mod math;
 mod string;
 mod table;
@@ -38,6 +39,7 @@ pub fn init_env() -> Result<LuaTable, RuntimeError> {
     env.map.insert("string".into(), string::init()?.into());
     env.map.insert("table".into(), table::init()?.into());
     env.map.insert("math".into(), math::init()?.into());
+    env.map.insert("io".into(), io::init()?.into());
     Ok(env)
 }
 
@@ -119,7 +121,7 @@ pub fn select(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, 
         if idx < 0 {
             let idx = rest.len() as IntType + idx;
             if idx < 0 {
-                return Err(RuntimeError::InvalidArgument(0));
+                return Err(RuntimeError::OutOfRange);
             }
             return Ok(rest.drain(idx as usize..).collect());
         } else {
@@ -134,10 +136,10 @@ pub fn select(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, 
             if s[0] == b'#' {
                 return Ok(vec![(rest.len() as IntType).into()]);
             } else {
-                return Err(RuntimeError::CannotConvertToInteger);
+                return Err(RuntimeError::NotInteger);
             }
         } else {
-            return Err(RuntimeError::CannotConvertToInteger);
+            return Err(RuntimeError::NotInteger);
         }
     }
 }

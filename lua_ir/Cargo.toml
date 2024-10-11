@@ -12,3 +12,9 @@ categories = ["parsing"]
 [dependencies]
 lua_tokenizer = { version = "0.2.0", path = "../tokenizer" }
 lua_semantics = { version = "0.3.0", path = "../semantics" }
+codespan-reporting = { version = "0.11", optional = true }
+
+[features]
+default = []
+32bit = ["lua_tokenizer/32bit", "lua_semantics/32bit"]
+diag = ["dep:codespan-reporting", "lua_tokenizer/diag", "lua_semantics/diag"]

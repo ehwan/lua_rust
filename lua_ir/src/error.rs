@@ -12,9 +12,10 @@ pub enum RuntimeError {
     TableIndexNan,
     /// float has no integer representation
     FloatToInt,
-    CannotConvertToInteger,
-    InvalidArgument(usize),
+    NotInteger,
     OutOfRange,
 
     NotString,
+
+    NotNumber,
 }

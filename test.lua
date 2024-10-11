@@ -11,6 +11,12 @@ uppered = string.upper(lowered)
 print( lowered )
 print( uppered )
 
+print(math.pi)
+
+print( math.abs( -math.pi ) )
+print( math.abs( "3.5" ) )
+print( math.abs( "-13.2" ) )
+
 
 
 function func()

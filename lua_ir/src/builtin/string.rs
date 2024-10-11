@@ -65,7 +65,7 @@ pub fn sub_impl(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<u8>, Runt
         None => 1,
         Some(val) => match val.try_to_int() {
             Some(i) => i,
-            None => return Err(RuntimeError::CannotConvertToInteger),
+            None => return Err(RuntimeError::NotInteger),
         },
     };
     if i < 0 {
@@ -81,7 +81,7 @@ pub fn sub_impl(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<u8>, Runt
         None => 1,
         Some(val) => match val.try_to_int() {
             Some(j) => j,
-            None => return Err(RuntimeError::CannotConvertToInteger),
+            None => return Err(RuntimeError::NotInteger),
         },
     };
     if j < 0 {
@@ -114,7 +114,7 @@ pub fn char_(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, R
                     Ok(i as u8)
                 }
             }
-            None => Err(RuntimeError::CannotConvertToInteger),
+            None => Err(RuntimeError::NotInteger),
         })
         .collect();
     Ok(vec![LuaValue::String(chars?)])
@@ -152,7 +152,7 @@ pub fn rep(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, Run
     };
     let n = match it.next().unwrap_or_default().try_to_int() {
         Some(n) => n,
-        None => return Err(RuntimeError::CannotConvertToInteger),
+        None => return Err(RuntimeError::NotInteger),
     };
     if n <= 0 {
         return Ok(vec![LuaValue::String(vec![])]);
