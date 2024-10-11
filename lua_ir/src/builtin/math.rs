@@ -12,26 +12,25 @@ use crate::Stack;
 /// init math module
 pub fn init() -> Result<LuaValue, RuntimeError> {
     let mut math = LuaTable::new();
+    /*
     math.map
         .insert("abs".into(), LuaFunction::from_func(abs).into());
     math.map
         .insert("acos".into(), LuaFunction::from_func(acos).into());
     math.map
         .insert("asin".into(), LuaFunction::from_func(asin).into());
+    */
     Ok(LuaValue::Table(Rc::new(RefCell::new(math))))
 }
 
-pub fn abs(stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
-    let mut it = args.into_iter();
-    let arg = it.next().unwrap_or(LuaValue::Nil);
-    drop(it);
-
-    match arg {
-        LuaValue::Int(i) => {
+/*
+pub fn abs(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
+    match args.into_iter().next() {
+        Some(LuaValue::Int(i)) => {
             let abs = i.abs();
             Ok(vec![LuaValue::Int(abs)])
         }
-        LuaValue::Float(f) => {
+        Some(LuaValue::Float(f)) => {
             let abs = f.abs();
             Ok(vec![LuaValue::Float(abs)])
         }
@@ -72,3 +71,5 @@ pub fn asin(stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, Run
         _ => Err(RuntimeError::TypeError),
     }
 }
+
+*/

@@ -495,15 +495,15 @@ impl Context {
         self.set_label(break_label);
         self.loop_stack.pop();
     }
-    fn emit_statement_forgeneric(&mut self, stmt: lua_semantics::StmtForGeneric) {
+    fn emit_statement_forgeneric(&mut self, _stmt: lua_semantics::StmtForGeneric) {
         unimplemented!("for-generic");
-        let break_label = self.generate_label();
-        self.loop_stack.push(break_label.clone());
+        // let break_label = self.generate_label();
+        // self.loop_stack.push(break_label.clone());
 
-        // @TODO
+        // // @TODO
 
-        self.set_label(break_label);
-        self.loop_stack.pop();
+        // self.set_label(break_label);
+        // self.loop_stack.pop();
     }
 
     fn emit_expression_function_object(

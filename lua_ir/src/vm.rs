@@ -217,12 +217,12 @@ impl Stack {
                     Instruction::Boolean(b) => {
                         self.data_stack.push(LuaValue::Boolean(*b));
                     }
-                    Instruction::Numeric(n) => match n {
+                    Instruction::Numeric(n) => match *n {
                         IntOrFloat::Int(i) => {
-                            self.data_stack.push(LuaValue::Int(*i));
+                            self.data_stack.push(i.into());
                         }
                         IntOrFloat::Float(f) => {
-                            self.data_stack.push(LuaValue::Float(*f));
+                            self.data_stack.push(f.into());
                         }
                     },
                     Instruction::String(s) => {
@@ -258,7 +258,7 @@ impl Stack {
                         for (idx, value) in values.into_iter().enumerate() {
                             let index = idx as IntType + *i;
                             if let LuaValue::Table(table) = table {
-                                table.borrow_mut().map.insert(LuaValue::Int(index), value);
+                                table.borrow_mut().map.insert(index.into(), value);
                             } else {
                                 unreachable!("table must be on top of stack");
                             }
@@ -372,7 +372,7 @@ impl Stack {
                     Instruction::BinaryFloorDiv => {
                         let rhs = self.data_stack.pop().unwrap();
                         let lhs = self.data_stack.pop().unwrap();
-                        let ret = lhs.fdiv(&rhs)?;
+                        let ret = lhs.floor_div(&rhs)?;
                         self.data_stack.push(ret);
                     }
                     Instruction::BinaryMod => {

@@ -4,6 +4,7 @@ mod error;
 mod function;
 mod instruction;
 mod luaval;
+mod number;
 mod table;
 mod vm;
 
@@ -22,6 +23,7 @@ pub use function::LuaFunction;
 pub use function::LuaFunctionLua;
 pub use luaval::LuaValue;
 pub use luaval::RefOrValue;
+pub use number::LuaNumber;
 pub use table::LuaTable;
 
 pub use context::Context;

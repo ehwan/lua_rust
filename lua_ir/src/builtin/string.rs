@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use crate::IntType;
 use crate::LuaFunction;
 use crate::LuaTable;
 use crate::LuaValue;
@@ -50,7 +51,7 @@ pub fn init() -> Result<LuaValue, RuntimeError> {
 pub fn byte(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
     let sub = sub_impl(_stack, args)?;
     sub.into_iter()
-        .map(|c| Ok(LuaValue::Int(c as i64)))
+        .map(|c| Ok(LuaValue::Number((c as IntType).into())))
         .collect()
 }
 
@@ -62,9 +63,10 @@ pub fn sub_impl(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<u8>, Runt
     };
     let mut i = match it.next() {
         None => 1,
-        Some(LuaValue::Int(i)) => i,
-        Some(LuaValue::Float(f)) => LuaValue::float_to_int(f)?,
-        _ => return Err(RuntimeError::CannotConvertToInteger),
+        Some(val) => match val.try_to_int() {
+            Some(i) => i,
+            None => return Err(RuntimeError::CannotConvertToInteger),
+        },
     };
     if i < 0 {
         i = s.len() as i64 + i + 1;
@@ -77,9 +79,10 @@ pub fn sub_impl(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<u8>, Runt
 
     let mut j = match it.next() {
         None => 1,
-        Some(LuaValue::Int(i)) => i,
-        Some(LuaValue::Float(f)) => LuaValue::float_to_int(f)?,
-        _ => return Err(RuntimeError::CannotConvertToInteger),
+        Some(val) => match val.try_to_int() {
+            Some(j) => j,
+            None => return Err(RuntimeError::CannotConvertToInteger),
+        },
     };
     if j < 0 {
         j = s.len() as i64 + j + 1;
@@ -103,21 +106,15 @@ pub fn sub(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, Run
 pub fn char_(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
     let chars: Result<Vec<u8>, _> = args
         .into_iter()
-        .map(|c| match c {
-            LuaValue::Int(i) => {
+        .map(|c| match c.try_to_int() {
+            Some(i) => {
                 if i < 0 || i > 255 {
-                    return Err(RuntimeError::OutOfRange);
+                    Err(RuntimeError::OutOfRange)
+                } else {
+                    Ok(i as u8)
                 }
-                Ok(i as u8)
             }
-            LuaValue::Float(f) => {
-                let i = LuaValue::float_to_int(f)?;
-                if i < 0 || i > 255 {
-                    return Err(RuntimeError::OutOfRange);
-                }
-                Ok(i as u8)
-            }
-            _ => Err(RuntimeError::CannotConvertToInteger),
+            None => Err(RuntimeError::CannotConvertToInteger),
         })
         .collect();
     Ok(vec![LuaValue::String(chars?)])
@@ -128,7 +125,7 @@ pub fn len(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, Run
         Some(LuaValue::String(s)) => s,
         _ => return Err(RuntimeError::NotString),
     };
-    Ok(vec![LuaValue::Int(s.len() as i64)])
+    Ok(vec![(s.len() as IntType).into()])
 }
 
 pub fn lower(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
@@ -153,10 +150,9 @@ pub fn rep(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, Run
         Some(LuaValue::String(s)) => s,
         _ => return Err(RuntimeError::NotString),
     };
-    let n = match it.next() {
-        Some(LuaValue::Int(n)) => n,
-        Some(LuaValue::Float(f)) => LuaValue::float_to_int(f)?,
-        _ => return Err(RuntimeError::CannotConvertToInteger),
+    let n = match it.next().unwrap_or_default().try_to_int() {
+        Some(n) => n,
+        None => return Err(RuntimeError::CannotConvertToInteger),
     };
     if n <= 0 {
         return Ok(vec![LuaValue::String(vec![])]);

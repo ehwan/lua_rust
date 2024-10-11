@@ -1,3 +1,4 @@
+use crate::number::LuaNumber;
 use crate::FloatType;
 use crate::IntType;
 use crate::LuaFunction;
@@ -23,8 +24,7 @@ impl Default for RefOrValue {
 pub enum LuaValue {
     Nil,
     Boolean(bool),
-    Int(IntType),
-    Float(FloatType),
+    Number(LuaNumber),
     String(Vec<u8>),
     Table(Rc<RefCell<LuaTable>>),
     Function(LuaFunction),
@@ -40,8 +40,7 @@ impl std::hash::Hash for LuaValue {
                 unreachable!("hash for nil; this should be filtered out");
             }
             LuaValue::Boolean(b) => b.hash(state),
-            LuaValue::Int(n) => n.hash(state),
-            LuaValue::Float(n) => n.to_bits().hash(state),
+            LuaValue::Number(n) => n.hash(state),
             LuaValue::String(s) => s.hash(state),
             LuaValue::Table(t) => Rc::as_ptr(t).hash(state),
             LuaValue::Function(_) => {
@@ -62,18 +61,18 @@ impl std::cmp::PartialEq for LuaValue {
         match (self, other) {
             (LuaValue::Nil, LuaValue::Nil) => true,
             (LuaValue::Boolean(a), LuaValue::Boolean(b)) => a == b,
-            (LuaValue::Int(a), LuaValue::Int(b)) => a == b,
-            // @TODO int <-> float comparison
-            (LuaValue::Int(a), LuaValue::Float(b)) => *a as FloatType == *b,
-            (LuaValue::Float(a), LuaValue::Int(b)) => *a == *b as FloatType,
-            (LuaValue::Float(a), LuaValue::Float(b)) => a == b,
+            (LuaValue::Number(a), LuaValue::Number(b)) => a == b,
             (LuaValue::String(a), LuaValue::String(b)) => a == b,
             (LuaValue::Table(a), LuaValue::Table(b)) => Rc::ptr_eq(a, b),
-            (LuaValue::Function(a), LuaValue::Function(b)) => {
+            (LuaValue::Function(_a), LuaValue::Function(_b)) => {
                 unimplemented!("function equality")
             }
-            (LuaValue::UserData(_), LuaValue::UserData(_)) => false,
-            (LuaValue::Thread(_), LuaValue::Thread(_)) => false,
+            (LuaValue::UserData(_), LuaValue::UserData(_)) => {
+                unimplemented!("userdata equality")
+            }
+            (LuaValue::Thread(_), LuaValue::Thread(_)) => {
+                unimplemented!("thread equality")
+            }
             _ => false,
         }
     }
@@ -85,8 +84,7 @@ impl std::fmt::Display for LuaValue {
         match self {
             LuaValue::Nil => write!(f, "nil"),
             LuaValue::Boolean(b) => write!(f, "{}", b),
-            LuaValue::Int(n) => write!(f, "{}", n),
-            LuaValue::Float(n) => write!(f, "{}", n),
+            LuaValue::Number(n) => write!(f, "{}", n),
             LuaValue::String(s) => write!(f, "{}", String::from_utf8_lossy(s)),
             LuaValue::Table(t) => {
                 write!(f, "table {:p}", Rc::as_ptr(t))
@@ -99,253 +97,157 @@ impl std::fmt::Display for LuaValue {
 }
 
 impl LuaValue {
-    /// convert float to int, if float has exact integer representation.
-    pub fn float_to_int(f: FloatType) -> Result<IntType, RuntimeError> {
-        // @TODO
-        if f.fract() == 0.0 {
-            Ok(f as IntType)
-        } else {
-            Err(RuntimeError::FloatToInt)
-        }
-    }
     pub fn to_bool(&self) -> bool {
         match self {
             LuaValue::Nil | LuaValue::Boolean(false) => false,
             _ => true,
         }
     }
-    pub fn add(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
-        // @TODO String conversion
+    pub fn try_to_int(&self) -> Option<IntType> {
         match self {
-            LuaValue::Int(lhs) => match other {
-                LuaValue::Int(rhs) => Ok(LuaValue::Int(lhs.wrapping_add(*rhs))),
-                LuaValue::Float(rhs) => Ok(LuaValue::Float((*lhs as FloatType) + *rhs)),
-                _ => Err(RuntimeError::InvalidArith),
-            },
-            LuaValue::Float(lhs) => match other {
-                LuaValue::Int(rhs) => Ok(LuaValue::Float(*lhs + *rhs as FloatType)),
-                LuaValue::Float(rhs) => Ok(LuaValue::Float(lhs + rhs)),
-                _ => Err(RuntimeError::InvalidArith),
-            },
-            _ => Err(RuntimeError::InvalidArith),
+            LuaValue::Number(n) => n.try_to_int(),
+            LuaValue::String(s) => {
+                let s = String::from_utf8_lossy(s);
+                s.parse().ok()
+            }
+            _ => None,
+        }
+    }
+    pub fn try_to_number(&self) -> Option<LuaNumber> {
+        match self {
+            LuaValue::Number(n) => Some(*n),
+            LuaValue::String(s) => {
+                let s = String::from_utf8_lossy(s);
+                s.parse().ok().map(LuaNumber::Float)
+            }
+            _ => None,
+        }
+    }
+    pub fn add(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
+        // @TODO metatable
+        match (self.try_to_number(), other.try_to_number()) {
+            (Some(a), Some(b)) => Ok((a + b).into()),
+            _ => unimplemented!("add metatable"),
         }
     }
     pub fn sub(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
-        // @TODO String conversion
-        match self {
-            LuaValue::Int(lhs) => match other {
-                LuaValue::Int(rhs) => Ok(LuaValue::Int(lhs.wrapping_sub(*rhs))),
-                LuaValue::Float(rhs) => Ok(LuaValue::Float((*lhs as FloatType) - *rhs)),
-                _ => Err(RuntimeError::InvalidArith),
-            },
-            LuaValue::Float(lhs) => match other {
-                LuaValue::Int(rhs) => Ok(LuaValue::Float(*lhs - *rhs as FloatType)),
-                LuaValue::Float(rhs) => Ok(LuaValue::Float(lhs - rhs)),
-                _ => Err(RuntimeError::InvalidArith),
-            },
-            _ => Err(RuntimeError::InvalidArith),
+        // @TODO metatable
+        match (self.try_to_number(), other.try_to_number()) {
+            (Some(a), Some(b)) => Ok((a - b).into()),
+            _ => unimplemented!("sub metatable"),
         }
     }
     pub fn mul(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
-        // @TODO String conversion
-        match self {
-            LuaValue::Int(lhs) => match other {
-                LuaValue::Int(rhs) => Ok(LuaValue::Int(lhs.wrapping_mul(*rhs))),
-                LuaValue::Float(rhs) => Ok(LuaValue::Float((*lhs as FloatType) * *rhs)),
-                _ => Err(RuntimeError::InvalidArith),
-            },
-            LuaValue::Float(lhs) => match other {
-                LuaValue::Int(rhs) => Ok(LuaValue::Float(*lhs * *rhs as FloatType)),
-                LuaValue::Float(rhs) => Ok(LuaValue::Float(lhs * rhs)),
-                _ => Err(RuntimeError::InvalidArith),
-            },
-            _ => Err(RuntimeError::InvalidArith),
+        // @TODO metatable
+        match (self.try_to_number(), other.try_to_number()) {
+            (Some(a), Some(b)) => Ok((a * b).into()),
+            _ => unimplemented!("mul metatable"),
         }
     }
     pub fn div(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
-        // @TODO String conversion
-        match self {
-            LuaValue::Int(lhs) => match other {
-                LuaValue::Int(rhs) => Ok(LuaValue::Float(*lhs as FloatType / *rhs as FloatType)),
-                LuaValue::Float(rhs) => Ok(LuaValue::Float((*lhs as FloatType) / *rhs)),
-                _ => Err(RuntimeError::InvalidArith),
-            },
-            LuaValue::Float(lhs) => match other {
-                LuaValue::Int(rhs) => Ok(LuaValue::Float(*lhs / *rhs as FloatType)),
-                LuaValue::Float(rhs) => Ok(LuaValue::Float(lhs / rhs)),
-                _ => Err(RuntimeError::InvalidArith),
-            },
-            _ => Err(RuntimeError::InvalidArith),
+        // @TODO metatable
+        match (self.try_to_number(), other.try_to_number()) {
+            (Some(a), Some(b)) => Ok((a / b).into()),
+            _ => unimplemented!("div metatable"),
         }
     }
-    pub fn fdiv(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
-        // @TODO String conversion
-        match self {
-            LuaValue::Int(lhs) => match other {
-                LuaValue::Int(rhs) => Ok(LuaValue::Float(
-                    (*lhs as FloatType / *rhs as FloatType).floor(),
-                )),
-                LuaValue::Float(rhs) => Ok(LuaValue::Float(((*lhs as FloatType) / *rhs).floor())),
-                _ => Err(RuntimeError::InvalidArith),
-            },
-            LuaValue::Float(lhs) => match other {
-                LuaValue::Int(rhs) => Ok(LuaValue::Float((*lhs / *rhs as FloatType).floor())),
-                LuaValue::Float(rhs) => Ok(LuaValue::Float((lhs / rhs).floor())),
-                _ => Err(RuntimeError::InvalidArith),
-            },
-            _ => Err(RuntimeError::InvalidArith),
+    pub fn floor_div(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
+        // @TODO metatable
+        match (self.try_to_number(), other.try_to_number()) {
+            (Some(a), Some(b)) => Ok((a.floor_div(b)).into()),
+            _ => unimplemented!("floor_div metatable"),
         }
     }
     pub fn modu(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
-        // @TODO String conversion
-        match self {
-            LuaValue::Int(lhs) => match other {
-                LuaValue::Int(rhs) => Ok(LuaValue::Int(lhs % rhs)),
-                LuaValue::Float(rhs) => Ok(LuaValue::Float((*lhs as FloatType) % *rhs)),
-                _ => Err(RuntimeError::InvalidArith),
-            },
-            LuaValue::Float(lhs) => match other {
-                LuaValue::Int(rhs) => Ok(LuaValue::Float(*lhs % *rhs as FloatType)),
-                LuaValue::Float(rhs) => Ok(LuaValue::Float(lhs % rhs)),
-                _ => Err(RuntimeError::InvalidArith),
-            },
-            _ => Err(RuntimeError::InvalidArith),
+        // @TODO metatable
+        match (self.try_to_number(), other.try_to_number()) {
+            (Some(a), Some(b)) => Ok((a % b).into()),
+            _ => unimplemented!("mod metatable"),
         }
     }
     pub fn pow(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
-        // @TODO String conversion
-        match self {
-            LuaValue::Int(lhs) => match other {
-                LuaValue::Int(rhs) => {
-                    Ok(LuaValue::Float((*lhs as FloatType).powf(*rhs as FloatType)))
-                }
-                LuaValue::Float(rhs) => Ok(LuaValue::Float((*lhs as FloatType).powf(*rhs))),
-                _ => Err(RuntimeError::InvalidArith),
-            },
-            LuaValue::Float(lhs) => match other {
-                LuaValue::Int(rhs) => Ok(LuaValue::Float(lhs.powf(*rhs as FloatType))),
-                LuaValue::Float(rhs) => Ok(LuaValue::Float(lhs.powf(*rhs))),
-                _ => Err(RuntimeError::InvalidArith),
-            },
-            _ => Err(RuntimeError::InvalidArith),
+        // @TODO metatable
+        match (self.try_to_number(), other.try_to_number()) {
+            (Some(a), Some(b)) => Ok((a.pow(b)).into()),
+            _ => unimplemented!("pow metatable"),
         }
     }
     pub fn neg(&self) -> Result<LuaValue, RuntimeError> {
-        // @TODO String conversion
-        match self {
-            LuaValue::Int(lhs) => Ok(LuaValue::Int(-*lhs)),
-            LuaValue::Float(lhs) => Ok(LuaValue::Float(-*lhs)),
-            _ => Err(RuntimeError::InvalidArith),
+        // @TODO metatable
+        match self.try_to_number() {
+            Some(a) => Ok((-a).into()),
+            _ => unimplemented!("neg metatable"),
         }
     }
 
-    /// convert float to int, if float has exact integer representation.
-    pub fn strict_to_int(&self) -> Result<IntType, RuntimeError> {
-        match self {
-            LuaValue::Int(i) => Ok(*i),
-            LuaValue::Float(f) => {
-                if f.fract() == 0.0 {
-                    Ok(*f as IntType)
-                } else {
-                    Err(RuntimeError::InvalidArith)
-                }
-            }
-            _ => Err(RuntimeError::InvalidArith),
+    pub fn bit_and(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
+        // @TODO metatable
+        match (self.try_to_int(), other.try_to_int()) {
+            (Some(a), Some(b)) => Ok((a & b).into()),
+            _ => Err(RuntimeError::CannotConvertToInteger),
         }
     }
-    pub fn bit_and(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
-        let lhs = self.strict_to_int()?;
-        let rhs = other.strict_to_int()?;
-        let result = lhs & rhs;
-        Ok(LuaValue::Int(result))
-    }
     pub fn bit_or(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
-        let lhs = self.strict_to_int()?;
-        let rhs = other.strict_to_int()?;
-        let result = lhs | rhs;
-        Ok(LuaValue::Int(result))
+        // @TODO metatable
+        match (self.try_to_int(), other.try_to_int()) {
+            (Some(a), Some(b)) => Ok((a | b).into()),
+            _ => Err(RuntimeError::CannotConvertToInteger),
+        }
     }
     pub fn bit_xor(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
-        let lhs = self.strict_to_int()?;
-        let rhs = other.strict_to_int()?;
-        let result = lhs ^ rhs;
-        Ok(LuaValue::Int(result))
+        // @TODO metatable
+        match (self.try_to_int(), other.try_to_int()) {
+            (Some(a), Some(b)) => Ok((a ^ b).into()),
+            _ => Err(RuntimeError::CannotConvertToInteger),
+        }
     }
     pub fn bit_lshift(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
-        let lhs = self.strict_to_int()?;
-        let rhs = other.strict_to_int()?;
-        let result = lhs << rhs;
-        Ok(LuaValue::Int(result))
+        // @TODO metatable
+        match (self.try_to_int(), other.try_to_int()) {
+            (Some(a), Some(b)) => Ok((a << b).into()),
+            _ => Err(RuntimeError::CannotConvertToInteger),
+        }
     }
     pub fn bit_rshift(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
-        let lhs = self.strict_to_int()?;
-        let rhs = other.strict_to_int()?;
-        let result = lhs >> rhs;
-        Ok(LuaValue::Int(result))
+        // @TODO metatable
+        match (self.try_to_int(), other.try_to_int()) {
+            (Some(a), Some(b)) => Ok((a >> b).into()),
+            _ => Err(RuntimeError::CannotConvertToInteger),
+        }
     }
     pub fn bit_not(&self) -> Result<LuaValue, RuntimeError> {
-        let lhs = self.strict_to_int()?;
-        let result = lhs.reverse_bits();
-        Ok(LuaValue::Int(result))
+        // @TODO metatable
+        match self.try_to_int() {
+            Some(a) => Ok((!a).into()),
+            _ => Err(RuntimeError::CannotConvertToInteger),
+        }
     }
 
     pub fn eq(&self, other: &LuaValue) -> bool {
-        match (self, other) {
-            (LuaValue::Nil, LuaValue::Nil) => true,
-            (LuaValue::Boolean(a), LuaValue::Boolean(b)) => a == b,
-            (LuaValue::Int(a), LuaValue::Int(b)) => a == b,
-            (LuaValue::Float(a), LuaValue::Float(b)) => a == b,
-            (LuaValue::String(a), LuaValue::String(b)) => a == b,
-            _ => false,
-        }
-    }
-    pub fn eq_raw(&self, other: &LuaValue) -> bool {
-        match (self, other) {
-            (LuaValue::Nil, LuaValue::Nil) => true,
-            (LuaValue::Boolean(a), LuaValue::Boolean(b)) => a == b,
-            (LuaValue::Int(a), LuaValue::Int(b)) => a == b,
-            (LuaValue::Float(a), LuaValue::Float(b)) => a == b,
-            (LuaValue::String(a), LuaValue::String(b)) => a == b,
-            _ => false,
-        }
+        // @TODO metatable
+        self == other
     }
     pub fn lt(&self, other: &LuaValue) -> Result<bool, RuntimeError> {
-        match self {
-            LuaValue::Int(lhs) => match other {
-                LuaValue::Int(rhs) => Ok(lhs < rhs),
-                LuaValue::Float(rhs) => Ok((*lhs as FloatType) < *rhs),
-                _ => Err(RuntimeError::InvalidArith),
-            },
-            LuaValue::Float(lhs) => match other {
-                LuaValue::Int(rhs) => Ok(*lhs < *rhs as FloatType),
-                LuaValue::Float(rhs) => Ok(lhs < rhs),
-                _ => Err(RuntimeError::InvalidArith),
-            },
-            _ => Err(RuntimeError::InvalidArith),
+        // @TODO metatable
+        match (self.try_to_number(), other.try_to_number()) {
+            (Some(a), Some(b)) => Ok(a < b),
+            _ => unimplemented!("lt metatable"),
         }
     }
 
     pub fn len(&self) -> Result<IntType, RuntimeError> {
-        // @TODO
-        match self {
-            LuaValue::String(s) => Ok(s.len() as IntType),
-            LuaValue::Table(t) => Ok(t.borrow().map.len() as IntType),
-            _ => Err(RuntimeError::InvalidArith),
-        }
-    }
-    pub fn len_raw(&self) -> Result<IntType, RuntimeError> {
-        // @TODO
-        match self {
-            LuaValue::String(s) => Ok(s.len() as IntType),
-            LuaValue::Table(t) => Ok(t.borrow().map.len() as IntType),
-            _ => Err(RuntimeError::InvalidArith),
-        }
+        // @TODO metatable
+        let len = match self {
+            LuaValue::String(s) => s.len(),
+            LuaValue::Table(_t) => unimplemented!("table length"),
+            _ => 0,
+        };
+
+        Ok(len as IntType)
     }
     pub fn concat(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
-        // @TODO
-        let str = format!("{}{}", self, other);
-        return Ok(LuaValue::String(str.into_bytes()));
-        // unimplemented!("concat");
+        // @TODO metatable
+        Ok(LuaValue::String(format!("{}{}", self, other).into()))
     }
     pub fn not(&self) -> LuaValue {
         LuaValue::Boolean(!self.to_bool())
@@ -357,19 +259,11 @@ impl LuaValue {
             _ => false,
         }
     }
-
-    pub fn as_key(&self) -> Result<String, RuntimeError> {
-        Ok(match self {
-            LuaValue::Nil => "nil".to_string(),
-            LuaValue::Boolean(b) => b.to_string(),
-            LuaValue::Int(n) => n.to_string(),
-            LuaValue::Float(n) => n.to_string(),
-            LuaValue::String(s) => format!("\"{}\"", String::from_utf8_lossy(s)),
-            LuaValue::Table(_) => "table".to_string(),
-            LuaValue::Function(_) => "function".to_string(),
-            LuaValue::UserData(_) => "userdata".to_string(),
-            LuaValue::Thread(_) => "thread".to_string(),
-        })
+    pub fn is_nan(&self) -> bool {
+        match self {
+            LuaValue::Number(n) => n.is_nan(),
+            _ => false,
+        }
     }
 }
 
@@ -391,12 +285,17 @@ impl From<bool> for LuaValue {
 }
 impl From<IntType> for LuaValue {
     fn from(n: IntType) -> Self {
-        LuaValue::Int(n)
+        LuaValue::Number(n.into())
     }
 }
 impl From<FloatType> for LuaValue {
     fn from(n: FloatType) -> Self {
-        LuaValue::Float(n)
+        LuaValue::Number(n.into())
+    }
+}
+impl From<LuaNumber> for LuaValue {
+    fn from(n: LuaNumber) -> Self {
+        LuaValue::Number(n)
     }
 }
 impl From<String> for LuaValue {
