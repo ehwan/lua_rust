@@ -97,7 +97,7 @@ impl Context {
             self.emit_statement(stmt);
         }
         if let Some(ret) = block.return_statement {
-            self.instructions.push(Instruction::Sp);
+            // self.instructions.push(Instruction::Sp);
             let rhs_len = ret.values.len();
             for (idx, value) in ret.values.into_iter().enumerate() {
                 if idx == rhs_len - 1 {
@@ -134,7 +134,6 @@ impl Context {
     }
     /// emit an instruction that evalulates an expression and store the result in a register AX
     fn emit_expression(&mut self, expression: Expression, expected: Option<usize>) {
-        debug_assert!(expected.is_none() || expected.unwrap() > 0);
         match expression {
             lua_semantics::Expression::G => self.emit_expression_g(expected),
             lua_semantics::Expression::Env => self.emit_expression_env(expected),
@@ -197,12 +196,18 @@ impl Context {
 
 impl Context {
     fn emit_expression_g(&mut self, expected: Option<usize>) {
+        if expected == Some(0) {
+            return;
+        }
         self.instructions.push(Instruction::GetGlobal);
         if let Some(expected) = expected {
             self.emit_expression_nil(Some(expected - 1));
         }
     }
     fn emit_expression_env(&mut self, expected: Option<usize>) {
+        if expected == Some(0) {
+            return;
+        }
         self.instructions.push(Instruction::GetEnv);
         if let Some(expected) = expected {
             self.emit_expression_nil(Some(expected - 1));
@@ -218,6 +223,9 @@ impl Context {
         }
     }
     fn emit_expression_boolean(&mut self, value: bool, expected: Option<usize>) {
+        if expected == Some(0) {
+            return;
+        }
         self.instructions.push(Instruction::Boolean(value));
         if let Some(expected) = expected {
             self.emit_expression_nil(Some(expected - 1));
@@ -228,12 +236,18 @@ impl Context {
         value: lua_semantics::IntOrFloat,
         expected: Option<usize>,
     ) {
+        if expected == Some(0) {
+            return;
+        }
         self.instructions.push(Instruction::Numeric(value));
         if let Some(expected) = expected {
             self.emit_expression_nil(Some(expected - 1));
         }
     }
     fn emit_expression_string(&mut self, value: Vec<u8>, expected: Option<usize>) {
+        if expected == Some(0) {
+            return;
+        }
         self.instructions.push(Instruction::String(value));
         if let Some(expected) = expected {
             self.emit_expression_nil(Some(expected - 1));
@@ -248,7 +262,11 @@ impl Context {
         self.emit_expression(*expr.index, Some(1));
         self.instructions.push(Instruction::TableIndex);
         if let Some(expected) = expected {
-            self.emit_expression_nil(Some(expected - 1));
+            if expected == 0 {
+                self.instructions.push(Instruction::Pop);
+            } else {
+                self.emit_expression_nil(Some(expected - 1));
+            }
         }
     }
     fn emit_expression_unary(&mut self, expr: lua_semantics::ExprUnary, expected: Option<usize>) {
@@ -271,7 +289,11 @@ impl Context {
             }
         }
         if let Some(expected) = expected {
-            self.emit_expression_nil(Some(expected - 1));
+            if expected == 0 {
+                self.instructions.push(Instruction::Pop);
+            } else {
+                self.emit_expression_nil(Some(expected - 1));
+            }
         }
     }
     fn emit_expression_binary(&mut self, expr: lua_semantics::ExprBinary, expected: Option<usize>) {
@@ -412,7 +434,11 @@ impl Context {
             }
         }
         if let Some(expected) = expected {
-            self.emit_expression_nil(Some(expected - 1));
+            if expected == 0 {
+                self.instructions.push(Instruction::Pop);
+            } else {
+                self.emit_expression_nil(Some(expected - 1));
+            }
         }
     }
     fn emit_expression_localvariable(
@@ -420,6 +446,9 @@ impl Context {
         expr: lua_semantics::ExprLocalVariable,
         expected: Option<usize>,
     ) {
+        if expected == Some(0) {
+            return;
+        }
         match expr {
             lua_semantics::ExprLocalVariable::Stack(local_id) => {
                 self.instructions
@@ -458,7 +487,11 @@ impl Context {
         }
 
         if let Some(expected) = expected {
-            self.emit_expression_nil(Some(expected - 1));
+            if expected == 0 {
+                self.instructions.push(Instruction::Pop);
+            } else {
+                self.emit_expression_nil(Some(expected - 1));
+            }
         }
     }
 }
@@ -511,8 +544,6 @@ impl Context {
         expr: lua_semantics::ExprFunctionObject,
         expected: Option<usize>,
     ) {
-        // add dummy return statement if there is no return statement
-
         let upvalues_len = expr.upvalues_source.len();
         self.instructions
             .push(Instruction::FunctionInit(expr.function_id, upvalues_len));
@@ -529,7 +560,11 @@ impl Context {
             }
         }
         if let Some(expected) = expected {
-            self.emit_expression_nil(Some(expected - 1));
+            if expected == 0 {
+                self.instructions.push(Instruction::Pop);
+            } else {
+                self.emit_expression_nil(Some(expected - 1));
+            }
         }
     }
 
@@ -542,21 +577,29 @@ impl Context {
         // prefix:method( args ) -> prefix.method( prefix, args )
         if let Some(method) = expr.method {
             self.emit_expression(*expr.prefix, Some(1));
-            self.instructions.push(Instruction::Clone);
+            let len = expr.args.len();
+            for (idx, arg) in expr.args.into_iter().enumerate() {
+                if idx == len - 1 {
+                    self.emit_expression(arg, None);
+                } else {
+                    self.emit_expression(arg, Some(1));
+                }
+            }
+
+            self.instructions.push(Instruction::Deref);
             self.instructions
                 .push(Instruction::String(method.into_bytes()));
             self.instructions.push(Instruction::TableIndex);
-            self.instructions.push(Instruction::Swap);
         } else {
-            self.emit_expression(*expr.prefix, Some(1));
-        }
-        let len = expr.args.len();
-        for (idx, arg) in expr.args.into_iter().enumerate() {
-            if idx == len - 1 {
-                self.emit_expression(arg, None);
-            } else {
-                self.emit_expression(arg, Some(1));
+            let len = expr.args.len();
+            for (idx, arg) in expr.args.into_iter().enumerate() {
+                if idx == len - 1 {
+                    self.emit_expression(arg, None);
+                } else {
+                    self.emit_expression(arg, Some(1));
+                }
             }
+            self.emit_expression(*expr.prefix, Some(1));
         }
         self.instructions.push(Instruction::FunctionCall(expected));
     }
@@ -592,17 +635,23 @@ impl Context {
     }
     fn emit_statement_localdeclaration(&mut self, stmt: lua_semantics::StmtLocalDeclaration) {
         if let Some(expr) = stmt.values {
-            self.instructions.push(Instruction::Sp);
+            let lhs_len = stmt.decls.len();
             let rhs_len = expr.len();
             for (idx, rhs) in expr.into_iter().enumerate() {
                 if idx == rhs_len - 1 {
-                    self.emit_expression(rhs, None);
+                    if idx < lhs_len {
+                        self.emit_expression(rhs, Some(lhs_len - idx));
+                    } else {
+                        self.emit_expression(rhs, Some(0));
+                    }
                 } else {
-                    self.emit_expression(rhs, Some(1));
+                    if idx < lhs_len {
+                        self.emit_expression(rhs, Some(1));
+                    } else {
+                        self.emit_expression(rhs, Some(0));
+                    }
                 }
             }
-            self.instructions
-                .push(Instruction::AdjustMultire(stmt.decls.len()));
         } else {
             self.emit_expression_nil(Some(stmt.decls.len()));
         }
@@ -644,18 +693,23 @@ impl Context {
     }
     fn emit_statement_assignment(&mut self, stmt: lua_semantics::StmtAssignment) {
         let lhs_len = stmt.lhs.len();
-
-        self.instructions.push(Instruction::Sp);
         let rhs_len = stmt.rhs.len();
+
         for (idx, rhs) in stmt.rhs.into_iter().enumerate() {
             if idx == rhs_len - 1 {
-                self.emit_expression(rhs, None);
+                if idx < lhs_len {
+                    self.emit_expression(rhs, Some(lhs_len - idx));
+                } else {
+                    self.emit_expression(rhs, Some(0));
+                }
             } else {
-                self.emit_expression(rhs, Some(1));
+                if idx < lhs_len {
+                    self.emit_expression(rhs, Some(1));
+                } else {
+                    self.emit_expression(rhs, Some(0));
+                }
             }
         }
-        // adjust rhs count
-        self.instructions.push(Instruction::AdjustMultire(lhs_len));
 
         for lhs in stmt.lhs.into_iter().rev() {
             self.emit_expression_set(lhs);

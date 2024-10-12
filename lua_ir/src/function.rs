@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use crate::Chunk;
 use crate::LuaValue;
 use crate::RuntimeError;
 use crate::Stack;
@@ -24,7 +25,7 @@ pub enum LuaFunction {
     /// functions written in Lua
     LuaFunc(LuaFunctionLua),
     /// built-in functions written in Rust
-    RustFunc(Rc<dyn Fn(&mut Stack, Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError>>),
+    RustFunc(Rc<dyn Fn(&mut Stack, &Chunk, usize) -> Result<usize, RuntimeError>>),
 }
 impl std::fmt::Display for LuaFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -39,7 +40,7 @@ impl std::fmt::Debug for LuaFunction {
 
 impl LuaFunction {
     pub fn from_func(
-        func: impl Fn(&mut Stack, Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> + 'static,
+        func: impl Fn(&mut Stack, &Chunk, usize) -> Result<usize, RuntimeError> + 'static,
     ) -> Self {
         LuaFunction::RustFunc(Rc::new(func))
     }

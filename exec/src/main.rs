@@ -46,29 +46,10 @@ fn main() {
     let context = lua_ir::Context::new();
     let chunk = context.emit(enhanced, semantics);
     let mut stack = Stack::new(chunk.stack_size);
-
-    loop {
-        match stack.cycle(&chunk) {
-            Ok(b) => {
-                if b {
-                    break;
-                }
-            }
-            Err(err) => {
-                /*
-                let mut files = SimpleFiles::new();
-                let file_id = files.add(&filename, &source);
-
-                let diag = err.to_diag(file_id);
-                let writer = StandardStream::stderr(ColorChoice::Auto);
-                let config = term::Config::default();
-                term::emit(&mut writer.lock(), &config, &files, &diag)
-                    .expect("Failed to write to stderr");
-                */
-                println!("{:?}", err);
-
-                return;
-            }
+    match stack.run(&chunk) {
+        Ok(_) => {}
+        Err(e) => {
+            eprintln!("Error: {:?}", e);
         }
     }
 

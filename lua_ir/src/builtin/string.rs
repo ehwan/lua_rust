@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use crate::Chunk;
 use crate::IntType;
 use crate::LuaFunction;
 use crate::LuaTable;
@@ -48,26 +49,7 @@ pub fn init() -> Result<LuaValue, RuntimeError> {
 // packsize
 // unpack
 
-pub fn byte(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
-    let sub = sub_impl(_stack, args)?;
-    sub.into_iter()
-        .map(|c| Ok(LuaValue::Number((c as IntType).into())))
-        .collect()
-}
-
-pub fn sub_impl(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<u8>, RuntimeError> {
-    let mut it = args.into_iter();
-    let s = match it.next() {
-        Some(LuaValue::String(s)) => s,
-        _ => return Err(RuntimeError::NotString),
-    };
-    let mut i = match it.next() {
-        None => 1,
-        Some(val) => match val.try_to_int() {
-            Some(i) => i,
-            None => return Err(RuntimeError::NotInteger),
-        },
-    };
+pub fn sub_impl(s: &[u8], mut i: IntType, mut j: IntType) -> &'_ [u8] {
     if i < 0 {
         i = s.len() as i64 + i + 1;
     }
@@ -77,13 +59,6 @@ pub fn sub_impl(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<u8>, Runt
         i = s.len() as i64;
     }
 
-    let mut j = match it.next() {
-        None => 1,
-        Some(val) => match val.try_to_int() {
-            Some(j) => j,
-            None => return Err(RuntimeError::NotInteger),
-        },
-    };
     if j < 0 {
         j = s.len() as i64 + j + 1;
     }
@@ -94,22 +69,77 @@ pub fn sub_impl(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<u8>, Runt
     }
 
     if i > j {
-        i = j;
+        &s[0..0]
+    } else {
+        &s[((i - 1) as usize)..(j as usize)]
     }
-
-    Ok(s[((i - 1) as usize)..(j as usize)].to_vec())
 }
-pub fn sub(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
-    sub_impl(_stack, args).map(|s| vec![LuaValue::String(s)])
+pub fn byte(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    if args == 0 {
+        return Err(RuntimeError::ValueExpected);
+    }
+    let mut it = stack.pop_n(args);
+    let s = match it.next().unwrap() {
+        LuaValue::String(s) => s,
+        _ => return Err(RuntimeError::NotString),
+    };
+    let i = match it.next() {
+        Some(i) => match i.try_to_int() {
+            Some(i) => i,
+            None => return Err(RuntimeError::NotInteger),
+        },
+        None => 1,
+    };
+    let j = match it.next() {
+        Some(j) => match j.try_to_int() {
+            Some(j) => j,
+            None => return Err(RuntimeError::NotInteger),
+        },
+        None => 1,
+    };
+    drop(it);
+
+    let sub = sub_impl(&s, i, j);
+    for c in sub {
+        stack.data_stack.push((*c as IntType).into());
+    }
+    Ok(sub.len())
+}
+pub fn sub(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    if args < 2 {
+        return Err(RuntimeError::ValueExpected);
+    }
+    let mut it = stack.pop_n(args);
+    let s = match it.next().unwrap() {
+        LuaValue::String(s) => s,
+        _ => return Err(RuntimeError::NotString),
+    };
+    let i = match it.next().unwrap().try_to_int() {
+        Some(i) => i,
+        None => return Err(RuntimeError::NotInteger),
+    };
+    let j = match it.next() {
+        Some(j) => match j.try_to_int() {
+            Some(j) => j,
+            None => return Err(RuntimeError::NotInteger),
+        },
+        None => s.len() as IntType,
+    };
+    drop(it);
+
+    let sub = sub_impl(&s, i, j);
+    stack.data_stack.push(LuaValue::String(sub.to_vec()));
+    Ok(1)
 }
 
-pub fn char_(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
-    let chars: Result<Vec<u8>, _> = args
+pub fn char_(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    let chars: Result<Vec<u8>, _> = stack
+        .pop_n(args)
         .into_iter()
         .map(|c| match c.try_to_int() {
             Some(i) => {
                 if i < 0 || i > 255 {
-                    Err(RuntimeError::OutOfRange)
+                    Err(RuntimeError::OutOfRangeChar)
                 } else {
                     Ok(i as u8)
                 }
@@ -117,51 +147,75 @@ pub fn char_(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, R
             None => Err(RuntimeError::NotInteger),
         })
         .collect();
-    Ok(vec![LuaValue::String(chars?)])
+    let chars = chars?;
+    stack.data_stack.push(LuaValue::String(chars));
+    Ok(1)
 }
 
-pub fn len(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
-    let s = match args.into_iter().next() {
-        Some(LuaValue::String(s)) => s,
-        _ => return Err(RuntimeError::NotString),
-    };
-    Ok(vec![(s.len() as IntType).into()])
+pub fn len(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    if args == 0 {
+        return Err(RuntimeError::ValueExpected);
+    }
+    match stack.pop1(args) {
+        LuaValue::String(s) => {
+            stack.data_stack.push((s.len() as IntType).into());
+            Ok(1)
+        }
+        _ => Err(RuntimeError::NotString),
+    }
 }
 
-pub fn lower(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
-    let s = match args.into_iter().next() {
-        Some(LuaValue::String(s)) => s,
+pub fn lower(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    if args == 0 {
+        return Err(RuntimeError::ValueExpected);
+    }
+    match stack.pop1(args) {
+        LuaValue::String(s) => {
+            let ret = LuaValue::String(s.into_iter().map(|c| c.to_ascii_lowercase()).collect());
+            stack.data_stack.push(ret);
+            Ok(1)
+        }
         _ => return Err(RuntimeError::NotString),
-    };
-    let ret = LuaValue::String(s.into_iter().map(|c| c.to_ascii_lowercase()).collect());
-    Ok(vec![ret])
+    }
 }
-pub fn upper(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
-    let s = match args.into_iter().next() {
-        Some(LuaValue::String(s)) => s,
+pub fn upper(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    if args == 0 {
+        return Err(RuntimeError::ValueExpected);
+    }
+    match stack.pop1(args) {
+        LuaValue::String(s) => {
+            let ret = LuaValue::String(s.into_iter().map(|c| c.to_ascii_uppercase()).collect());
+            stack.data_stack.push(ret);
+            Ok(1)
+        }
         _ => return Err(RuntimeError::NotString),
-    };
-    let ret = LuaValue::String(s.into_iter().map(|c| c.to_ascii_uppercase()).collect());
-    Ok(vec![ret])
+    }
 }
-pub fn rep(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
-    let mut it = args.into_iter();
-    let s = match it.next() {
-        Some(LuaValue::String(s)) => s,
+pub fn rep(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    if args < 2 {
+        return Err(RuntimeError::ValueExpected);
+    }
+    let mut it = stack.pop_n(args);
+    let s = match it.next().unwrap() {
+        LuaValue::String(s) => s,
         _ => return Err(RuntimeError::NotString),
     };
-    let n = match it.next().unwrap_or_default().try_to_int() {
+    let n = match it.next().unwrap().try_to_int() {
         Some(n) => n,
         None => return Err(RuntimeError::NotInteger),
     };
     if n <= 0 {
-        return Ok(vec![LuaValue::String(vec![])]);
+        drop(it);
+        stack.data_stack.push(LuaValue::String(vec![]));
+        return Ok(1);
     }
+
     let sep = match it.next() {
-        None => vec![],
         Some(LuaValue::String(s)) => s,
+        None => vec![],
         _ => return Err(RuntimeError::NotString),
     };
+    drop(it);
 
     let mut ret = Vec::with_capacity(s.len() * n as usize + sep.len() * (n as usize - 1));
     for i in 0..n {
@@ -170,15 +224,19 @@ pub fn rep(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, Run
         }
         ret.extend_from_slice(&s);
     }
-    Ok(vec![LuaValue::String(ret)])
+    stack.data_stack.push(LuaValue::String(ret));
+    Ok(1)
 }
 
-pub fn reverse(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
-    let mut it = args.into_iter();
-    let mut s = match it.next() {
-        Some(LuaValue::String(s)) => s,
+pub fn reverse(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    if args == 0 {
+        return Err(RuntimeError::ValueExpected);
+    }
+    let mut s = match stack.pop1(args) {
+        LuaValue::String(s) => s,
         _ => return Err(RuntimeError::NotString),
     };
     s.reverse();
-    Ok(vec![LuaValue::String(s)])
+    stack.data_stack.push(LuaValue::String(s));
+    Ok(1)
 }

@@ -5,6 +5,7 @@ use rand::rngs::StdRng;
 use rand::Rng;
 use rand::SeedableRng;
 
+use crate::Chunk;
 use crate::LuaFunction;
 use crate::LuaNumber;
 use crate::LuaTable;
@@ -19,12 +20,14 @@ pub fn init() -> Result<LuaValue, RuntimeError> {
     {
         math.map.insert("pi".into(), std::f32::consts::PI.into());
         math.map.insert("huge".into(), std::f32::INFINITY.into());
+        math.map.insert("mininteger".into(), std::i32::MIN.into());
         math.map.insert("maxinteger".into(), std::i32::MAX.into());
     }
     #[cfg(not(feature = "32bit"))]
     {
         math.map.insert("pi".into(), std::f64::consts::PI.into());
         math.map.insert("huge".into(), std::f64::INFINITY.into());
+        math.map.insert("mininteger".into(), std::i64::MIN.into());
         math.map.insert("maxinteger".into(), std::i64::MAX.into());
     }
     math.map
@@ -74,189 +77,229 @@ pub fn init() -> Result<LuaValue, RuntimeError> {
     Ok(LuaValue::Table(Rc::new(RefCell::new(math))))
 }
 
-pub fn abs(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
-    match args.into_iter().next() {
-        Some(val) => match val.try_to_number() {
+pub fn abs(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    if args == 0 {
+        return Err(RuntimeError::ValueExpected);
+    }
+    match stack.pop1(args).try_to_number() {
+        Some(num) => {
+            let abs = num.abs();
+            stack.data_stack.push(abs.into());
+            Ok(1)
+        }
+        None => Err(RuntimeError::NotNumber),
+    }
+}
+pub fn acos(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    if args == 0 {
+        return Err(RuntimeError::ValueExpected);
+    }
+    match stack.pop1(args).try_to_number() {
+        Some(num) => {
+            stack.data_stack.push(num.to_float().acos().into());
+            Ok(1)
+        }
+        None => Err(RuntimeError::NotNumber),
+    }
+}
+pub fn asin(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    if args == 0 {
+        return Err(RuntimeError::ValueExpected);
+    }
+    match stack.pop1(args).try_to_number() {
+        Some(num) => {
+            stack.data_stack.push(num.to_float().asin().into());
+            Ok(1)
+        }
+        None => Err(RuntimeError::NotNumber),
+    }
+}
+pub fn atan(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    match args {
+        0 => Err(RuntimeError::ValueExpected),
+        1 => match stack.pop1(args).try_to_number() {
             Some(num) => {
-                let abs = num.abs();
-                Ok(vec![abs.into()])
+                stack.data_stack.push(num.to_float().atan2(1.0).into());
+                Ok(1)
             }
             None => Err(RuntimeError::NotNumber),
         },
-        _ => Err(RuntimeError::NotNumber),
-    }
-}
-pub fn acos(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
-    match args.into_iter().next() {
-        Some(val) => match val.try_to_number() {
-            Some(num) => Ok(vec![num.to_float().acos().into()]),
-            None => Err(RuntimeError::NotNumber),
-        },
-        _ => Err(RuntimeError::NotNumber),
-    }
-}
-pub fn asin(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
-    match args.into_iter().next() {
-        Some(val) => match val.try_to_number() {
-            Some(num) => Ok(vec![num.to_float().asin().into()]),
-            None => Err(RuntimeError::NotNumber),
-        },
-        _ => Err(RuntimeError::NotNumber),
-    }
-}
-pub fn atan(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
-    let ret = match args.len() {
-        0 => return Err(RuntimeError::NotNumber),
-        1 => match args.into_iter().next().unwrap().try_to_number() {
-            Some(num) => num.to_float().atan2(1.0).into(),
-            None => return Err(RuntimeError::NotNumber),
-        },
         _ => {
-            let mut it = args.into_iter();
-            let y = match it.next().unwrap().try_to_number() {
+            let (y, x) = stack.pop2(args);
+            let y = match y.try_to_number() {
                 Some(num) => num.to_float(),
                 None => return Err(RuntimeError::NotNumber),
             };
-            let x = match it.next().unwrap().try_to_number() {
+            let x = match x.try_to_number() {
                 Some(num) => num.to_float(),
                 None => return Err(RuntimeError::NotNumber),
             };
-            y.atan2(x).into()
+            stack.data_stack.push(y.atan2(x).into());
+            Ok(1)
         }
+    }
+}
+pub fn ceil(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    if args == 0 {
+        return Err(RuntimeError::ValueExpected);
+    }
+    match stack.pop1(args).try_to_number() {
+        Some(num) => {
+            stack.data_stack.push(num.ceil().into());
+            Ok(1)
+        }
+        _ => Err(RuntimeError::NotNumber),
+    }
+}
+pub fn floor(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    if args == 0 {
+        return Err(RuntimeError::ValueExpected);
+    }
+    match stack.pop1(args).try_to_number() {
+        Some(num) => {
+            stack.data_stack.push(num.floor().into());
+            Ok(1)
+        }
+        _ => Err(RuntimeError::NotNumber),
+    }
+}
+pub fn cos(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    if args == 0 {
+        return Err(RuntimeError::ValueExpected);
+    }
+    match stack.pop1(args).try_to_number() {
+        Some(num) => {
+            stack.data_stack.push(num.cos().into());
+            Ok(1)
+        }
+        _ => Err(RuntimeError::NotNumber),
+    }
+}
+pub fn sin(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    if args == 0 {
+        return Err(RuntimeError::ValueExpected);
+    }
+    match stack.pop1(args).try_to_number() {
+        Some(num) => {
+            stack.data_stack.push(num.sin().into());
+            Ok(1)
+        }
+        _ => Err(RuntimeError::NotNumber),
+    }
+}
+pub fn deg(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    if args == 0 {
+        return Err(RuntimeError::ValueExpected);
+    }
+    match stack.pop1(args).try_to_number() {
+        Some(num) => {
+            stack.data_stack.push(num.deg().into());
+            Ok(1)
+        }
+        _ => Err(RuntimeError::NotNumber),
+    }
+}
+pub fn rad(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    if args == 0 {
+        return Err(RuntimeError::ValueExpected);
+    }
+    match stack.pop1(args).try_to_number() {
+        Some(num) => {
+            stack.data_stack.push(num.deg().into());
+            Ok(1)
+        }
+        _ => Err(RuntimeError::NotNumber),
+    }
+}
+pub fn exp(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    if args == 0 {
+        return Err(RuntimeError::ValueExpected);
+    }
+    match stack.pop1(args).try_to_number() {
+        Some(num) => {
+            stack.data_stack.push(num.exp().into());
+            Ok(1)
+        }
+        _ => Err(RuntimeError::NotNumber),
+    }
+}
+pub fn log(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    if args == 0 {
+        return Err(RuntimeError::ValueExpected);
+    }
+    let mut it = stack.pop_n(args);
+    let x = match it.next().unwrap().try_to_number() {
+        Some(num) => num,
+        None => return Err(RuntimeError::NotNumber),
     };
-    Ok(vec![ret])
-}
-pub fn ceil(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
-    match args.into_iter().next() {
-        Some(val) => match val.try_to_number() {
-            Some(num) => Ok(vec![num.ceil().into()]),
-            None => Err(RuntimeError::NotNumber),
-        },
-        _ => Err(RuntimeError::NotNumber),
-    }
-}
-pub fn floor(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
-    match args.into_iter().next() {
-        Some(val) => match val.try_to_number() {
-            Some(num) => Ok(vec![num.floor().into()]),
-            None => Err(RuntimeError::NotNumber),
-        },
-        _ => Err(RuntimeError::NotNumber),
-    }
-}
-pub fn cos(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
-    match args.into_iter().next() {
-        Some(val) => match val.try_to_number() {
-            Some(num) => Ok(vec![num.cos().into()]),
-            None => Err(RuntimeError::NotNumber),
-        },
-        _ => Err(RuntimeError::NotNumber),
-    }
-}
-pub fn sin(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
-    match args.into_iter().next() {
-        Some(val) => match val.try_to_number() {
-            Some(num) => Ok(vec![num.sin().into()]),
-            None => Err(RuntimeError::NotNumber),
-        },
-        _ => Err(RuntimeError::NotNumber),
-    }
-}
-pub fn deg(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
-    match args.into_iter().next() {
-        Some(val) => match val.try_to_number() {
-            Some(num) => Ok(vec![num.deg().into()]),
-            None => Err(RuntimeError::NotNumber),
-        },
-        _ => Err(RuntimeError::NotNumber),
-    }
-}
-pub fn rad(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
-    match args.into_iter().next() {
-        Some(val) => match val.try_to_number() {
-            Some(num) => Ok(vec![num.rad().into()]),
-            None => Err(RuntimeError::NotNumber),
-        },
-        _ => Err(RuntimeError::NotNumber),
-    }
-}
-pub fn exp(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
-    match args.into_iter().next() {
-        Some(val) => match val.try_to_number() {
-            Some(num) => Ok(vec![num.exp().into()]),
-            None => Err(RuntimeError::NotNumber),
-        },
-        _ => Err(RuntimeError::NotNumber),
-    }
-}
-pub fn log(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
-    let mut it = args.into_iter();
-    let x = match it.next() {
-        Some(val) => match val.try_to_number() {
-            Some(num) => num,
-            None => return Err(RuntimeError::NotNumber),
-        },
-        _ => return Err(RuntimeError::NotNumber),
-    };
-    match it.next() {
+    let next = it.next();
+    drop(it);
+    match next {
         Some(base) => match base.try_to_number() {
-            Some(base) => Ok(vec![x.log(base).into()]),
+            Some(base) => {
+                stack.data_stack.push(x.log(base).into());
+                Ok(1)
+            }
             None => Err(RuntimeError::NotNumber),
         },
         None => {
             // default to e
-            Ok(vec![x.ln().into()])
+            stack.data_stack.push(x.ln().into());
+            Ok(1)
         }
     }
 }
 
-pub fn sqrt(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
-    match args.into_iter().next() {
-        Some(val) => match val.try_to_number() {
-            Some(num) => Ok(vec![num.sqrt().into()]),
-            None => Err(RuntimeError::NotNumber),
-        },
+pub fn sqrt(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    if args == 0 {
+        return Err(RuntimeError::ValueExpected);
+    }
+    match stack.pop1(args).try_to_number() {
+        Some(num) => {
+            stack.data_stack.push(num.sqrt().into());
+            Ok(1)
+        }
         _ => Err(RuntimeError::NotNumber),
     }
 }
 
-pub fn type_(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
-    let ret = match args.into_iter().next() {
-        Some(LuaValue::Number(num)) => match num {
+pub fn type_(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    if args == 0 {
+        return Err(RuntimeError::ValueExpected);
+    }
+    let ret = match stack.pop1(args) {
+        LuaValue::Number(num) => match num {
             LuaNumber::Int(_) => "integer".into(),
             LuaNumber::Float(_) => "float".into(),
         },
         _ => ().into(),
     };
-
-    Ok(vec![ret])
+    stack.data_stack.push(ret);
+    Ok(1)
 }
-pub fn tointeger(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
-    let ret = match args.into_iter().next() {
-        Some(val) => match val.try_to_int() {
-            Some(num) => num.into(),
-            None => LuaValue::Nil,
-        },
+pub fn tointeger(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    if args == 0 {
+        return Err(RuntimeError::ValueExpected);
+    }
+    let ret = match stack.pop1(args).try_to_int() {
+        Some(num) => num.into(),
         _ => LuaValue::Nil,
     };
-
-    Ok(vec![ret])
+    stack.data_stack.push(ret);
+    Ok(1)
 }
-pub fn ult(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
-    let mut it = args.into_iter();
-    let a = match it.next() {
-        Some(val) => match val.try_to_int() {
-            Some(num) => num,
-            None => return Err(RuntimeError::NotInteger),
-        },
-        _ => return Err(RuntimeError::NotInteger),
+pub fn ult(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    if args < 2 {
+        return Err(RuntimeError::ValueExpected);
+    }
+    let (a, b) = stack.pop2(args);
+    let a = match a.try_to_int() {
+        Some(num) => num,
+        None => return Err(RuntimeError::NotInteger),
     };
-    let b = match it.next() {
-        Some(val) => match val.try_to_int() {
-            Some(num) => num,
-            None => return Err(RuntimeError::NotInteger),
-        },
-        _ => return Err(RuntimeError::NotInteger),
+    let b = match b.try_to_int() {
+        Some(num) => num,
+        None => return Err(RuntimeError::NotInteger),
     };
 
     #[cfg(feature = "32bit")]
@@ -264,56 +307,54 @@ pub fn ult(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, Run
     #[cfg(not(feature = "32bit"))]
     let res = (a as u64) < (b as u64);
 
-    Ok(vec![res.into()])
+    stack.data_stack.push(res.into());
+    Ok(1)
 }
 
-pub fn random(stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
-    let rand = match args.len() {
+pub fn random(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    let rand = match args {
         0 => {
             // [0,1)
             stack.rng.gen_range(0.0..1.0).into()
         }
         1 => {
             // [1,num]
-            match args.into_iter().next().unwrap().try_to_int() {
+            match stack.pop1(args).try_to_int() {
                 Some(num) => stack.rng.gen_range(1..=num).into(),
                 None => return Err(RuntimeError::NotInteger),
             }
         }
         _ => {
             // [m, n]
-            let mut it = args.into_iter();
-            let m = it.next().unwrap().try_to_int();
-            let n = it.next().unwrap().try_to_int();
+            let (m, n) = stack.pop2(args);
 
-            match (m, n) {
+            match (m.try_to_int(), n.try_to_int()) {
                 (Some(m), Some(n)) => stack.rng.gen_range(m..=n).into(),
                 _ => return Err(RuntimeError::NotInteger),
             }
         }
     };
-
-    Ok(vec![rand])
+    stack.data_stack.push(rand);
+    Ok(1)
 }
 
-pub fn randomseed(stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
-    match args.len() {
+pub fn randomseed(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    match args {
         0 => {
             stack.rng = StdRng::from_entropy();
         }
         1 => {
-            let seed = match args.into_iter().next().unwrap().try_to_int() {
+            let seed = match stack.pop1(args).try_to_int() {
                 Some(num) => num,
                 None => return Err(RuntimeError::NotInteger),
             };
             stack.rng = StdRng::seed_from_u64(seed as u64);
         }
         _ => {
-            let mut it = args.into_iter();
-            let seed1 = it.next().unwrap().try_to_int();
-            let seed2 = it.next().unwrap().try_to_int();
-            match (seed1, seed2) {
+            let (seed1, seed2) = stack.pop2(args);
+            match (seed1.try_to_int(), seed2.try_to_int()) {
                 (Some(seed1), Some(seed2)) => {
+                    // @TODO this should be 128bit seed
                     let seed = (seed1.rotate_left(32) ^ seed2) as u64;
                     stack.rng = StdRng::seed_from_u64(seed as u64);
                 }
@@ -321,39 +362,45 @@ pub fn randomseed(stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue
             }
         }
     }
-    Ok(vec![])
+    Ok(0)
 }
 
-pub fn modf(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
-    match args.into_iter().next() {
-        Some(LuaValue::Number(val)) => match val {
-            LuaNumber::Int(i) => Ok(vec![i.into(), 0.0.into()]),
+pub fn modf(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    if args == 0 {
+        return Err(RuntimeError::ValueExpected);
+    }
+    match stack.pop1(args) {
+        LuaValue::Number(num) => match num {
+            LuaNumber::Int(i) => {
+                stack.data_stack.push(i.into());
+                stack.data_stack.push(0.0.into());
+                Ok(2)
+            }
             LuaNumber::Float(f) => {
                 let fract = f.fract();
                 let int = f - fract;
-                Ok(vec![int.into(), fract.into()])
+                stack.data_stack.push(int.into());
+                stack.data_stack.push(fract.into());
+                Ok(2)
             }
         },
         _ => Err(RuntimeError::NotNumber),
     }
 }
 
-pub fn fmod(_stack: &mut Stack, args: Vec<LuaValue>) -> Result<Vec<LuaValue>, RuntimeError> {
-    let mut it = args.into_iter();
-    let x = match it.next() {
-        Some(val) => match val.try_to_number() {
-            Some(num) => num,
-            None => return Err(RuntimeError::NotNumber),
-        },
-        _ => return Err(RuntimeError::NotNumber),
+pub fn fmod(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    if args < 2 {
+        return Err(RuntimeError::ValueExpected);
+    }
+    let (x, y) = stack.pop2(args);
+    let x = match x.try_to_number() {
+        Some(num) => num,
+        None => return Err(RuntimeError::NotNumber),
     };
-    let y = match it.next() {
-        Some(val) => match val.try_to_number() {
-            Some(num) => num,
-            None => return Err(RuntimeError::NotNumber),
-        },
-        _ => return Err(RuntimeError::NotNumber),
+    let y = match y.try_to_number() {
+        Some(num) => num,
+        None => return Err(RuntimeError::NotNumber),
     };
-
-    Ok(vec![(x % y).into()])
+    stack.data_stack.push((x % y).into());
+    Ok(1)
 }

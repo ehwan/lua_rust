@@ -20,6 +20,10 @@ function Vector:__tostring()
     return "(" .. self.x .. ", " .. self.y .. ", " .. self.z .. ")"
 end
 
+function Vector:__call()
+    print( "Vector called with: ", tostring(self) )
+end
+
 -- Using the vector class
 local v1 = Vector.new(1, 2, 3)
 local v2 = Vector.new(4, 5, 6)
@@ -27,6 +31,8 @@ local v3 = v1 + v2
 print("Vector Addition: " .. tostring(v3))
 local v4 = v2 - v1
 print("Vector Subtraction: " .. tostring(v4))
+
+v1()
 
 
 -- Closure example: Counter

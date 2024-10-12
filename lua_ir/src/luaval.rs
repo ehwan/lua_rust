@@ -3,7 +3,6 @@ use crate::FloatType;
 use crate::IntType;
 use crate::LuaFunction;
 use crate::LuaTable;
-use crate::RuntimeError;
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -123,132 +122,14 @@ impl LuaValue {
             _ => None,
         }
     }
-    pub fn add(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
-        // @TODO metatable
-        match (self.try_to_number(), other.try_to_number()) {
-            (Some(a), Some(b)) => Ok((a + b).into()),
-            _ => unimplemented!("add metatable"),
-        }
-    }
-    pub fn sub(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
-        // @TODO metatable
-        match (self.try_to_number(), other.try_to_number()) {
-            (Some(a), Some(b)) => Ok((a - b).into()),
-            _ => unimplemented!("sub metatable"),
-        }
-    }
-    pub fn mul(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
-        // @TODO metatable
-        match (self.try_to_number(), other.try_to_number()) {
-            (Some(a), Some(b)) => Ok((a * b).into()),
-            _ => unimplemented!("mul metatable"),
-        }
-    }
-    pub fn div(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
-        // @TODO metatable
-        match (self.try_to_number(), other.try_to_number()) {
-            (Some(a), Some(b)) => Ok((a / b).into()),
-            _ => unimplemented!("div metatable"),
-        }
-    }
-    pub fn floor_div(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
-        // @TODO metatable
-        match (self.try_to_number(), other.try_to_number()) {
-            (Some(a), Some(b)) => Ok((a.floor_div(b)).into()),
-            _ => unimplemented!("floor_div metatable"),
-        }
-    }
-    pub fn modu(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
-        // @TODO metatable
-        match (self.try_to_number(), other.try_to_number()) {
-            (Some(a), Some(b)) => Ok((a % b).into()),
-            _ => unimplemented!("mod metatable"),
-        }
-    }
-    pub fn pow(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
-        // @TODO metatable
-        match (self.try_to_number(), other.try_to_number()) {
-            (Some(a), Some(b)) => Ok((a.pow(b)).into()),
-            _ => unimplemented!("pow metatable"),
-        }
-    }
-    pub fn neg(&self) -> Result<LuaValue, RuntimeError> {
-        // @TODO metatable
-        match self.try_to_number() {
-            Some(a) => Ok((-a).into()),
-            _ => unimplemented!("neg metatable"),
+    pub fn try_to_string(&self) -> Option<Vec<u8>> {
+        match self {
+            LuaValue::String(s) => Some(s.clone()),
+            LuaValue::Number(n) => Some(n.to_string().into_bytes()),
+            _ => None,
         }
     }
 
-    pub fn bit_and(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
-        // @TODO metatable
-        match (self.try_to_int(), other.try_to_int()) {
-            (Some(a), Some(b)) => Ok((a & b).into()),
-            _ => Err(RuntimeError::NotInteger),
-        }
-    }
-    pub fn bit_or(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
-        // @TODO metatable
-        match (self.try_to_int(), other.try_to_int()) {
-            (Some(a), Some(b)) => Ok((a | b).into()),
-            _ => Err(RuntimeError::NotInteger),
-        }
-    }
-    pub fn bit_xor(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
-        // @TODO metatable
-        match (self.try_to_int(), other.try_to_int()) {
-            (Some(a), Some(b)) => Ok((a ^ b).into()),
-            _ => Err(RuntimeError::NotInteger),
-        }
-    }
-    pub fn bit_lshift(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
-        // @TODO metatable
-        match (self.try_to_int(), other.try_to_int()) {
-            (Some(a), Some(b)) => Ok((a << b).into()),
-            _ => Err(RuntimeError::NotInteger),
-        }
-    }
-    pub fn bit_rshift(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
-        // @TODO metatable
-        match (self.try_to_int(), other.try_to_int()) {
-            (Some(a), Some(b)) => Ok((a >> b).into()),
-            _ => Err(RuntimeError::NotInteger),
-        }
-    }
-    pub fn bit_not(&self) -> Result<LuaValue, RuntimeError> {
-        // @TODO metatable
-        match self.try_to_int() {
-            Some(a) => Ok((!a).into()),
-            _ => Err(RuntimeError::NotInteger),
-        }
-    }
-
-    pub fn eq(&self, other: &LuaValue) -> bool {
-        // @TODO metatable
-        self == other
-    }
-    pub fn lt(&self, other: &LuaValue) -> Result<bool, RuntimeError> {
-        // @TODO metatable
-        match (self.try_to_number(), other.try_to_number()) {
-            (Some(a), Some(b)) => Ok(a < b),
-            _ => unimplemented!("lt metatable"),
-        }
-    }
-
-    pub fn len(&self) -> Result<IntType, RuntimeError> {
-        // @TODO metatable
-        let len = match self {
-            LuaValue::String(s) => s.len(),
-            LuaValue::Table(_t) => unimplemented!("table length"),
-            _ => 0,
-        };
-
-        Ok(len as IntType)
-    }
-    pub fn concat(&self, other: &LuaValue) -> Result<LuaValue, RuntimeError> {
-        // @TODO metatable
-        Ok(LuaValue::String(format!("{}{}", self, other).into()))
-    }
     pub fn not(&self) -> LuaValue {
         LuaValue::Boolean(!self.to_bool())
     }

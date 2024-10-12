@@ -16,6 +16,10 @@ pub enum Instruction {
     ///
     Pop,
 
+    /// clone where top of the usize_stack points to.
+    /// Does not pop from usize_stack.
+    Deref,
+
     /// jump to label
     Jump(LabelType),
     /// pops data_stack and jump to label if stack_top is true.
@@ -94,13 +98,12 @@ pub enum Instruction {
     UnaryLogicalNot,
 
     /// return expected can be 0.
-    /// function -> args -> top
+    /// sp pushed to usize_stack, points to the start of args.
+    /// args -> function -> stack top
     FunctionCall(Option<usize>),
 
     Return,
 
     /// Invalid call ( using `...` in a non-variadic function ) was filtered out in parser.
     GetVariadic(Option<usize>),
-
-    AdjustMultire(usize),
 }
