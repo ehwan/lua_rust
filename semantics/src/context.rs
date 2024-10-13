@@ -519,7 +519,7 @@ impl Context {
         } else {
             // it is global variable
             let key: crate::Expression = expr.name.string.into();
-            let table = crate::Expression::G;
+            let table = crate::Expression::Env;
 
             Ok(crate::Expression::TableIndex(crate::ExprTableIndex::new(
                 table, key,

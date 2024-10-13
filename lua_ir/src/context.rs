@@ -135,7 +135,6 @@ impl Context {
     /// emit an instruction that evalulates an expression and store the result in a register AX
     fn emit_expression(&mut self, expression: Expression, expected: Option<usize>) {
         match expression {
-            lua_semantics::Expression::G => self.emit_expression_g(expected),
             lua_semantics::Expression::Env => self.emit_expression_env(expected),
             lua_semantics::Expression::Variadic => self.emit_expression_variadic(expected),
             lua_semantics::Expression::Nil => self.emit_expression_nil(expected),
@@ -195,15 +194,6 @@ impl Context {
 }
 
 impl Context {
-    fn emit_expression_g(&mut self, expected: Option<usize>) {
-        if expected == Some(0) {
-            return;
-        }
-        self.instructions.push(Instruction::GetGlobal);
-        if let Some(expected) = expected {
-            self.emit_expression_nil(Some(expected - 1));
-        }
-    }
     fn emit_expression_env(&mut self, expected: Option<usize>) {
         if expected == Some(0) {
             return;

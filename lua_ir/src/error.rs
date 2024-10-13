@@ -30,4 +30,7 @@ pub enum RuntimeError {
 
     /// string.char()
     OutOfRangeChar,
+
+    /// error with error handler
+    Error,
 }

@@ -40,8 +40,6 @@ pub enum Instruction {
     /// push string
     String(Vec<u8>),
 
-    /// push _G
-    GetGlobal,
     /// push _ENV
     GetEnv,
 

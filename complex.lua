@@ -21,7 +21,7 @@ function Vector:__tostring()
 end
 
 function Vector:__call()
-    print( "Vector called with: ", tostring(self) )
+    print( "Vector called with: ", self )
 end
 
 -- Using the vector class

@@ -6,9 +6,6 @@ use crate::IntType;
 #[non_exhaustive]
 #[derive(Clone, Debug)]
 pub enum Expression {
-    /// _G
-    G,
-
     /// _ENV
     Env,
 

@@ -782,12 +782,7 @@ impl Stack {
             Instruction::String(s) => {
                 self.data_stack.push(LuaValue::String(s.clone()));
             }
-            Instruction::GetGlobal => {
-                // @TODO _G? or _ENV?
-                self.data_stack.push(self.env.clone());
-            }
             Instruction::GetEnv => {
-                // @TODO _G? or _ENV?
                 self.data_stack.push(self.env.clone());
             }
             Instruction::TableInit(cap) => {

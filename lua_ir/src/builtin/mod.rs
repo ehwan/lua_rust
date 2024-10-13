@@ -1,5 +1,6 @@
 use lua_tokenizer::IntType;
 
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::Chunk;
@@ -44,6 +45,8 @@ pub fn init_env() -> Result<LuaTable, RuntimeError> {
         "getmetatable".into(),
         LuaFunction::from_func(getmetatable).into(),
     );
+    env.map
+        .insert("assert".into(), LuaFunction::from_func(assert).into());
 
     env.map.insert("_VERSION".into(), VERSION.into());
 
@@ -51,6 +54,12 @@ pub fn init_env() -> Result<LuaTable, RuntimeError> {
     env.map.insert("math".into(), math::init()?.into());
     // env.map.insert("table".into(), table::init()?.into());
     // env.map.insert("io".into(), io::init()?.into());
+
+    // @TODO _G
+    env.map.insert(
+        "_G".into(),
+        LuaValue::Table(Rc::new(RefCell::new(env.clone()))),
+    );
     Ok(env)
 }
 
@@ -58,12 +67,13 @@ pub fn init_env() -> Result<LuaTable, RuntimeError> {
 // pcall
 
 pub fn print(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
-    for (idx, arg) in stack.pop_n(args).enumerate() {
+    let args: Vec<_> = stack.pop_n(args).collect();
+    for (idx, arg) in args.into_iter().enumerate() {
         if idx > 0 {
             print!("\t");
         }
-        // @TODO
-        print!("{}", arg);
+        let to_string_ed = tostring_impl(stack, _chunk, arg)?;
+        print!("{}", String::from_utf8_lossy(&to_string_ed));
     }
     println!();
     Ok(0)
@@ -223,26 +233,30 @@ pub fn getmetatable(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<us
     }
 }
 
+fn tostring_impl(stack: &mut Stack, chunk: &Chunk, arg: LuaValue) -> Result<Vec<u8>, RuntimeError> {
+    match arg.get_metavalue("__tostring") {
+        Some(meta) => {
+            stack.data_stack.push(arg);
+            stack.function_call(chunk, 1, meta, Some(1))?;
+            let arg = stack.data_stack.pop().unwrap();
+            tostring_impl(stack, chunk, arg)
+        }
+        _ => match arg.get_metavalue("__name") {
+            Some(name) => match name {
+                LuaValue::String(name) => Ok(name),
+                _ => Ok(arg.to_string().into_bytes()),
+            },
+            _ => Ok(arg.to_string().into_bytes()),
+        },
+    }
+}
 pub fn tostring(stack: &mut Stack, chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
-    match stack.pop1(args) {
-        LuaValue::Table(table) => {
-            let meta = table.borrow().get_metavalue("__tostring");
-            if let Some(meta) = meta {
-                stack.data_stack.push(LuaValue::Table(table));
-                stack.function_call(chunk, 1, meta, Some(1))?;
-            } else {
-                stack
-                    .data_stack
-                    .push(format!("table: {:p}", Rc::as_ptr(&table)).into());
-            }
-        }
-        arg => {
-            stack.data_stack.push(arg.to_string().into());
-        }
-    }
+    let arg = stack.pop1(args);
+    let to_string_ed = LuaValue::String(tostring_impl(stack, chunk, arg)?);
+    stack.data_stack.push(to_string_ed);
     Ok(1)
 }
 
@@ -263,4 +277,16 @@ pub fn type_(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, Ru
     };
     stack.data_stack.push(type_str.into());
     Ok(1)
+}
+
+pub fn assert(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    if args == 0 {
+        return Err(RuntimeError::ValueExpected);
+    }
+    if stack.data_stack[stack.data_stack.len() - args].to_bool() {
+        Ok(args)
+    } else {
+        drop(stack.pop_n(args));
+        Err(RuntimeError::Error)
+    }
 }

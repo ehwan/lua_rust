@@ -42,10 +42,7 @@ impl std::hash::Hash for LuaValue {
             LuaValue::Number(n) => n.hash(state),
             LuaValue::String(s) => s.hash(state),
             LuaValue::Table(t) => Rc::as_ptr(t).hash(state),
-            LuaValue::Function(_) => {
-                unimplemented!("hash for function");
-                // func.hash(state)
-            }
+            LuaValue::Function(f) => f.hash(state),
             LuaValue::UserData(_) => {
                 unimplemented!("hash for userdata")
             }
@@ -63,9 +60,7 @@ impl std::cmp::PartialEq for LuaValue {
             (LuaValue::Number(a), LuaValue::Number(b)) => a == b,
             (LuaValue::String(a), LuaValue::String(b)) => a == b,
             (LuaValue::Table(a), LuaValue::Table(b)) => Rc::ptr_eq(a, b),
-            (LuaValue::Function(_a), LuaValue::Function(_b)) => {
-                unimplemented!("function equality")
-            }
+            (LuaValue::Function(a), LuaValue::Function(b)) => a == b,
             (LuaValue::UserData(_), LuaValue::UserData(_)) => {
                 unimplemented!("userdata equality")
             }
@@ -122,9 +117,6 @@ impl LuaValue {
             _ => None,
         }
     }
-    // pub fn not(&self) -> LuaValue {
-    //     LuaValue::Boolean(!self.to_bool())
-    // }
 
     pub fn is_nil(&self) -> bool {
         match self {
