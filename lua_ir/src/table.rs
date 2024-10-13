@@ -22,8 +22,7 @@ impl LuaTable {
             meta: None,
         }
     }
-
-    pub fn get_metamethod(&self, key: &str) -> Option<LuaValue> {
+    pub fn get_metavalue(&self, key: &str) -> Option<LuaValue> {
         if let Some(meta) = &self.meta {
             meta.borrow().map.get(&key.into()).cloned()
         } else {

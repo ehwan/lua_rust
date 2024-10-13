@@ -229,7 +229,7 @@ pub fn tostring(stack: &mut Stack, chunk: &Chunk, args: usize) -> Result<usize, 
     }
     match stack.pop1(args) {
         LuaValue::Table(table) => {
-            let meta = table.borrow().get_metamethod("__tostring");
+            let meta = table.borrow().get_metavalue("__tostring");
             if let Some(meta) = meta {
                 stack.data_stack.push(LuaValue::Table(table));
                 stack.function_call(chunk, 1, meta, Some(1))?;

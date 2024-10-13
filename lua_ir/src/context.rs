@@ -285,7 +285,7 @@ impl Context {
             }
             lua_semantics::ExprUnary::LogicalNot(expr) => {
                 self.emit_expression(*expr.value, Some(1));
-                self.instructions.push(Instruction::UnaryBitwiseNot);
+                self.instructions.push(Instruction::UnaryLogicalNot);
             }
         }
         if let Some(expected) = expected {
@@ -371,7 +371,8 @@ impl Context {
             lua_semantics::ExprBinary::NotEqual(expr) => {
                 self.emit_expression(*expr.lhs, Some(1));
                 self.emit_expression(*expr.rhs, Some(1));
-                self.instructions.push(Instruction::BinaryNotEqual);
+                self.instructions.push(Instruction::BinaryEqual);
+                self.instructions.push(Instruction::UnaryLogicalNot);
             }
             lua_semantics::ExprBinary::LessThan(expr) => {
                 self.emit_expression(*expr.lhs, Some(1));
@@ -384,14 +385,14 @@ impl Context {
                 self.instructions.push(Instruction::BinaryLessEqual);
             }
             lua_semantics::ExprBinary::GreaterThan(expr) => {
-                self.emit_expression(*expr.lhs, Some(1));
                 self.emit_expression(*expr.rhs, Some(1));
-                self.instructions.push(Instruction::BinaryGreaterThan);
+                self.emit_expression(*expr.lhs, Some(1));
+                self.instructions.push(Instruction::BinaryLessThan);
             }
             lua_semantics::ExprBinary::GreaterEqual(expr) => {
-                self.emit_expression(*expr.lhs, Some(1));
                 self.emit_expression(*expr.rhs, Some(1));
-                self.instructions.push(Instruction::BinaryGreaterEqual);
+                self.emit_expression(*expr.lhs, Some(1));
+                self.instructions.push(Instruction::BinaryLessEqual);
             }
             lua_semantics::ExprBinary::LogicalAnd(expr) => {
                 /*

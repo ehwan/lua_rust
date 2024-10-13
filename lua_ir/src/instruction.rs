@@ -9,8 +9,6 @@ pub enum Instruction {
     Clear(usize),
     /// clone top of the data_stack and push it
     Clone,
-    /// swap top two elements of stack
-    Swap,
     /// push current length of data_stack to usize_stack
     Sp,
     ///
@@ -86,11 +84,8 @@ pub enum Instruction {
     BinaryShiftLeft,
     BinaryShiftRight,
     BinaryEqual,
-    BinaryNotEqual,
     BinaryLessThan,
     BinaryLessEqual,
-    BinaryGreaterThan,
-    BinaryGreaterEqual,
 
     UnaryMinus,
     UnaryBitwiseNot,

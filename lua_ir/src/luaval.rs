@@ -122,17 +122,9 @@ impl LuaValue {
             _ => None,
         }
     }
-    pub fn try_to_string(&self) -> Option<Vec<u8>> {
-        match self {
-            LuaValue::String(s) => Some(s.clone()),
-            LuaValue::Number(n) => Some(n.to_string().into_bytes()),
-            _ => None,
-        }
-    }
-
-    pub fn not(&self) -> LuaValue {
-        LuaValue::Boolean(!self.to_bool())
-    }
+    // pub fn not(&self) -> LuaValue {
+    //     LuaValue::Boolean(!self.to_bool())
+    // }
 
     pub fn is_nil(&self) -> bool {
         match self {
@@ -144,6 +136,19 @@ impl LuaValue {
         match self {
             LuaValue::Number(n) => n.is_nan(),
             _ => false,
+        }
+    }
+
+    pub fn get_metavalue(&self, key: &str) -> Option<LuaValue> {
+        match self {
+            LuaValue::Table(t) => {
+                if let Some(meta) = &t.borrow().meta {
+                    meta.borrow().map.get(&key.into()).cloned()
+                } else {
+                    None
+                }
+            }
+            _ => None,
         }
     }
 }

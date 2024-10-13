@@ -103,62 +103,48 @@ impl Stack {
         let v3 = it.next().unwrap();
         (v0, v1, v2, v3)
     }
-    pub fn push(&mut self, value: LuaValue) {
-        self.data_stack.push(value);
-    }
-    pub fn pop_multire(&mut self) -> impl Iterator<Item = LuaValue> + '_ {
-        let sp = self.usize_stack.pop().unwrap();
-        self.data_stack.drain(sp..)
-    }
 
+    /// Try to call binary metamethod f(lhs, rhs).
+    /// It tries to search metamethod on lhs first, then rhs.
+    fn try_call_metamethod(
+        &mut self,
+        chunk: &Chunk,
+        lhs: LuaValue,
+        rhs: LuaValue,
+        meta_name: &str,
+    ) -> Result<(), RuntimeError> {
+        match lhs.get_metavalue(meta_name) {
+            Some(meta) => {
+                self.data_stack.push(lhs);
+                self.data_stack.push(rhs);
+                self.function_call(chunk, 2, meta, Some(1))
+            }
+            None => match rhs.get_metavalue(meta_name) {
+                Some(meta) => {
+                    self.data_stack.push(lhs);
+                    self.data_stack.push(rhs);
+                    self.function_call(chunk, 2, meta, Some(1))
+                }
+                None => Err(RuntimeError::NoMetaMethod),
+            },
+        }
+    }
+    /// add operation with __add metamethod
     pub fn add(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
         let rhs = self.data_stack.pop().unwrap();
         let lhs = self.data_stack.pop().unwrap();
         match (lhs, rhs) {
+            // if both are numbers, add them
             (LuaValue::Number(lhs), LuaValue::Number(rhs)) => {
                 self.data_stack.push((lhs + rhs).into());
                 Ok(())
             }
-            (lhs, rhs) => match lhs {
-                LuaValue::Table(lhs) => {
-                    let func = lhs.borrow().get_metamethod("__add");
-                    if let Some(meta) = func {
-                        self.data_stack.push(LuaValue::Table(lhs));
-                        self.data_stack.push(rhs);
-                        self.function_call(chunk, 2, meta, Some(1))
-                    } else {
-                        match rhs {
-                            LuaValue::Table(rhs) => {
-                                let func = rhs.borrow().get_metamethod("__add");
-                                if let Some(meta) = func {
-                                    self.data_stack.push(LuaValue::Table(lhs));
-                                    self.data_stack.push(LuaValue::Table(rhs));
-                                    self.function_call(chunk, 2, meta, Some(1))
-                                } else {
-                                    Err(RuntimeError::NoMetaMethod)
-                                }
-                            }
-                            _ => Err(RuntimeError::NoMetaMethod),
-                        }
-                    }
-                }
-                lhs => match rhs {
-                    LuaValue::Table(rhs) => {
-                        let func = rhs.borrow().get_metamethod("__add");
-                        if let Some(meta) = func {
-                            self.data_stack.push(lhs);
-                            self.data_stack.push(LuaValue::Table(rhs));
-                            self.function_call(chunk, 2, meta, Some(1))
-                        } else {
-                            Err(RuntimeError::NoMetaMethod)
-                        }
-                    }
-                    _ => Err(RuntimeError::NoMetaMethod),
-                },
-            },
+            // else, try to call metamethod, search on left first
+            (lhs, rhs) => self.try_call_metamethod(chunk, lhs, rhs, "__add"),
         }
     }
 
+    /// sub operation with __sub metamethod
     pub fn sub(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
         let rhs = self.data_stack.pop().unwrap();
         let lhs = self.data_stack.pop().unwrap();
@@ -167,45 +153,11 @@ impl Stack {
                 self.data_stack.push((lhs - rhs).into());
                 Ok(())
             }
-            (lhs, rhs) => match lhs {
-                LuaValue::Table(lhs) => {
-                    let func = lhs.borrow().get_metamethod("__sub");
-                    if let Some(meta) = func {
-                        self.data_stack.push(LuaValue::Table(lhs));
-                        self.data_stack.push(rhs);
-                        self.function_call(chunk, 2, meta, Some(1))
-                    } else {
-                        match rhs {
-                            LuaValue::Table(rhs) => {
-                                let func = rhs.borrow().get_metamethod("__sub");
-                                if let Some(meta) = func {
-                                    self.data_stack.push(LuaValue::Table(lhs));
-                                    self.data_stack.push(LuaValue::Table(rhs));
-                                    self.function_call(chunk, 2, meta, Some(1))
-                                } else {
-                                    Err(RuntimeError::NoMetaMethod)
-                                }
-                            }
-                            _ => Err(RuntimeError::NoMetaMethod),
-                        }
-                    }
-                }
-                lhs => match rhs {
-                    LuaValue::Table(rhs) => {
-                        let func = rhs.borrow().get_metamethod("__sub");
-                        if let Some(meta) = func {
-                            self.data_stack.push(lhs);
-                            self.data_stack.push(LuaValue::Table(rhs));
-                            self.function_call(chunk, 2, meta, Some(1))
-                        } else {
-                            Err(RuntimeError::NoMetaMethod)
-                        }
-                    }
-                    _ => Err(RuntimeError::NoMetaMethod),
-                },
-            },
+            // else, try to call metamethod, search on left first
+            (lhs, rhs) => self.try_call_metamethod(chunk, lhs, rhs, "__sub"),
         }
     }
+    /// mul operation with __mul metamethod
     pub fn mul(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
         let rhs = self.data_stack.pop().unwrap();
         let lhs = self.data_stack.pop().unwrap();
@@ -214,45 +166,11 @@ impl Stack {
                 self.data_stack.push((lhs * rhs).into());
                 Ok(())
             }
-            (lhs, rhs) => match lhs {
-                LuaValue::Table(lhs) => {
-                    let func = lhs.borrow().get_metamethod("__mul");
-                    if let Some(meta) = func {
-                        self.data_stack.push(LuaValue::Table(lhs));
-                        self.data_stack.push(rhs);
-                        self.function_call(chunk, 2, meta, Some(1))
-                    } else {
-                        match rhs {
-                            LuaValue::Table(rhs) => {
-                                let func = rhs.borrow().get_metamethod("__mul");
-                                if let Some(meta) = func {
-                                    self.data_stack.push(LuaValue::Table(lhs));
-                                    self.data_stack.push(LuaValue::Table(rhs));
-                                    self.function_call(chunk, 2, meta, Some(1))
-                                } else {
-                                    Err(RuntimeError::NoMetaMethod)
-                                }
-                            }
-                            _ => Err(RuntimeError::NoMetaMethod),
-                        }
-                    }
-                }
-                lhs => match rhs {
-                    LuaValue::Table(rhs) => {
-                        let func = rhs.borrow().get_metamethod("__mul");
-                        if let Some(meta) = func {
-                            self.data_stack.push(lhs);
-                            self.data_stack.push(LuaValue::Table(rhs));
-                            self.function_call(chunk, 2, meta, Some(1))
-                        } else {
-                            Err(RuntimeError::NoMetaMethod)
-                        }
-                    }
-                    _ => Err(RuntimeError::NoMetaMethod),
-                },
-            },
+            // else, try to call metamethod, search on left first
+            (lhs, rhs) => self.try_call_metamethod(chunk, lhs, rhs, "__mul"),
         }
     }
+    /// div operation with __div metamethod
     pub fn div(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
         let rhs = self.data_stack.pop().unwrap();
         let lhs = self.data_stack.pop().unwrap();
@@ -261,45 +179,11 @@ impl Stack {
                 self.data_stack.push((lhs / rhs).into());
                 Ok(())
             }
-            (lhs, rhs) => match lhs {
-                LuaValue::Table(lhs) => {
-                    let func = lhs.borrow().get_metamethod("__div");
-                    if let Some(meta) = func {
-                        self.data_stack.push(LuaValue::Table(lhs));
-                        self.data_stack.push(rhs);
-                        self.function_call(chunk, 2, meta, Some(1))
-                    } else {
-                        match rhs {
-                            LuaValue::Table(rhs) => {
-                                let func = rhs.borrow().get_metamethod("__div");
-                                if let Some(meta) = func {
-                                    self.data_stack.push(LuaValue::Table(lhs));
-                                    self.data_stack.push(LuaValue::Table(rhs));
-                                    self.function_call(chunk, 2, meta, Some(1))
-                                } else {
-                                    Err(RuntimeError::NoMetaMethod)
-                                }
-                            }
-                            _ => Err(RuntimeError::NoMetaMethod),
-                        }
-                    }
-                }
-                lhs => match rhs {
-                    LuaValue::Table(rhs) => {
-                        let func = rhs.borrow().get_metamethod("__div");
-                        if let Some(meta) = func {
-                            self.data_stack.push(lhs);
-                            self.data_stack.push(LuaValue::Table(rhs));
-                            self.function_call(chunk, 2, meta, Some(1))
-                        } else {
-                            Err(RuntimeError::NoMetaMethod)
-                        }
-                    }
-                    _ => Err(RuntimeError::NoMetaMethod),
-                },
-            },
+            // else, try to call metamethod, search on left first
+            (lhs, rhs) => self.try_call_metamethod(chunk, lhs, rhs, "__div"),
         }
     }
+    /// mod operation with __mod metamethod
     pub fn mod_(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
         let rhs = self.data_stack.pop().unwrap();
         let lhs = self.data_stack.pop().unwrap();
@@ -308,92 +192,24 @@ impl Stack {
                 self.data_stack.push((lhs % rhs).into());
                 Ok(())
             }
-            (lhs, rhs) => match lhs {
-                LuaValue::Table(lhs) => {
-                    let func = lhs.borrow().get_metamethod("__mod");
-                    if let Some(meta) = func {
-                        self.data_stack.push(LuaValue::Table(lhs));
-                        self.data_stack.push(rhs);
-                        self.function_call(chunk, 2, meta, Some(1))
-                    } else {
-                        match rhs {
-                            LuaValue::Table(rhs) => {
-                                let func = rhs.borrow().get_metamethod("__mod");
-                                if let Some(meta) = func {
-                                    self.data_stack.push(LuaValue::Table(lhs));
-                                    self.data_stack.push(LuaValue::Table(rhs));
-                                    self.function_call(chunk, 2, meta, Some(1))
-                                } else {
-                                    Err(RuntimeError::NoMetaMethod)
-                                }
-                            }
-                            _ => Err(RuntimeError::NoMetaMethod),
-                        }
-                    }
-                }
-                lhs => match rhs {
-                    LuaValue::Table(rhs) => {
-                        let func = rhs.borrow().get_metamethod("__mod");
-                        if let Some(meta) = func {
-                            self.data_stack.push(lhs);
-                            self.data_stack.push(LuaValue::Table(rhs));
-                            self.function_call(chunk, 2, meta, Some(1))
-                        } else {
-                            Err(RuntimeError::NoMetaMethod)
-                        }
-                    }
-                    _ => Err(RuntimeError::NoMetaMethod),
-                },
-            },
+            // else, try to call metamethod, search on left first
+            (lhs, rhs) => self.try_call_metamethod(chunk, lhs, rhs, "__mod"),
         }
     }
+    /// pow operation with __pow metamethod
     pub fn pow(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
         let rhs = self.data_stack.pop().unwrap();
         let lhs = self.data_stack.pop().unwrap();
         match (lhs, rhs) {
             (LuaValue::Number(lhs), LuaValue::Number(rhs)) => {
-                self.data_stack.push(lhs.pow(rhs).into());
+                self.data_stack.push((lhs.pow(rhs)).into());
                 Ok(())
             }
-            (lhs, rhs) => match lhs {
-                LuaValue::Table(lhs) => {
-                    let func = lhs.borrow().get_metamethod("__pow");
-                    if let Some(meta) = func {
-                        self.data_stack.push(LuaValue::Table(lhs));
-                        self.data_stack.push(rhs);
-                        self.function_call(chunk, 2, meta, Some(1))
-                    } else {
-                        match rhs {
-                            LuaValue::Table(rhs) => {
-                                let func = rhs.borrow().get_metamethod("__pow");
-                                if let Some(meta) = func {
-                                    self.data_stack.push(LuaValue::Table(lhs));
-                                    self.data_stack.push(LuaValue::Table(rhs));
-                                    self.function_call(chunk, 2, meta, Some(1))
-                                } else {
-                                    Err(RuntimeError::NoMetaMethod)
-                                }
-                            }
-                            _ => Err(RuntimeError::NoMetaMethod),
-                        }
-                    }
-                }
-                lhs => match rhs {
-                    LuaValue::Table(rhs) => {
-                        let func = rhs.borrow().get_metamethod("__pow");
-                        if let Some(meta) = func {
-                            self.data_stack.push(lhs);
-                            self.data_stack.push(LuaValue::Table(rhs));
-                            self.function_call(chunk, 2, meta, Some(1))
-                        } else {
-                            Err(RuntimeError::NoMetaMethod)
-                        }
-                    }
-                    _ => Err(RuntimeError::NoMetaMethod),
-                },
-            },
+            // else, try to call metamethod, search on left first
+            (lhs, rhs) => self.try_call_metamethod(chunk, lhs, rhs, "__pow"),
         }
     }
+    /// unary minus operation with __unm metamethod
     pub fn unm(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
         let lhs = self.data_stack.pop().unwrap();
         match lhs {
@@ -401,379 +217,197 @@ impl Stack {
                 self.data_stack.push((-num).into());
                 Ok(())
             }
-            lhs => match lhs {
-                LuaValue::Table(lhs) => {
-                    let func = lhs.borrow().get_metamethod("__unm");
-                    if let Some(meta) = func {
-                        // For the unary operators (negation, length, and bitwise NOT),
-                        // the metamethod is computed and called with a dummy second operand
-                        // equal to the first one.
-                        self.data_stack.push(LuaValue::Table(Rc::clone(&lhs)));
-                        self.data_stack.push(LuaValue::Table(lhs));
-                        self.function_call(chunk, 2, meta, Some(1))
-                    } else {
-                        Err(RuntimeError::NoMetaMethod)
-                    }
+            lhs => match lhs.get_metavalue("__unm") {
+                Some(meta) => {
+                    // For the unary operators (negation, length, and bitwise NOT),
+                    // the metamethod is computed and called with a dummy second operand
+                    // equal to the first one.
+                    self.data_stack.push(lhs.clone());
+                    self.data_stack.push(lhs);
+                    self.function_call(chunk, 2, meta, Some(1))
                 }
                 _ => Err(RuntimeError::NoMetaMethod),
             },
         }
     }
+    /// floor division operation with __idiv metamethod
     pub fn idiv(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
         let rhs = self.data_stack.pop().unwrap();
         let lhs = self.data_stack.pop().unwrap();
         match (lhs, rhs) {
             (LuaValue::Number(lhs), LuaValue::Number(rhs)) => {
-                self.data_stack.push(lhs.floor_div(rhs).into());
+                self.data_stack.push((lhs.floor_div(rhs)).into());
                 Ok(())
             }
-            (lhs, rhs) => match lhs {
-                LuaValue::Table(lhs) => {
-                    let func = lhs.borrow().get_metamethod("__idiv");
-                    if let Some(meta) = func {
-                        self.data_stack.push(LuaValue::Table(lhs));
-                        self.data_stack.push(rhs);
-                        self.function_call(chunk, 2, meta, Some(1))
-                    } else {
-                        match rhs {
-                            LuaValue::Table(rhs) => {
-                                let func = rhs.borrow().get_metamethod("__idiv");
-                                if let Some(meta) = func {
-                                    self.data_stack.push(LuaValue::Table(lhs));
-                                    self.data_stack.push(LuaValue::Table(rhs));
-                                    self.function_call(chunk, 2, meta, Some(1))
-                                } else {
-                                    Err(RuntimeError::NoMetaMethod)
-                                }
-                            }
-                            _ => Err(RuntimeError::NoMetaMethod),
-                        }
-                    }
-                }
-                lhs => match rhs {
-                    LuaValue::Table(rhs) => {
-                        let func = rhs.borrow().get_metamethod("__idiv");
-                        if let Some(meta) = func {
-                            self.data_stack.push(lhs);
-                            self.data_stack.push(LuaValue::Table(rhs));
-                            self.function_call(chunk, 2, meta, Some(1))
-                        } else {
-                            Err(RuntimeError::NoMetaMethod)
-                        }
-                    }
-                    _ => Err(RuntimeError::NoMetaMethod),
-                },
-            },
+            // else, try to call metamethod, search on left first
+            (lhs, rhs) => self.try_call_metamethod(chunk, lhs, rhs, "__idiv"),
         }
     }
+    /// bitwise and operation with __band metamethod
     pub fn band(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
         let rhs = self.data_stack.pop().unwrap();
         let lhs = self.data_stack.pop().unwrap();
-        match (lhs.try_to_int(), rhs.try_to_int()) {
-            (Some(lhs), Some(rhs)) => {
-                self.data_stack.push((lhs & rhs).into());
-                Ok(())
-            }
-            _ => match lhs {
-                LuaValue::Table(lhs) => {
-                    let func = lhs.borrow().get_metamethod("__band");
-                    if let Some(meta) = func {
-                        self.data_stack.push(LuaValue::Table(lhs));
-                        self.data_stack.push(rhs);
-                        self.function_call(chunk, 2, meta, Some(1))
-                    } else {
-                        match rhs {
-                            LuaValue::Table(rhs) => {
-                                let func = rhs.borrow().get_metamethod("__band");
-                                if let Some(meta) = func {
-                                    self.data_stack.push(LuaValue::Table(lhs));
-                                    self.data_stack.push(LuaValue::Table(rhs));
-                                    self.function_call(chunk, 2, meta, Some(1))
-                                } else {
-                                    Err(RuntimeError::NoMetaMethod)
-                                }
-                            }
-                            _ => Err(RuntimeError::NoMetaMethod),
-                        }
+        match (&lhs, &rhs) {
+            (LuaValue::Number(lhs_num), LuaValue::Number(rhs_num)) => {
+                match (lhs_num.try_to_int(), rhs_num.try_to_int()) {
+                    (Some(lhs), Some(rhs)) => {
+                        self.data_stack.push((lhs & rhs).into());
+                        Ok(())
                     }
+                    _ => self.try_call_metamethod(chunk, lhs, rhs, "__band"),
                 }
-                lhs => match rhs {
-                    LuaValue::Table(rhs) => {
-                        let func = rhs.borrow().get_metamethod("__band");
-                        if let Some(meta) = func {
-                            self.data_stack.push(lhs);
-                            self.data_stack.push(LuaValue::Table(rhs));
-                            self.function_call(chunk, 2, meta, Some(1))
-                        } else {
-                            Err(RuntimeError::NoMetaMethod)
-                        }
-                    }
-                    _ => Err(RuntimeError::NoMetaMethod),
-                },
-            },
+            }
+            // else, try to call metamethod, search on left first
+            _ => self.try_call_metamethod(chunk, lhs, rhs, "__band"),
         }
     }
+    /// bitwise or operation with __bor metamethod
     pub fn bor(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
         let rhs = self.data_stack.pop().unwrap();
         let lhs = self.data_stack.pop().unwrap();
-        match (lhs.try_to_int(), rhs.try_to_int()) {
-            (Some(lhs), Some(rhs)) => {
-                self.data_stack.push((lhs | rhs).into());
-                Ok(())
-            }
-            _ => match lhs {
-                LuaValue::Table(lhs) => {
-                    let func = lhs.borrow().get_metamethod("__bor");
-                    if let Some(meta) = func {
-                        self.data_stack.push(LuaValue::Table(lhs));
-                        self.data_stack.push(rhs);
-                        self.function_call(chunk, 2, meta, Some(1))
-                    } else {
-                        match rhs {
-                            LuaValue::Table(rhs) => {
-                                let func = rhs.borrow().get_metamethod("__bor");
-                                if let Some(meta) = func {
-                                    self.data_stack.push(LuaValue::Table(lhs));
-                                    self.data_stack.push(LuaValue::Table(rhs));
-                                    self.function_call(chunk, 2, meta, Some(1))
-                                } else {
-                                    Err(RuntimeError::NoMetaMethod)
-                                }
-                            }
-                            _ => Err(RuntimeError::NoMetaMethod),
-                        }
+        match (&lhs, &rhs) {
+            (LuaValue::Number(lhs_num), LuaValue::Number(rhs_num)) => {
+                match (lhs_num.try_to_int(), rhs_num.try_to_int()) {
+                    (Some(lhs), Some(rhs)) => {
+                        self.data_stack.push((lhs | rhs).into());
+                        Ok(())
                     }
+                    _ => self.try_call_metamethod(chunk, lhs, rhs, "__bor"),
                 }
-                lhs => match rhs {
-                    LuaValue::Table(rhs) => {
-                        let func = rhs.borrow().get_metamethod("__bor");
-                        if let Some(meta) = func {
-                            self.data_stack.push(lhs);
-                            self.data_stack.push(LuaValue::Table(rhs));
-                            self.function_call(chunk, 2, meta, Some(1))
-                        } else {
-                            Err(RuntimeError::NoMetaMethod)
-                        }
-                    }
-                    _ => Err(RuntimeError::NoMetaMethod),
-                },
-            },
+            }
+            // else, try to call metamethod, search on left first
+            _ => self.try_call_metamethod(chunk, lhs, rhs, "__bor"),
         }
     }
+    /// bitwise xor operation with __bxor metamethod
     pub fn bxor(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
         let rhs = self.data_stack.pop().unwrap();
         let lhs = self.data_stack.pop().unwrap();
-        match (lhs.try_to_int(), rhs.try_to_int()) {
-            (Some(lhs), Some(rhs)) => {
-                self.data_stack.push((lhs ^ rhs).into());
-                Ok(())
-            }
-            _ => match lhs {
-                LuaValue::Table(lhs) => {
-                    let func = lhs.borrow().get_metamethod("__bxor");
-                    if let Some(meta) = func {
-                        self.data_stack.push(LuaValue::Table(lhs));
-                        self.data_stack.push(rhs);
-                        self.function_call(chunk, 2, meta, Some(1))
-                    } else {
-                        match rhs {
-                            LuaValue::Table(rhs) => {
-                                let func = rhs.borrow().get_metamethod("__bxor");
-                                if let Some(meta) = func {
-                                    self.data_stack.push(LuaValue::Table(lhs));
-                                    self.data_stack.push(LuaValue::Table(rhs));
-                                    self.function_call(chunk, 2, meta, Some(1))
-                                } else {
-                                    Err(RuntimeError::NoMetaMethod)
-                                }
-                            }
-                            _ => Err(RuntimeError::NoMetaMethod),
-                        }
+        match (&lhs, &rhs) {
+            (LuaValue::Number(lhs_num), LuaValue::Number(rhs_num)) => {
+                match (lhs_num.try_to_int(), rhs_num.try_to_int()) {
+                    (Some(lhs), Some(rhs)) => {
+                        self.data_stack.push((lhs ^ rhs).into());
+                        Ok(())
                     }
+                    _ => self.try_call_metamethod(chunk, lhs, rhs, "__bxor"),
                 }
-                lhs => match rhs {
-                    LuaValue::Table(rhs) => {
-                        let func = rhs.borrow().get_metamethod("__bxor");
-                        if let Some(meta) = func {
-                            self.data_stack.push(lhs);
-                            self.data_stack.push(LuaValue::Table(rhs));
-                            self.function_call(chunk, 2, meta, Some(1))
-                        } else {
-                            Err(RuntimeError::NoMetaMethod)
-                        }
-                    }
-                    _ => Err(RuntimeError::NoMetaMethod),
-                },
-            },
+            }
+            // else, try to call metamethod, search on left first
+            _ => self.try_call_metamethod(chunk, lhs, rhs, "__bxor"),
         }
     }
+    /// bitwise shift left operation with __shl metamethod
     pub fn shl(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
         let rhs = self.data_stack.pop().unwrap();
         let lhs = self.data_stack.pop().unwrap();
-        match (lhs.try_to_int(), rhs.try_to_int()) {
-            (Some(lhs), Some(rhs)) => {
-                self.data_stack.push((lhs << rhs).into());
-                Ok(())
-            }
-            _ => match lhs {
-                LuaValue::Table(lhs) => {
-                    let func = lhs.borrow().get_metamethod("__shl");
-                    if let Some(meta) = func {
-                        self.data_stack.push(LuaValue::Table(lhs));
-                        self.data_stack.push(rhs);
-                        self.function_call(chunk, 2, meta, Some(1))
-                    } else {
-                        match rhs {
-                            LuaValue::Table(rhs) => {
-                                let func = rhs.borrow().get_metamethod("__shl");
-                                if let Some(meta) = func {
-                                    self.data_stack.push(LuaValue::Table(lhs));
-                                    self.data_stack.push(LuaValue::Table(rhs));
-                                    self.function_call(chunk, 2, meta, Some(1))
-                                } else {
-                                    Err(RuntimeError::NoMetaMethod)
-                                }
-                            }
-                            _ => Err(RuntimeError::NoMetaMethod),
-                        }
+        match (&lhs, &rhs) {
+            (LuaValue::Number(lhs_num), LuaValue::Number(rhs_num)) => {
+                match (lhs_num.try_to_int(), rhs_num.try_to_int()) {
+                    (Some(lhs), Some(rhs)) => {
+                        self.data_stack.push((lhs << rhs).into());
+                        Ok(())
                     }
+                    _ => self.try_call_metamethod(chunk, lhs, rhs, "__shl"),
                 }
-                lhs => match rhs {
-                    LuaValue::Table(rhs) => {
-                        let func = rhs.borrow().get_metamethod("__shl");
-                        if let Some(meta) = func {
-                            self.data_stack.push(lhs);
-                            self.data_stack.push(LuaValue::Table(rhs));
-                            self.function_call(chunk, 2, meta, Some(1))
-                        } else {
-                            Err(RuntimeError::NoMetaMethod)
-                        }
-                    }
-                    _ => Err(RuntimeError::NoMetaMethod),
-                },
-            },
+            }
+            // else, try to call metamethod, search on left first
+            _ => self.try_call_metamethod(chunk, lhs, rhs, "__shl"),
         }
     }
+    /// bitwise shift right operation with __shr metamethod
     pub fn shr(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
         let rhs = self.data_stack.pop().unwrap();
         let lhs = self.data_stack.pop().unwrap();
-        match (lhs.try_to_int(), rhs.try_to_int()) {
-            (Some(lhs), Some(rhs)) => {
-                self.data_stack.push((lhs >> rhs).into());
-                Ok(())
-            }
-            _ => match lhs {
-                LuaValue::Table(lhs) => {
-                    let func = lhs.borrow().get_metamethod("__shr");
-                    if let Some(meta) = func {
-                        self.data_stack.push(LuaValue::Table(lhs));
-                        self.data_stack.push(rhs);
-                        self.function_call(chunk, 2, meta, Some(1))
-                    } else {
-                        match rhs {
-                            LuaValue::Table(rhs) => {
-                                let func = rhs.borrow().get_metamethod("__shr");
-                                if let Some(meta) = func {
-                                    self.data_stack.push(LuaValue::Table(lhs));
-                                    self.data_stack.push(LuaValue::Table(rhs));
-                                    self.function_call(chunk, 2, meta, Some(1))
-                                } else {
-                                    Err(RuntimeError::NoMetaMethod)
-                                }
-                            }
-                            _ => Err(RuntimeError::NoMetaMethod),
-                        }
+        match (&lhs, &rhs) {
+            (LuaValue::Number(lhs_num), LuaValue::Number(rhs_num)) => {
+                match (lhs_num.try_to_int(), rhs_num.try_to_int()) {
+                    (Some(lhs), Some(rhs)) => {
+                        self.data_stack.push((lhs >> rhs).into());
+                        Ok(())
                     }
+                    _ => self.try_call_metamethod(chunk, lhs, rhs, "__shr"),
                 }
-                lhs => match rhs {
-                    LuaValue::Table(rhs) => {
-                        let func = rhs.borrow().get_metamethod("__shr");
-                        if let Some(meta) = func {
-                            self.data_stack.push(lhs);
-                            self.data_stack.push(LuaValue::Table(rhs));
-                            self.function_call(chunk, 2, meta, Some(1))
-                        } else {
-                            Err(RuntimeError::NoMetaMethod)
-                        }
+            }
+            // else, try to call metamethod, search on left first
+            _ => self.try_call_metamethod(chunk, lhs, rhs, "__shr"),
+        }
+    }
+    /// bitwise not operation with __bnot metamethod
+    pub fn bnot(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+        let lhs = self.data_stack.pop().unwrap();
+        match &lhs {
+            LuaValue::Number(lhs_num) => match lhs_num.try_to_int() {
+                Some(i) => {
+                    self.data_stack.push((!i).into());
+                    Ok(())
+                }
+                _ => match lhs.get_metavalue("__bnot") {
+                    Some(meta) => {
+                        // For the unary operators (negation, length, and bitwise NOT),
+                        // the metamethod is computed and called with a dummy second operand
+                        // equal to the first one.
+                        self.data_stack.push(lhs.clone());
+                        self.data_stack.push(lhs);
+                        self.function_call(chunk, 2, meta, Some(1))
                     }
                     _ => Err(RuntimeError::NoMetaMethod),
                 },
             },
-        }
-    }
-    pub fn bnot(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
-        let lhs = self.data_stack.pop().unwrap();
-        match lhs.try_to_int() {
-            Some(i) => {
-                self.data_stack.push((!i).into());
-                Ok(())
-            }
-            _ => match lhs {
-                LuaValue::Table(lhs) => {
-                    let func = lhs.borrow().get_metamethod("__bnot");
-                    if let Some(meta) = func {
-                        // For the unary operators (negation, length, and bitwise NOT),
-                        // the metamethod is computed and called with a dummy second operand
-                        // equal to the first one.
-                        self.data_stack.push(LuaValue::Table(Rc::clone(&lhs)));
-                        self.data_stack.push(LuaValue::Table(lhs));
-                        self.function_call(chunk, 2, meta, Some(1))
-                    } else {
-                        Err(RuntimeError::NoMetaMethod)
-                    }
+            _ => match lhs.get_metavalue("__bnot") {
+                Some(meta) => {
+                    // For the unary operators (negation, length, and bitwise NOT),
+                    // the metamethod is computed and called with a dummy second operand
+                    // equal to the first one.
+                    self.data_stack.push(lhs.clone());
+                    self.data_stack.push(lhs);
+                    self.function_call(chunk, 2, meta, Some(1))
                 }
                 _ => Err(RuntimeError::NoMetaMethod),
             },
         }
     }
+    /// concat operation with __concat metamethod
     pub fn concat(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
         let rhs = self.data_stack.pop().unwrap();
         let lhs = self.data_stack.pop().unwrap();
-        match (lhs.try_to_string(), rhs.try_to_string()) {
-            (Some(mut lhs), Some(mut rhs)) => {
-                lhs.append(&mut rhs);
-                self.data_stack.push(LuaValue::String(lhs));
-                Ok(())
-            }
-            _ => match lhs {
-                LuaValue::Table(lhs) => {
-                    let func = lhs.borrow().get_metamethod("__concat");
-                    if let Some(meta) = func {
-                        self.data_stack.push(LuaValue::Table(lhs));
-                        self.data_stack.push(rhs);
-                        self.function_call(chunk, 2, meta, Some(1))
-                    } else {
-                        match rhs {
-                            LuaValue::Table(rhs) => {
-                                let func = rhs.borrow().get_metamethod("__concat");
-                                if let Some(meta) = func {
-                                    self.data_stack.push(LuaValue::Table(lhs));
-                                    self.data_stack.push(LuaValue::Table(rhs));
-                                    self.function_call(chunk, 2, meta, Some(1))
-                                } else {
-                                    Err(RuntimeError::NoMetaMethod)
-                                }
-                            }
-                            _ => Err(RuntimeError::NoMetaMethod),
-                        }
-                    }
+        match lhs {
+            LuaValue::Number(lhs_num) => match rhs {
+                LuaValue::Number(rhs_num) => {
+                    let mut concated = lhs_num.to_string().into_bytes();
+                    concated.append(&mut rhs_num.to_string().into_bytes());
+                    self.data_stack.push(LuaValue::String(concated));
+                    Ok(())
                 }
-                lhs => match rhs {
-                    LuaValue::Table(rhs) => {
-                        let func = rhs.borrow().get_metamethod("__concat");
-                        if let Some(meta) = func {
-                            self.data_stack.push(lhs);
-                            self.data_stack.push(LuaValue::Table(rhs));
-                            self.function_call(chunk, 2, meta, Some(1))
-                        } else {
-                            Err(RuntimeError::NoMetaMethod)
-                        }
-                    }
-                    _ => Err(RuntimeError::NoMetaMethod),
-                },
+                LuaValue::String(mut rhs) => {
+                    let mut lhs = lhs_num.to_string().into_bytes();
+                    lhs.append(&mut rhs);
+                    self.data_stack.push(LuaValue::String(lhs));
+                    Ok(())
+                }
+                _ => self.try_call_metamethod(chunk, lhs, rhs, "__concat"),
             },
+
+            LuaValue::String(lhs_str) => match rhs {
+                LuaValue::Number(rhs_num) => {
+                    let mut concated = lhs_str;
+                    concated.append(&mut rhs_num.to_string().into_bytes());
+                    self.data_stack.push(LuaValue::String(concated));
+                    Ok(())
+                }
+                LuaValue::String(mut rhs) => {
+                    let mut lhs = lhs_str;
+                    lhs.append(&mut rhs);
+                    self.data_stack.push(LuaValue::String(lhs));
+                    Ok(())
+                }
+                _ => self.try_call_metamethod(chunk, LuaValue::String(lhs_str), rhs, "__concat"),
+            },
+
+            _ => self.try_call_metamethod(chunk, lhs, rhs, "__concat"),
         }
     }
+    /// `#` length operation with __len metamethod
     pub fn len(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
         let lhs = self.data_stack.pop().unwrap();
         match lhs {
@@ -782,23 +416,37 @@ impl Stack {
                 Ok(())
             }
             LuaValue::Table(table) => {
-                let func = table.borrow().get_metamethod("__len");
-                if let Some(meta) = func {
+                let meta = table.borrow().get_metavalue("__len");
+                match meta {
+                    Some(meta) => {
+                        // For the unary operators (negation, length, and bitwise NOT),
+                        // the metamethod is computed and called with a dummy second operand
+                        // equal to the first one.
+                        self.data_stack.push(LuaValue::Table(Rc::clone(&table)));
+                        self.data_stack.push(LuaValue::Table(table));
+                        self.function_call(chunk, 2, meta, Some(1))
+                    }
+                    _ => {
+                        self.data_stack
+                            .push((table.borrow().len()? as IntType).into());
+                        Ok(())
+                    }
+                }
+            }
+            lhs => match lhs.get_metavalue("__len") {
+                Some(meta) => {
                     // For the unary operators (negation, length, and bitwise NOT),
                     // the metamethod is computed and called with a dummy second operand
                     // equal to the first one.
-                    self.data_stack.push(LuaValue::Table(Rc::clone(&table)));
-                    self.data_stack.push(LuaValue::Table(table));
-                    self.function_call(chunk, 1, meta, Some(1))
-                } else {
-                    self.data_stack
-                        .push((table.borrow().len()? as IntType).into());
-                    Ok(())
+                    self.data_stack.push(lhs.clone());
+                    self.data_stack.push(lhs);
+                    self.function_call(chunk, 2, meta, Some(1))
                 }
-            }
-            _ => Err(RuntimeError::NoMetaMethod),
+                _ => Err(RuntimeError::NoMetaMethod),
+            },
         }
     }
+    /// table index get operation with __index metamethod
     pub fn index(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
         let key = self.data_stack.pop().unwrap();
         let table = self.data_stack.pop().unwrap();
@@ -809,7 +457,7 @@ impl Stack {
                     self.data_stack.push(get);
                     Ok(())
                 } else {
-                    let meta = table.borrow().get_metamethod("__index");
+                    let meta = table.borrow().get_metavalue("__index");
                     match meta {
                         Some(LuaValue::Function(meta_func)) => {
                             self.data_stack.push(LuaValue::Table(table));
@@ -828,9 +476,25 @@ impl Stack {
                     }
                 }
             }
-            _ => Err(RuntimeError::NotTable),
+            table => {
+                let meta = table.get_metavalue("__index");
+                match meta {
+                    Some(LuaValue::Function(meta_func)) => {
+                        self.data_stack.push(table);
+                        self.data_stack.push(key);
+                        self.function_call(chunk, 2, LuaValue::Function(meta_func), Some(1))
+                    }
+                    Some(LuaValue::Table(meta_table)) => {
+                        self.data_stack.push(LuaValue::Table(meta_table));
+                        self.data_stack.push(key);
+                        self.index(chunk)
+                    }
+                    _ => Err(RuntimeError::NotTable),
+                }
+            }
         }
     }
+    /// table index set operation with __newindex metamethod
     pub fn newindex(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
         let key = self.data_stack.pop().unwrap();
         let table = self.data_stack.pop().unwrap();
@@ -842,8 +506,7 @@ impl Stack {
                     *val = value;
                     return Ok(());
                 }
-                let meta = table.borrow().get_metamethod("__index");
-
+                let meta = table.borrow().get_metavalue("__newindex");
                 match meta {
                     Some(LuaValue::Function(meta_func)) => {
                         self.data_stack.push(LuaValue::Table(table));
@@ -863,9 +526,27 @@ impl Stack {
                     }
                 }
             }
-            _ => Err(RuntimeError::NotTable),
+            table => {
+                let meta = table.get_metavalue("__newindex");
+                match meta {
+                    Some(LuaValue::Function(meta_func)) => {
+                        self.data_stack.push(table);
+                        self.data_stack.push(key);
+                        self.data_stack.push(value);
+                        self.function_call(chunk, 3, LuaValue::Function(meta_func), Some(0))
+                    }
+                    Some(LuaValue::Table(meta_table)) => {
+                        self.data_stack.push(value);
+                        self.data_stack.push(LuaValue::Table(meta_table));
+                        self.data_stack.push(key);
+                        self.newindex(chunk)
+                    }
+                    _ => Err(RuntimeError::NotTable),
+                }
+            }
         }
     }
+    /// equality operation with __eq metamethod
     pub fn eq(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
         let rhs = self.data_stack.pop().unwrap();
         let lhs = self.data_stack.pop().unwrap();
@@ -876,21 +557,12 @@ impl Stack {
                     self.data_stack.push(LuaValue::Boolean(true));
                     return Ok(());
                 } else {
-                    let func = lhs.borrow().get_metamethod("__eq");
-                    if let Some(meta) = func {
-                        self.data_stack.push(LuaValue::Table(lhs));
-                        self.data_stack.push(LuaValue::Table(rhs));
-                        self.function_call(chunk, 2, meta, Some(1))
-                    } else {
-                        let func = rhs.borrow().get_metamethod("__eq");
-                        if let Some(meta) = func {
-                            self.data_stack.push(LuaValue::Table(lhs));
-                            self.data_stack.push(LuaValue::Table(rhs));
-                            self.function_call(chunk, 2, meta, Some(1))
-                        } else {
-                            Err(RuntimeError::NoMetaMethod)
-                        }
-                    }
+                    self.try_call_metamethod(
+                        chunk,
+                        LuaValue::Table(lhs),
+                        LuaValue::Table(rhs),
+                        "__eq",
+                    )
                 }
             }
             (lhs, rhs) => {
@@ -899,6 +571,7 @@ impl Stack {
             }
         }
     }
+    /// less than operation with __lt metamethod
     pub fn lt(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
         let rhs = self.data_stack.pop().unwrap();
         let lhs = self.data_stack.pop().unwrap();
@@ -912,46 +585,11 @@ impl Stack {
                 self.data_stack.push(LuaValue::Boolean(lhs < rhs));
                 Ok(())
             }
-            (lhs, rhs) => match lhs {
-                LuaValue::Table(lhs) => {
-                    let func = lhs.borrow().get_metamethod("__lt");
-                    if let Some(meta) = func {
-                        self.data_stack.push(LuaValue::Table(lhs));
-                        self.data_stack.push(rhs);
-                        self.function_call(chunk, 2, meta, Some(1))
-                    } else {
-                        match rhs {
-                            LuaValue::Table(rhs) => {
-                                let func = rhs.borrow().get_metamethod("__lt");
-                                if let Some(meta) = func {
-                                    self.data_stack.push(LuaValue::Table(lhs));
-                                    self.data_stack.push(LuaValue::Table(rhs));
-                                    self.function_call(chunk, 2, meta, Some(1))
-                                } else {
-                                    Err(RuntimeError::NoMetaMethod)
-                                }
-                            }
-                            _ => Err(RuntimeError::NoMetaMethod),
-                        }
-                    }
-                }
-                lhs => match rhs {
-                    LuaValue::Table(rhs) => {
-                        let func = rhs.borrow().get_metamethod("__lt");
-                        if let Some(meta) = func {
-                            self.data_stack.push(lhs);
-                            self.data_stack.push(LuaValue::Table(rhs));
-                            self.function_call(chunk, 2, meta, Some(1))
-                        } else {
-                            Err(RuntimeError::NoMetaMethod)
-                        }
-                    }
-                    _ => Err(RuntimeError::NoMetaMethod),
-                },
-            },
+            (lhs, rhs) => self.try_call_metamethod(chunk, lhs, rhs, "__lt"),
         }
     }
 
+    /// less than or equal operation with __le metamethod
     pub fn le(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
         let rhs = self.data_stack.pop().unwrap();
         let lhs = self.data_stack.pop().unwrap();
@@ -965,46 +603,12 @@ impl Stack {
                 self.data_stack.push(LuaValue::Boolean(lhs <= rhs));
                 Ok(())
             }
-            (lhs, rhs) => match lhs {
-                LuaValue::Table(lhs) => {
-                    let func = lhs.borrow().get_metamethod("__le");
-                    if let Some(meta) = func {
-                        self.data_stack.push(LuaValue::Table(lhs));
-                        self.data_stack.push(rhs);
-                        self.function_call(chunk, 2, meta, Some(1))
-                    } else {
-                        match rhs {
-                            LuaValue::Table(rhs) => {
-                                let func = rhs.borrow().get_metamethod("__le");
-                                if let Some(meta) = func {
-                                    self.data_stack.push(LuaValue::Table(lhs));
-                                    self.data_stack.push(LuaValue::Table(rhs));
-                                    self.function_call(chunk, 2, meta, Some(1))
-                                } else {
-                                    Err(RuntimeError::NoMetaMethod)
-                                }
-                            }
-                            _ => Err(RuntimeError::NoMetaMethod),
-                        }
-                    }
-                }
-                lhs => match rhs {
-                    LuaValue::Table(rhs) => {
-                        let func = rhs.borrow().get_metamethod("__le");
-                        if let Some(meta) = func {
-                            self.data_stack.push(lhs);
-                            self.data_stack.push(LuaValue::Table(rhs));
-                            self.function_call(chunk, 2, meta, Some(1))
-                        } else {
-                            Err(RuntimeError::NoMetaMethod)
-                        }
-                    }
-                    _ => Err(RuntimeError::NoMetaMethod),
-                },
-            },
+            (lhs, rhs) => self.try_call_metamethod(chunk, lhs, rhs, "__le"),
         }
     }
 
+    /// function call with __call metamethod.
+    /// this does not return until the function call is finished.
     pub fn function_call(
         &mut self,
         chunk: &Chunk,
@@ -1076,6 +680,7 @@ impl Stack {
                     let instruction = chunk.instructions.get(self.counter).unwrap();
                     self.cycle(chunk, instruction)?;
                 }
+                Ok(())
             }
             LuaValue::Function(LuaFunction::RustFunc(rust_internal)) => {
                 let ret_num = rust_internal(self, chunk, args_num)?;
@@ -1083,23 +688,21 @@ impl Stack {
                     let adjusted = self.data_stack.len() - ret_num + expected;
                     self.data_stack.resize_with(adjusted, Default::default);
                 }
+                Ok(())
             }
-            LuaValue::Table(table) => {
-                let func = table.borrow().get_metamethod("__call");
+            other => {
+                let func = other.get_metavalue("__call");
                 if let Some(meta) = func {
                     self.data_stack
-                        .insert(self.data_stack.len() - args_num, LuaValue::Table(table));
-                    self.function_call(chunk, args_num + 1, meta, expected_ret)?;
+                        .insert(self.data_stack.len() - args_num, other);
+                    self.function_call(chunk, args_num + 1, meta, expected_ret)
                 } else {
-                    return Err(RuntimeError::NotFunction);
+                    Err(RuntimeError::NotFunction)
                 }
             }
-            _ => {
-                return Err(RuntimeError::NotFunction);
-            }
         }
-        Ok(())
     }
+    /// execute single instruction
     pub fn cycle(&mut self, chunk: &Chunk, instruction: &Instruction) -> Result<(), RuntimeError> {
         match instruction {
             Instruction::Clear(local_id) => {
@@ -1107,11 +710,6 @@ impl Stack {
             }
             Instruction::Clone => {
                 let top = self.data_stack.last().unwrap().clone();
-                self.data_stack.push(top);
-            }
-            Instruction::Swap => {
-                let mut top = self.data_stack.pop().unwrap();
-                std::mem::swap(self.data_stack.last_mut().unwrap(), &mut top);
                 self.data_stack.push(top);
             }
             Instruction::Sp => {
@@ -1321,35 +919,10 @@ impl Stack {
             Instruction::BinaryEqual => {
                 self.eq(chunk)?;
             }
-            Instruction::BinaryNotEqual => {
-                self.eq(chunk)?;
-                match &mut self.data_stack.last_mut().unwrap() {
-                    LuaValue::Boolean(b) => {
-                        *b = !*b;
-                    }
-                    _ => unreachable!("eq must return boolean"),
-                }
-            }
             Instruction::BinaryLessThan => {
                 self.lt(chunk)?;
             }
             Instruction::BinaryLessEqual => {
-                self.le(chunk)?;
-            }
-            Instruction::BinaryGreaterThan => {
-                // a > b <=> b < a
-                let rhs = self.data_stack.pop().unwrap();
-                let lhs = self.data_stack.pop().unwrap();
-                self.data_stack.push(rhs);
-                self.data_stack.push(lhs);
-                self.lt(chunk)?;
-            }
-            Instruction::BinaryGreaterEqual => {
-                // a >= b <=> b <= a
-                let rhs = self.data_stack.pop().unwrap();
-                let lhs = self.data_stack.pop().unwrap();
-                self.data_stack.push(rhs);
-                self.data_stack.push(lhs);
                 self.le(chunk)?;
             }
 
@@ -1363,9 +936,8 @@ impl Stack {
                 self.len(chunk)?;
             }
             Instruction::UnaryLogicalNot => {
-                let top = self.data_stack.pop().unwrap();
-                let ret = top.not();
-                self.data_stack.push(ret.into());
+                let top = self.data_stack.pop().unwrap().to_bool();
+                self.data_stack.push((!top).into());
             }
 
             Instruction::FunctionCall(expected_ret) => {
@@ -1423,6 +995,7 @@ impl Stack {
         self.counter += 1;
         Ok(())
     }
+    /// run the whole chunk
     pub fn run(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
         while let Some(instruction) = chunk.instructions.get(self.counter) {
             self.cycle(chunk, instruction)?;
