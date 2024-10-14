@@ -13,7 +13,7 @@ use crate::Stack;
 // mod io;
 mod math;
 mod string;
-// mod table;
+mod table;
 
 const VERSION: &str = "Lua 5.4 in Rust";
 
@@ -43,7 +43,7 @@ pub fn init_env() -> Result<LuaTable, RuntimeError> {
 
     env.insert("string".into(), string::init()?.into());
     env.insert("math".into(), math::init()?.into());
-    // env.insert("table".into(), table::init()?.into());
+    env.insert("table".into(), table::init()?.into());
     // env.insert("io".into(), io::init()?.into());
 
     // @TODO _G
@@ -83,11 +83,11 @@ pub fn rawlen(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, R
     }
     let arg = stack.pop1(args);
     let len = match arg {
-        LuaValue::String(s) => s.len(),
+        LuaValue::String(s) => s.len() as IntType,
         LuaValue::Table(t) => t.borrow().len(),
-        _ => return Err(RuntimeError::NotTableOrstring),
+        _ => return Err(RuntimeError::NotTableOrString),
     };
-    stack.data_stack.push((len as IntType).into());
+    stack.data_stack.push((len).into());
     Ok(1)
 }
 pub fn rawget(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {

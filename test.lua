@@ -27,6 +27,13 @@ print( math.deg(math.atan( 1 )) )
 print( math.modf( 3.14 ) )
 print( math.modf( 5 ) )
 
+a = { 1, 2, 3, 4, 5, 6 }
+print( a )
+print( a[1], a[2], a[3] )
+print( #a )
+
+print( table.concat( a, ", ", 3, 5 ) )
+
 
 
 function func()

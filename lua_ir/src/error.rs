@@ -23,13 +23,16 @@ pub enum RuntimeError {
     ValueExpected,
 
     /// rawlen
-    NotTableOrstring,
+    NotTableOrString,
 
     /// try to modify protected metatable (__metatable defined)
     ProtectedMetatable,
 
     /// string.char()
     OutOfRangeChar,
+
+    /// table.concat
+    NotStringOrNumber,
 
     /// error with error handler
     Error,

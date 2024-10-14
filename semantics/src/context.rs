@@ -431,7 +431,7 @@ impl Context {
             }
             lua_parser::ExprUnary::Length(v) => {
                 let expr = self.process_expression(*v.value)?;
-                Ok(crate::Expression::Unary(crate::ExprUnary::Minus(
+                Ok(crate::Expression::Unary(crate::ExprUnary::Length(
                     crate::ExprUnaryData::new(expr),
                 )))
             }
