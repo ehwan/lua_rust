@@ -12,30 +12,14 @@ use crate::Stack;
 /// init string module
 pub fn init() -> Result<LuaValue, RuntimeError> {
     let mut string = LuaTable::new();
-    string
-        .map
-        .insert("byte".into(), LuaFunction::from_func(byte).into());
-    string
-        .map
-        .insert("sub".into(), LuaFunction::from_func(sub).into());
-    string
-        .map
-        .insert("char".into(), LuaFunction::from_func(char_).into());
-    string
-        .map
-        .insert("len".into(), LuaFunction::from_func(len).into());
-    string
-        .map
-        .insert("lower".into(), LuaFunction::from_func(lower).into());
-    string
-        .map
-        .insert("rep".into(), LuaFunction::from_func(rep).into());
-    string
-        .map
-        .insert("reverse".into(), LuaFunction::from_func(reverse).into());
-    string
-        .map
-        .insert("upper".into(), LuaFunction::from_func(upper).into());
+    string.insert("byte".into(), LuaFunction::from_func(byte).into());
+    string.insert("sub".into(), LuaFunction::from_func(sub).into());
+    string.insert("char".into(), LuaFunction::from_func(char_).into());
+    string.insert("len".into(), LuaFunction::from_func(len).into());
+    string.insert("lower".into(), LuaFunction::from_func(lower).into());
+    string.insert("rep".into(), LuaFunction::from_func(rep).into());
+    string.insert("reverse".into(), LuaFunction::from_func(reverse).into());
+    string.insert("upper".into(), LuaFunction::from_func(upper).into());
     Ok(LuaValue::Table(Rc::new(RefCell::new(string))))
 }
 

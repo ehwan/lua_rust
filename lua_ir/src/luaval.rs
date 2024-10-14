@@ -133,13 +133,7 @@ impl LuaValue {
 
     pub fn get_metavalue(&self, key: &str) -> Option<LuaValue> {
         match self {
-            LuaValue::Table(t) => {
-                if let Some(meta) = &t.borrow().meta {
-                    meta.borrow().map.get(&key.into()).cloned()
-                } else {
-                    None
-                }
-            }
+            LuaValue::Table(t) => t.borrow().get_metavalue(key),
             _ => None,
         }
     }

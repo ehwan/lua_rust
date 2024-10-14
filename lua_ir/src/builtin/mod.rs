@@ -21,42 +21,33 @@ const VERSION: &str = "Lua 5.4 in Rust";
 pub fn init_env() -> Result<LuaTable, RuntimeError> {
     // @TODO
     let mut env = LuaTable::new();
-    env.map
-        .insert("print".into(), LuaFunction::from_func(print).into());
-    env.map
-        .insert("rawequal".into(), LuaFunction::from_func(rawequal).into());
-    env.map
-        .insert("rawlen".into(), LuaFunction::from_func(rawlen).into());
-    env.map
-        .insert("rawget".into(), LuaFunction::from_func(rawget).into());
-    env.map
-        .insert("rawset".into(), LuaFunction::from_func(rawset).into());
-    env.map
-        .insert("type".into(), LuaFunction::from_func(type_).into());
-    env.map
-        .insert("tostring".into(), LuaFunction::from_func(tostring).into());
-    env.map
-        .insert("select".into(), LuaFunction::from_func(select).into());
-    env.map.insert(
+    env.insert("print".into(), LuaFunction::from_func(print).into());
+    env.insert("rawequal".into(), LuaFunction::from_func(rawequal).into());
+    env.insert("rawlen".into(), LuaFunction::from_func(rawlen).into());
+    env.insert("rawget".into(), LuaFunction::from_func(rawget).into());
+    env.insert("rawset".into(), LuaFunction::from_func(rawset).into());
+    env.insert("type".into(), LuaFunction::from_func(type_).into());
+    env.insert("tostring".into(), LuaFunction::from_func(tostring).into());
+    env.insert("select".into(), LuaFunction::from_func(select).into());
+    env.insert(
         "setmetatable".into(),
         LuaFunction::from_func(setmetatable).into(),
     );
-    env.map.insert(
+    env.insert(
         "getmetatable".into(),
         LuaFunction::from_func(getmetatable).into(),
     );
-    env.map
-        .insert("assert".into(), LuaFunction::from_func(assert).into());
+    env.insert("assert".into(), LuaFunction::from_func(assert).into());
 
-    env.map.insert("_VERSION".into(), VERSION.into());
+    env.insert("_VERSION".into(), VERSION.into());
 
-    env.map.insert("string".into(), string::init()?.into());
-    env.map.insert("math".into(), math::init()?.into());
-    // env.map.insert("table".into(), table::init()?.into());
-    // env.map.insert("io".into(), io::init()?.into());
+    env.insert("string".into(), string::init()?.into());
+    env.insert("math".into(), math::init()?.into());
+    // env.insert("table".into(), table::init()?.into());
+    // env.insert("io".into(), io::init()?.into());
 
     // @TODO _G
-    env.map.insert(
+    env.insert(
         "_G".into(),
         LuaValue::Table(Rc::new(RefCell::new(env.clone()))),
     );
@@ -93,7 +84,7 @@ pub fn rawlen(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, R
     let arg = stack.pop1(args);
     let len = match arg {
         LuaValue::String(s) => s.len(),
-        LuaValue::Table(t) => t.borrow().len()?,
+        LuaValue::Table(t) => t.borrow().len(),
         _ => return Err(RuntimeError::NotTableOrstring),
     };
     stack.data_stack.push((len as IntType).into());
@@ -107,7 +98,7 @@ pub fn rawget(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, R
 
     match table {
         LuaValue::Table(t) => {
-            let get = t.borrow().map.get(&key).cloned().unwrap_or(LuaValue::Nil);
+            let get = t.borrow().get(&key).cloned().unwrap_or(LuaValue::Nil);
             stack.data_stack.push(get);
             Ok(1)
         }
@@ -128,7 +119,7 @@ pub fn rawset(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, R
             } else if key.is_nan() {
                 Err(RuntimeError::TableIndexNan)
             } else {
-                t.borrow_mut().map.insert(key, value);
+                t.borrow_mut().insert(key, value);
                 Ok(1)
             }
         }
@@ -191,7 +182,7 @@ pub fn setmetatable(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<us
     if let LuaValue::Table(table) = table {
         // check __metatable is defined
         if let Some(meta_old) = &table.borrow().meta {
-            if meta_old.borrow().map.contains_key(&"__metatable".into()) {
+            if meta_old.borrow().get(&"__metatable".into()).is_some() {
                 return Err(RuntimeError::ProtectedMetatable);
             }
         }
@@ -219,7 +210,7 @@ pub fn getmetatable(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<us
         LuaValue::Table(table) => {
             if let Some(meta) = &table.borrow().meta {
                 // check __metatable is defined
-                if let Some(assoc) = meta.borrow().map.get(&"__metatable".into()) {
+                if let Some(assoc) = meta.borrow().get(&"__metatable".into()) {
                     stack.data_stack.push(assoc.clone());
                 } else {
                     stack.data_stack.push(LuaValue::Table(Rc::clone(meta)));

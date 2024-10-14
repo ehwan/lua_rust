@@ -1,24 +1,32 @@
-use crate::{LuaValue, RuntimeError};
+use crate::{LuaNumber, LuaValue};
 
 use std::cell::RefCell;
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::rc::Rc;
 
 #[derive(Debug, Clone)]
 pub struct LuaTable {
-    pub(crate) map: HashMap<LuaValue, LuaValue>,
+    /// every key except number goes here
+    map: HashMap<LuaValue, LuaValue>,
+    /// every key with number goes here
+    arr: BTreeMap<LuaNumber, LuaValue>,
+
+    /// metatable
     pub(crate) meta: Option<Rc<RefCell<LuaTable>>>,
 }
 impl LuaTable {
     pub fn with_capacity(capacity: usize) -> Self {
         LuaTable {
             map: HashMap::with_capacity(capacity),
+            arr: BTreeMap::new(),
             meta: None,
         }
     }
     pub fn new() -> Self {
         LuaTable {
             map: HashMap::new(),
+            arr: BTreeMap::new(),
             meta: None,
         }
     }
@@ -29,9 +37,56 @@ impl LuaTable {
             None
         }
     }
+    /// get value from table.
+    /// key can be any lua value.
+    pub fn get(&self, key: &LuaValue) -> Option<&LuaValue> {
+        match key {
+            LuaValue::Number(n) => self.arr.get(n),
+            _ => self.map.get(key),
+        }
+    }
 
-    pub fn len(&self) -> Result<usize, RuntimeError> {
-        // @TODO
-        unimplemented!("table length");
+    /// get value from table.
+    /// key can be any lua value.
+    pub fn get_mut(&mut self, key: &LuaValue) -> Option<&mut LuaValue> {
+        match key {
+            LuaValue::Number(n) => self.arr.get_mut(n),
+            _ => self.map.get_mut(key),
+        }
+    }
+
+    /// get value from array part of table.
+    pub fn get_arr(&self, key: &LuaNumber) -> Option<&LuaValue> {
+        self.arr.get(key)
+    }
+    /// get value from array part of table.
+    pub fn get_arr_mut(&mut self, key: &LuaNumber) -> Option<&mut LuaValue> {
+        self.arr.get_mut(key)
+    }
+
+    /// get value from hash part of table.
+    pub fn get_table(&self, key: &LuaValue) -> Option<&LuaValue> {
+        self.map.get(key)
+    }
+    /// get value from hash part of table.
+    pub fn get_table_mut(&mut self, key: &LuaValue) -> Option<&mut LuaValue> {
+        self.map.get_mut(key)
+    }
+
+    pub fn insert(&mut self, key: LuaValue, value: LuaValue) {
+        match key {
+            LuaValue::Nil => {}
+            LuaValue::Number(n) => {
+                self.arr.insert(n, value);
+            }
+            _ => {
+                self.map.insert(key, value);
+            }
+        }
+    }
+
+    /// get length of array part of table.
+    pub fn len(&self) -> usize {
+        self.arr.len()
     }
 }

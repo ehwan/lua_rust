@@ -18,59 +18,40 @@ pub fn init() -> Result<LuaValue, RuntimeError> {
     let mut math = LuaTable::new();
     #[cfg(feature = "32bit")]
     {
-        math.map.insert("pi".into(), std::f32::consts::PI.into());
-        math.map.insert("huge".into(), std::f32::INFINITY.into());
-        math.map.insert("mininteger".into(), std::i32::MIN.into());
-        math.map.insert("maxinteger".into(), std::i32::MAX.into());
+        math.insert("pi".into(), std::f32::consts::PI.into());
+        math.nsert("huge".into(), std::f32::INFINITY.into());
+        math.nsert("mininteger".into(), std::i32::MIN.into());
+        math.nsert("maxinteger".into(), std::i32::MAX.into());
     }
     #[cfg(not(feature = "32bit"))]
     {
-        math.map.insert("pi".into(), std::f64::consts::PI.into());
-        math.map.insert("huge".into(), std::f64::INFINITY.into());
-        math.map.insert("mininteger".into(), std::i64::MIN.into());
-        math.map.insert("maxinteger".into(), std::i64::MAX.into());
+        math.insert("pi".into(), std::f64::consts::PI.into());
+        math.insert("huge".into(), std::f64::INFINITY.into());
+        math.insert("mininteger".into(), std::i64::MIN.into());
+        math.insert("maxinteger".into(), std::i64::MAX.into());
     }
-    math.map
-        .insert("abs".into(), LuaFunction::from_func(abs).into());
-    math.map
-        .insert("acos".into(), LuaFunction::from_func(acos).into());
-    math.map
-        .insert("asin".into(), LuaFunction::from_func(asin).into());
-    math.map
-        .insert("atan".into(), LuaFunction::from_func(atan).into());
-    math.map
-        .insert("ceil".into(), LuaFunction::from_func(ceil).into());
-    math.map
-        .insert("floor".into(), LuaFunction::from_func(floor).into());
-    math.map
-        .insert("cos".into(), LuaFunction::from_func(cos).into());
-    math.map
-        .insert("sin".into(), LuaFunction::from_func(sin).into());
-    math.map
-        .insert("deg".into(), LuaFunction::from_func(deg).into());
-    math.map
-        .insert("rad".into(), LuaFunction::from_func(rad).into());
-    math.map
-        .insert("exp".into(), LuaFunction::from_func(exp).into());
-    math.map
-        .insert("log".into(), LuaFunction::from_func(log).into());
-    math.map
-        .insert("sqrt".into(), LuaFunction::from_func(sqrt).into());
-    math.map
-        .insert("type".into(), LuaFunction::from_func(type_).into());
-    math.map
-        .insert("tointeger".into(), LuaFunction::from_func(tointeger).into());
-    math.map
-        .insert("ult".into(), LuaFunction::from_func(ult).into());
-    math.map
-        .insert("modf".into(), LuaFunction::from_func(modf).into());
-    math.map
-        .insert("fmod".into(), LuaFunction::from_func(fmod).into());
+    math.insert("abs".into(), LuaFunction::from_func(abs).into());
+    math.insert("acos".into(), LuaFunction::from_func(acos).into());
+    math.insert("asin".into(), LuaFunction::from_func(asin).into());
+    math.insert("atan".into(), LuaFunction::from_func(atan).into());
+    math.insert("ceil".into(), LuaFunction::from_func(ceil).into());
+    math.insert("floor".into(), LuaFunction::from_func(floor).into());
+    math.insert("cos".into(), LuaFunction::from_func(cos).into());
+    math.insert("sin".into(), LuaFunction::from_func(sin).into());
+    math.insert("deg".into(), LuaFunction::from_func(deg).into());
+    math.insert("rad".into(), LuaFunction::from_func(rad).into());
+    math.insert("exp".into(), LuaFunction::from_func(exp).into());
+    math.insert("log".into(), LuaFunction::from_func(log).into());
+    math.insert("sqrt".into(), LuaFunction::from_func(sqrt).into());
+    math.insert("type".into(), LuaFunction::from_func(type_).into());
+    math.insert("tointeger".into(), LuaFunction::from_func(tointeger).into());
+    math.insert("ult".into(), LuaFunction::from_func(ult).into());
+    math.insert("modf".into(), LuaFunction::from_func(modf).into());
+    math.insert("fmod".into(), LuaFunction::from_func(fmod).into());
 
-    math.map
-        .insert("random".into(), LuaFunction::from_func(random).into());
+    math.insert("random".into(), LuaFunction::from_func(random).into());
 
-    math.map.insert(
+    math.insert(
         "randomseed".into(),
         LuaFunction::from_func(randomseed).into(),
     );

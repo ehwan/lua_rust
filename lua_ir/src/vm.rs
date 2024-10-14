@@ -428,7 +428,7 @@ impl Stack {
                     }
                     _ => {
                         self.data_stack
-                            .push((table.borrow().len()? as IntType).into());
+                            .push((table.borrow().len() as IntType).into());
                         Ok(())
                     }
                 }
@@ -452,7 +452,7 @@ impl Stack {
         let table = self.data_stack.pop().unwrap();
         match table {
             LuaValue::Table(table) => {
-                let get = table.borrow().map.get(&key).cloned();
+                let get = table.borrow().get(&key).cloned();
                 if let Some(get) = get {
                     self.data_stack.push(get);
                     Ok(())
@@ -502,7 +502,7 @@ impl Stack {
 
         match table {
             LuaValue::Table(table) => {
-                if let Some(val) = table.borrow_mut().map.get_mut(&key) {
+                if let Some(val) = table.borrow_mut().get_mut(&key) {
                     *val = value;
                     return Ok(());
                 }
@@ -521,7 +521,7 @@ impl Stack {
                         self.newindex(chunk)
                     }
                     _ => {
-                        table.borrow_mut().map.insert(key, value);
+                        table.borrow_mut().insert(key, value);
                         Ok(())
                     }
                 }
@@ -795,7 +795,7 @@ impl Stack {
                 let index = self.data_stack.pop().unwrap();
                 let table = self.data_stack.last_mut().unwrap();
                 if let LuaValue::Table(table) = table {
-                    table.borrow_mut().map.insert(index, value);
+                    table.borrow_mut().insert(index, value);
                 } else {
                     unreachable!("table must be on top of stack");
                 }
@@ -807,7 +807,8 @@ impl Stack {
                 for (idx, value) in values.into_iter().enumerate() {
                     let index = idx as IntType + *i;
                     if let LuaValue::Table(table) = table {
-                        table.borrow_mut().map.insert(index.into(), value);
+                        // @TODO: use iterator and insert all at once
+                        table.borrow_mut().insert(index.into(), value);
                     } else {
                         unreachable!("table must be on top of stack");
                     }
@@ -829,7 +830,7 @@ impl Stack {
                 let func = LuaFunction::LuaFunc(func);
                 self.data_stack.push(LuaValue::Function(func));
             }
-            Instruction::FunctionUpvaluePushFromLocalVar(src_local_id) => {
+            Instruction::FunctionInitUpvalueFromLocalVar(src_local_id) => {
                 let local_var = {
                     let local_var = &mut self.local_variables[*src_local_id + self.bp];
                     // upvalue must be reference.
@@ -849,7 +850,7 @@ impl Stack {
                 };
                 dst_func.upvalues.push(local_var);
             }
-            Instruction::FunctionUpvaluePushFromUpvalue(src_upvalue_id) => {
+            Instruction::FunctionInitUpvalueFromUpvalue(src_upvalue_id) => {
                 let func = self.function_stack.last().unwrap();
                 let value = Rc::clone(&func.function_object.upvalues[*src_upvalue_id]);
 
@@ -968,22 +969,19 @@ impl Stack {
             Instruction::GetVariadic(expected) => {
                 let func = self.function_stack.last().unwrap();
                 if let Some(expected) = expected {
+                    let expected_len_after_push = self.data_stack.len() + *expected;
                     if func.variadic.len() < *expected {
-                        for v in func.variadic.iter() {
-                            self.data_stack.push(v.clone());
-                        }
-                        for _ in func.variadic.len()..*expected {
-                            self.data_stack.push(LuaValue::Nil);
-                        }
+                        self.data_stack.extend(func.variadic.iter().cloned());
+                        self.data_stack.extend(
+                            std::iter::repeat(LuaValue::Nil).take(*expected - func.variadic.len()),
+                        );
                     } else {
-                        for v in func.variadic.iter().take(*expected) {
-                            self.data_stack.push(v.clone());
-                        }
+                        self.data_stack
+                            .extend(func.variadic.iter().take(*expected).cloned());
                     }
+                    debug_assert!(self.data_stack.len() == expected_len_after_push);
                 } else {
-                    for v in func.variadic.iter() {
-                        self.data_stack.push(v.clone());
-                    }
+                    self.data_stack.extend(func.variadic.iter().cloned());
                 }
             }
         }

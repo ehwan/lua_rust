@@ -59,9 +59,9 @@ pub enum Instruction {
     FunctionInit(usize, usize),
     /// func -> top.
     /// src_stack_id
-    FunctionUpvaluePushFromLocalVar(usize),
+    FunctionInitUpvalueFromLocalVar(usize),
     /// src_upvalue_id
-    FunctionUpvaluePushFromUpvalue(usize),
+    FunctionInitUpvalueFromUpvalue(usize),
 
     /// get i'th upvalue of current function
     FunctionUpvalue(usize),

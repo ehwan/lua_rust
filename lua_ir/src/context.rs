@@ -542,11 +542,11 @@ impl Context {
             match upvalue {
                 ExprLocalVariable::Stack(local_id) => {
                     self.instructions
-                        .push(Instruction::FunctionUpvaluePushFromLocalVar(local_id));
+                        .push(Instruction::FunctionInitUpvalueFromLocalVar(local_id));
                 }
                 ExprLocalVariable::Upvalue(index) => {
                     self.instructions
-                        .push(Instruction::FunctionUpvaluePushFromUpvalue(index));
+                        .push(Instruction::FunctionInitUpvalueFromUpvalue(index));
                 }
             }
         }
