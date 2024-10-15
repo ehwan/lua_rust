@@ -98,9 +98,9 @@ local unsorted = {38, 27, 43, 3, 9, 82, 10}
 local sorted = merge_sort(unsorted)
 print("Sorted Array:")
 print( table.concat(sorted, ", ") )
--- for _, v in ipairs(sorted) do
---     print(v)
--- end
+for idx, v in ipairs(sorted) do
+    print(idx, v)
+end
 
 
 

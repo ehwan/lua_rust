@@ -1,10 +1,10 @@
 use lua_tokenizer::IntType;
 
-use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::Chunk;
 use crate::LuaFunction;
+use crate::LuaNumber;
 use crate::LuaTable;
 use crate::LuaValue;
 use crate::RuntimeError;
@@ -39,6 +39,8 @@ pub fn init_env() -> Result<LuaTable, RuntimeError> {
     );
     env.insert("assert".into(), LuaFunction::from_func(assert).into());
 
+    env.insert("ipairs".into(), LuaFunction::from_func(ipairs).into());
+
     env.insert("_VERSION".into(), VERSION.into());
 
     env.insert("string".into(), string::init()?.into());
@@ -46,11 +48,7 @@ pub fn init_env() -> Result<LuaTable, RuntimeError> {
     env.insert("table".into(), table::init()?.into());
     // env.insert("io".into(), io::init()?.into());
 
-    // @TODO _G
-    env.insert(
-        "_G".into(),
-        LuaValue::Table(Rc::new(RefCell::new(env.clone()))),
-    );
+    // `_G` will be added in `VM::new_stack()` or `Stack::new()`
     Ok(env)
 }
 
@@ -281,3 +279,71 @@ pub fn assert(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, R
         Err(RuntimeError::Error)
     }
 }
+
+/// iterator function for `ipairs`
+fn ipair_next(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    if args < 2 {
+        return Err(RuntimeError::ValueExpected);
+    }
+
+    let (table, key) = stack.pop2(args);
+    match table {
+        LuaValue::Table(table) => match key {
+            LuaValue::Number(LuaNumber::Int(mut n)) => {
+                n += 1;
+                if let Some(value) = table.borrow().get_arr(n) {
+                    stack.data_stack.push((n).into());
+                    stack.data_stack.push(value.clone());
+                    Ok(2)
+                } else {
+                    stack.data_stack.push(LuaValue::Nil);
+                    Ok(1)
+                }
+            }
+            _ => Err(RuntimeError::NotInteger),
+        },
+        _ => Err(RuntimeError::NotTable),
+    }
+}
+pub fn ipairs(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    if args == 0 {
+        return Err(RuntimeError::ValueExpected);
+    }
+    let table = if let LuaValue::Table(table) = stack.pop1(args) {
+        table
+    } else {
+        return Err(RuntimeError::NotTable);
+    };
+
+    stack
+        .data_stack
+        .push(LuaFunction::from_func(ipair_next).into());
+    stack.data_stack.push(LuaValue::Table(table));
+    stack.data_stack.push((0 as IntType).into());
+    Ok(3)
+}
+
+/*
+pub fn next(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    if args == 0 {
+        return Err(RuntimeError::ValueExpected);
+    }
+
+    let mut it = stack.pop_n(args);
+    let table = it.next().unwrap();
+    let index = match it.next() {
+        Some(index) => index,
+        None => LuaValue::Nil,
+    };
+    drop(it);
+
+    match table {
+        LuaValue::Table(table) => {
+            if let LuaValue::Nil = index {
+            } else {
+            }
+        }
+        _ => Err(RuntimeError::NotTable),
+    }
+}
+*/

@@ -52,9 +52,11 @@ impl Stack {
     pub fn new(stack_size: usize) -> Stack {
         let mut local_variables = Vec::new();
         local_variables.resize_with(stack_size, || RefOrValue::Value(LuaValue::Nil));
-        let env = builtin::init_env().unwrap();
+        let env = Rc::new(RefCell::new(builtin::init_env().unwrap()));
+        env.borrow_mut()
+            .insert("_G".into(), LuaValue::Table(Rc::clone(&env)));
         Stack {
-            env: LuaValue::Table(Rc::new(RefCell::new(env))),
+            env: LuaValue::Table(env),
             rng: rand::rngs::StdRng::from_entropy(),
             local_variables,
             data_stack: Vec::new(),

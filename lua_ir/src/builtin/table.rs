@@ -246,7 +246,7 @@ pub fn remove(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, R
     }
 }
 pub fn sort(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
-    let (list, cmp) = stack.pop2(args);
+    let (list, _cmp) = stack.pop2(args);
 
     let list = match list {
         LuaValue::Table(t) => t,
