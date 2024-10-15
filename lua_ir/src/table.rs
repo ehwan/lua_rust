@@ -9,9 +9,9 @@ use std::rc::Rc;
 #[derive(Debug, Clone)]
 pub struct LuaTable {
     /// every key except number goes here
-    map: HashMap<LuaValue, LuaValue>,
+    pub(crate) map: HashMap<LuaValue, LuaValue>,
     /// every key with number goes here
-    arr: BTreeMap<i64, LuaValue>,
+    pub(crate) arr: BTreeMap<IntType, LuaValue>,
 
     /// metatable
     pub(crate) meta: Option<Rc<RefCell<LuaTable>>>,
@@ -21,6 +21,14 @@ impl LuaTable {
         LuaTable {
             map: HashMap::with_capacity(capacity),
             arr: BTreeMap::new(),
+            meta: None,
+        }
+    }
+    pub fn arr_from_iter(it: impl Iterator<Item = LuaValue>) -> Self {
+        let arr = BTreeMap::from_iter(it.enumerate().map(|(idx, val)| (idx as IntType + 1, val)));
+        LuaTable {
+            map: HashMap::new(),
+            arr,
             meta: None,
         }
     }
@@ -74,20 +82,30 @@ impl LuaTable {
         self.map.get_mut(key)
     }
 
-    pub fn insert(&mut self, key: LuaValue, value: LuaValue) {
+    /// insert value to table.
+    /// key can be any lua value.
+    pub fn insert(&mut self, key: LuaValue, value: LuaValue) -> Option<LuaValue> {
         match key {
-            LuaValue::Nil => {}
-            LuaValue::Number(LuaNumber::Int(n)) => {
-                self.arr.insert(n, value);
-            }
-            _ => {
-                self.map.insert(key, value);
-            }
+            LuaValue::Nil => None,
+            LuaValue::Number(LuaNumber::Int(n)) => self.arr.insert(n, value),
+            _ => self.map.insert(key, value),
+        }
+    }
+    /// insert value to array part of table.
+    pub fn insert_arr(&mut self, key: IntType, value: LuaValue) -> Option<LuaValue> {
+        self.arr.insert(key, value)
+    }
+    /// insert value to hash part of table.
+    pub fn insert_table(&mut self, key: LuaValue, value: LuaValue) -> Option<LuaValue> {
+        match key {
+            LuaValue::Nil => None,
+            LuaValue::Number(LuaNumber::Int(_)) => panic!("insert_table with integer key"),
+            _ => self.map.insert(key, value),
         }
     }
 
     /// get length of array part of table.
     pub fn len(&self) -> IntType {
-        self.arr.last_key_value().map_or(0, |(k, _)| *k)
+        self.arr.last_key_value().map_or(0, |(k, _)| *k).max(0)
     }
 }

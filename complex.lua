@@ -53,24 +53,6 @@ print("Counter 2:", counter2(5))  -- 105
 print("Counter 2:", counter2(10)) -- 115
 
 
--- Coroutine example: Fibonacci generator
-function fibonacci()
-    local a, b = 0, 1
-    return coroutine.create(function()
-        while true do
-            coroutine.yield(a)
-            a, b = b, a + b
-        end
-    end)
-end
-
-local fib = fibonacci()
-for i = 1, 10 do
-    local success, value = coroutine.resume(fib)
-    print("Fibonacci number " .. i .. ": " .. value)
-end
-
-
 -- Table manipulation and recursive function example: Merge Sort
 function merge_sort(arr)
     if #arr <= 1 then
@@ -115,8 +97,28 @@ end
 local unsorted = {38, 27, 43, 3, 9, 82, 10}
 local sorted = merge_sort(unsorted)
 print("Sorted Array:")
+print( table.concat(sorted, ", ") )
 -- for _, v in ipairs(sorted) do
 --     print(v)
+-- end
+
+
+
+-- Coroutine example: Fibonacci generator
+-- function fibonacci()
+--     local a, b = 0, 1
+--     return coroutine.create(function()
+--         while true do
+--             coroutine.yield(a)
+--             a, b = b, a + b
+--         end
+--     end)
+-- end
+
+-- local fib = fibonacci()
+-- for i = 1, 10 do
+--     local success, value = coroutine.resume(fib)
+--     print("Fibonacci number " .. i .. ": " .. value)
 -- end
 
 
@@ -133,9 +135,9 @@ Closure Example (Counter):
 A create_counter function that creates a closure, allowing state to persist across function calls.
 Coroutine Example (Fibonacci Generator):
 
-A Fibonacci number generator using coroutines, yielding the next number in the sequence on each resume.
-Recursive Function (Merge Sort):
-
 An implementation of merge sort, demonstrating recursion, table manipulation, and table sorting.
 This code combines many Lua features and should thoroughly test your Lua parser! Let me know if you'd like any modifications or additional features added.
+
+A Fibonacci number generator using coroutines, yielding the next number in the sequence on each resume.
+Recursive Function (Merge Sort):
 ]===]

@@ -807,8 +807,8 @@ impl Stack {
                 for (idx, value) in values.into_iter().enumerate() {
                     let index = idx as IntType + *i;
                     if let LuaValue::Table(table) = table {
+                        table.borrow_mut().arr.insert(index, value);
                         // @TODO: use iterator and insert all at once
-                        table.borrow_mut().insert(index.into(), value);
                     } else {
                         unreachable!("table must be on top of stack");
                     }

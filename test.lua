@@ -34,6 +34,26 @@ print( #a )
 
 print( table.concat( a, ", ", 3, 5 ) )
 
+table.insert( a, 3, 100 )
+print( table.concat( a, ", ", 1, 7 ) )
+
+a = table.pack( 'a', 'b', 'c', 'd', 'e' )
+print( table.concat(a, ", ") )
+a[10] = "ten"
+print( table.unpack( a, 7, 9 ) )
+
+print( "removed: "..tostring(table.remove( a )) )
+print( table.unpack( a ) )
+print( "removed: "..tostring(table.remove( a, 2 )) )
+print( table.unpack( a ) )
+
+
+a = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 }
+b = { 'a', 'b', 'c' }
+table.move( a, 5, 9, 3, b )
+print( table.unpack( a ) )
+print( table.unpack( b ) )
+
 
 
 function func()

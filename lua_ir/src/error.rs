@@ -1,3 +1,5 @@
+// @TODO
+// error should match with (real) lua error
 #[derive(Debug)]
 pub enum RuntimeError {
     InvalidArith,
