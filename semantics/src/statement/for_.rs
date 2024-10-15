@@ -35,17 +35,29 @@ impl StmtFor {
 #[derive(Clone, Debug)]
 pub struct StmtForGeneric {
     pub control_variables: Vec<Rc<RefCell<VariableInfo>>>,
+    /// local variable for iterator
+    pub iterator: Rc<RefCell<VariableInfo>>,
+    /// local variable for state
+    pub state: Rc<RefCell<VariableInfo>>,
+    /// local variable for closing value
+    pub closing: Rc<RefCell<VariableInfo>>,
     pub expressions: Vec<Expression>,
     pub block: Block,
 }
 impl StmtForGeneric {
     pub fn new(
         control_variables: Vec<Rc<RefCell<VariableInfo>>>,
+        iterator: Rc<RefCell<VariableInfo>>,
+        state: Rc<RefCell<VariableInfo>>,
+        closing: Rc<RefCell<VariableInfo>>,
         expressions: Vec<Expression>,
         block: Block,
     ) -> Self {
         Self {
             control_variables,
+            iterator,
+            state,
+            closing,
             expressions,
             block,
         }

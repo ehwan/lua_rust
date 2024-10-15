@@ -399,7 +399,7 @@ impl Context {
                 self.emit_expression(*expr.lhs, Some(1));
                 self.instructions.push(Instruction::Clone);
                 self.instructions
-                    .push(Instruction::JumpFalse(lhs_false_label.clone()));
+                    .push(Instruction::JumpFalse(lhs_false_label));
                 self.instructions.push(Instruction::Pop);
                 self.emit_expression(*expr.rhs, Some(1));
                 self.set_label(lhs_false_label);
@@ -418,7 +418,7 @@ impl Context {
                 self.emit_expression(*expr.lhs, Some(1));
                 self.instructions.push(Instruction::Clone);
                 self.instructions
-                    .push(Instruction::JumpTrue(lhs_true_label.clone()));
+                    .push(Instruction::JumpTrue(lhs_true_label));
                 self.instructions.push(Instruction::Pop);
                 self.emit_expression(*expr.rhs, Some(1));
                 self.set_label(lhs_true_label);
@@ -491,43 +491,103 @@ impl Context {
     fn emit_statement_for(&mut self, stmt: lua_semantics::StmtFor) {
         let break_label = self.generate_label();
         let continue_label = self.generate_label();
-        self.loop_stack.push(break_label.clone());
+        self.loop_stack.push(break_label);
         let control_offset = stmt.control_variable.borrow().offset;
 
         self.emit_expression(stmt.start, Some(1));
 
-        self.set_label(continue_label.clone());
-        self.instructions.push(Instruction::Clear(control_offset));
+        self.set_label(continue_label);
         self.instructions
-            .push(Instruction::SetLocalVariable(control_offset));
+            .push(Instruction::InitLocalVariable(control_offset));
         // check range
         self.instructions
             .push(Instruction::GetLocalVariable(control_offset));
         self.emit_expression(stmt.end, Some(1));
         self.instructions.push(Instruction::BinaryLessEqual); // @TODO less, overflow check
-        self.instructions
-            .push(Instruction::JumpFalse(break_label.clone()));
+        self.instructions.push(Instruction::JumpFalse(break_label));
 
         self.emit_block(stmt.block);
         self.instructions
             .push(Instruction::GetLocalVariable(control_offset));
         self.emit_expression(stmt.step, Some(1));
         self.instructions.push(Instruction::BinaryAdd);
-        self.instructions
-            .push(Instruction::Jump(continue_label.clone()));
+        self.instructions.push(Instruction::Jump(continue_label));
 
         self.set_label(break_label);
         self.loop_stack.pop();
     }
-    fn emit_statement_forgeneric(&mut self, _stmt: lua_semantics::StmtForGeneric) {
-        unimplemented!("for-generic");
-        // let break_label = self.generate_label();
-        // self.loop_stack.push(break_label.clone());
+    fn emit_statement_forgeneric(&mut self, stmt: lua_semantics::StmtForGeneric) {
+        let break_label = self.generate_label();
+        let continue_label = self.generate_label();
+        self.loop_stack.push(break_label);
 
-        // // @TODO
+        // emit exactly 4 expressions for (iterator, state, initial_value, closing_value)
+        {
+            let mut emit_count = 0;
+            let exp_len = stmt.expressions.len();
+            for (idx, exp) in stmt.expressions.into_iter().enumerate() {
+                if idx == exp_len - 1 {
+                    if emit_count <= 4 {
+                        self.emit_expression(exp, Some(4 - emit_count));
+                    } else {
+                        self.emit_expression(exp, Some(0));
+                    }
+                } else {
+                    if emit_count < 4 {
+                        self.emit_expression(exp, Some(1));
+                        emit_count += 1;
+                    } else {
+                        self.emit_expression(exp, Some(0));
+                    }
+                }
+            }
+        }
 
-        // self.set_label(break_label);
-        // self.loop_stack.pop();
+        self.instructions
+            .push(Instruction::InitLocalVariable(stmt.closing.borrow().offset));
+        self.instructions.push(Instruction::InitLocalVariable(
+            stmt.control_variables[0].borrow().offset,
+        ));
+        self.instructions
+            .push(Instruction::InitLocalVariable(stmt.state.borrow().offset));
+        self.instructions.push(Instruction::InitLocalVariable(
+            stmt.iterator.borrow().offset,
+        ));
+
+        // ::continue_label::
+        self.set_label(continue_label);
+
+        // iterator function call
+        // control_variables* ... = iterator( state, control_variable_0 )
+        self.instructions.push(Instruction::Sp);
+        self.instructions
+            .push(Instruction::GetLocalVariable(stmt.state.borrow().offset));
+        self.instructions.push(Instruction::GetLocalVariable(
+            stmt.control_variables[0].borrow().offset,
+        ));
+        self.instructions
+            .push(Instruction::GetLocalVariable(stmt.iterator.borrow().offset));
+        self.instructions.push(Instruction::FunctionCall(Some(
+            stmt.control_variables.len(),
+        )));
+        for control_var in stmt.control_variables.iter().rev() {
+            self.instructions
+                .push(Instruction::InitLocalVariable(control_var.borrow().offset));
+        }
+        // get control_variable_0
+        self.instructions.push(Instruction::GetLocalVariable(
+            stmt.control_variables[0].borrow().offset,
+        ));
+        // check if it is nil
+        self.instructions.push(Instruction::IsNil);
+        // jump to break_label if it is nil
+        self.instructions.push(Instruction::JumpTrue(break_label));
+
+        self.emit_block(stmt.block);
+        self.instructions.push(Instruction::Jump(continue_label));
+
+        self.set_label(break_label);
+        self.loop_stack.pop();
     }
 
     fn emit_expression_function_object(
@@ -601,19 +661,17 @@ impl Context {
         {
             let false_label = self.generate_label();
             self.emit_expression(stmt.condition, Some(1));
-            self.instructions
-                .push(Instruction::JumpFalse(false_label.clone()));
+            self.instructions.push(Instruction::JumpFalse(false_label));
             self.emit_block(stmt.block);
-            self.instructions.push(Instruction::Jump(end_label.clone()));
+            self.instructions.push(Instruction::Jump(end_label));
             self.set_label(false_label);
         }
         for (cond, blk) in stmt.else_ifs {
             let false_label = self.generate_label();
             self.emit_expression(cond, Some(1));
-            self.instructions
-                .push(Instruction::JumpFalse(false_label.clone()));
+            self.instructions.push(Instruction::JumpFalse(false_label));
             self.emit_block(blk);
-            self.instructions.push(Instruction::Jump(end_label.clone()));
+            self.instructions.push(Instruction::Jump(end_label));
             self.set_label(false_label);
         }
         if let Some(else_block) = stmt.else_ {
@@ -649,21 +707,19 @@ impl Context {
         for (lhs_info, _attrib) in stmt.decls.into_iter().rev() {
             let local_id = lhs_info.borrow().offset;
             self.instructions
-                .push(Instruction::SetLocalVariable(local_id));
+                .push(Instruction::InitLocalVariable(local_id));
         }
     }
     fn emit_statement_while(&mut self, stmt: lua_semantics::StmtWhile) {
         let continue_label = self.generate_label();
         let break_label = self.generate_label();
-        self.loop_stack.push(break_label.clone());
+        self.loop_stack.push(break_label);
 
-        self.set_label(continue_label.clone());
+        self.set_label(continue_label);
         self.emit_expression(stmt.condition, Some(1));
-        self.instructions
-            .push(Instruction::JumpFalse(break_label.clone()));
+        self.instructions.push(Instruction::JumpFalse(break_label));
         self.emit_block(stmt.block);
-        self.instructions
-            .push(Instruction::Jump(continue_label.clone()));
+        self.instructions.push(Instruction::Jump(continue_label));
         self.set_label(break_label);
 
         self.loop_stack.pop();
@@ -671,13 +727,13 @@ impl Context {
     fn emit_statement_repeat(&mut self, stmt: lua_semantics::StmtRepeat) {
         let continue_label = self.generate_label();
         let break_label = self.generate_label();
-        self.loop_stack.push(break_label.clone());
+        self.loop_stack.push(break_label);
 
-        self.set_label(continue_label.clone());
+        self.set_label(continue_label);
         self.emit_block(stmt.block);
         self.emit_expression(stmt.condition, Some(1));
         self.instructions
-            .push(Instruction::JumpTrue(continue_label.clone()));
+            .push(Instruction::JumpTrue(continue_label));
         self.set_label(break_label);
 
         self.loop_stack.pop();
@@ -708,7 +764,7 @@ impl Context {
     }
     fn emit_statement_break(&mut self) {
         let break_label = match self.loop_stack.last() {
-            Some(label) => label.clone(),
+            Some(label) => *label,
             None => {
                 unreachable!("break outside loop");
             }

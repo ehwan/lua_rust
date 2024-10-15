@@ -714,6 +714,10 @@ impl Context {
     ) -> Result<(), ProcessError> {
         self.begin_scope(true);
 
+        let iterator = self.begin_variable_scope("@for_iterator".to_string());
+        let state = self.begin_variable_scope("@for_state".to_string());
+        let closing = self.begin_variable_scope("@for_closing".to_string());
+
         let mut exprs = Vec::with_capacity(stmt.expressions.len());
         for expr in stmt.expressions.into_iter() {
             exprs.push(self.process_expression(expr)?);
@@ -730,6 +734,9 @@ impl Context {
 
         let for_stmt = crate::Statement::ForGeneric(crate::StmtForGeneric::new(
             control_variables,
+            iterator,
+            state,
+            closing,
             exprs,
             block,
         ));

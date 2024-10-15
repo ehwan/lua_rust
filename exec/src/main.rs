@@ -45,15 +45,16 @@ fn main() {
 
     let context = lua_ir::Context::new();
     let chunk = context.emit(enhanced, semantics);
+
+    for (i, instr) in chunk.instructions.iter().enumerate() {
+        println!("{:04}: {:?}", i, instr);
+    }
+
     let mut stack = Stack::new(chunk.stack_size);
     match stack.run(&chunk) {
         Ok(_) => {}
         Err(e) => {
             eprintln!("Error: {:?}", e);
         }
-    }
-
-    for (i, instr) in chunk.instructions.iter().enumerate() {
-        println!("{:04}: {:?}", i, instr);
     }
 }

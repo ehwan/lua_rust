@@ -5,8 +5,6 @@ use crate::LabelType;
 
 #[derive(Debug, Clone)]
 pub enum Instruction {
-    /// clear i'th local variable to Nil
-    Clear(usize),
     /// clone top of the data_stack and push it
     Clone,
     /// push current length of data_stack to usize_stack
@@ -27,9 +25,14 @@ pub enum Instruction {
 
     /// get i'th local variable and push the value to stack_top
     GetLocalVariable(usize),
-    /// pops data_stack and set i'th local variable to the value.
+    /// pop data_stack and set i'th local variable to the value.
     /// If i'th local variable is `Ref`, the internal value will be set.
     SetLocalVariable(usize),
+    /// pop data_stack and initialize i'th local variable to the `Value`.
+    InitLocalVariable(usize),
+
+    /// pop data_stack and check if it is nil.
+    IsNil,
 
     /// push nil
     Nil,

@@ -705,9 +705,6 @@ impl Stack {
     /// execute single instruction
     pub fn cycle(&mut self, chunk: &Chunk, instruction: &Instruction) -> Result<(), RuntimeError> {
         match instruction {
-            Instruction::Clear(local_id) => {
-                self.local_variables[*local_id + self.bp] = RefOrValue::Value(LuaValue::Nil);
-            }
             Instruction::Clone => {
                 let top = self.data_stack.last().unwrap().clone();
                 self.data_stack.push(top);
@@ -765,6 +762,15 @@ impl Stack {
                     }
                 }
             }
+            Instruction::InitLocalVariable(local_id) => {
+                let top = self.data_stack.pop().unwrap();
+                self.local_variables[*local_id + self.bp] = RefOrValue::Value(top);
+            }
+            Instruction::IsNil => {
+                let top = self.data_stack.pop().unwrap();
+                self.data_stack.push(LuaValue::Boolean(top.is_nil()));
+            }
+
             Instruction::Nil => {
                 self.data_stack.push(LuaValue::Nil);
             }
