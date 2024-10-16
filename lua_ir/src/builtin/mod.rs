@@ -182,7 +182,11 @@ pub fn setmetatable(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<us
     if let LuaValue::Table(table) = table {
         // check __metatable is defined
         if let Some(meta_old) = &table.borrow().meta {
-            if meta_old.borrow().get(&"__metatable".into()).is_some() {
+            if meta_old
+                .borrow()
+                .map
+                .contains_key(&LuaValue::from("__metatable"))
+            {
                 return Err(RuntimeError::ProtectedMetatable);
             }
         }

@@ -504,10 +504,17 @@ impl Stack {
 
         match table {
             LuaValue::Table(table) => {
-                // @TODO set nil should remove key
-                if let Some(val) = table.borrow_mut().get_mut(&key) {
-                    *val = value;
-                    return Ok(());
+                {
+                    let mut table = table.borrow_mut();
+                    if let Some(val) = table.get_mut(&key) {
+                        // if rhs is nil, remove the key
+                        if value.is_nil() {
+                            table.remove(&key);
+                        } else {
+                            *val = value;
+                        }
+                        return Ok(());
+                    }
                 }
                 let meta = table.borrow().get_metavalue("__newindex");
                 match meta {

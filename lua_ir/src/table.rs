@@ -83,6 +83,14 @@ impl LuaTable {
         self.map.get_mut(key)
     }
 
+    /// remove value from table
+    pub fn remove(&mut self, key: &LuaValue) -> Option<LuaValue> {
+        match key {
+            LuaValue::Number(LuaNumber::Int(n)) => self.arr.remove(n),
+            _ => self.map.swap_remove(key),
+        }
+    }
+
     /// insert value to table.
     /// key can be any lua value.
     pub fn insert(&mut self, key: LuaValue, value: LuaValue) -> Option<LuaValue> {
