@@ -54,6 +54,16 @@ table.move( a, 5, 9, 3, b )
 print( table.unpack( a ) )
 print( table.unpack( b ) )
 
+print( 'generic-for loop with pairs' )
+for k, v in pairs(a) do
+    print( k, v )
+end
+
+print( 'generic-for loop with ipairs' )
+for k, v in ipairs(a) do
+    print( k, v )
+end
+
 
 
 function func()

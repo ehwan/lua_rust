@@ -38,4 +38,7 @@ pub enum RuntimeError {
 
     /// error with error handler
     Error,
+
+    /// next() called with invalid key
+    InvalidKey,
 }

@@ -40,6 +40,8 @@ pub fn init_env() -> Result<LuaTable, RuntimeError> {
     env.insert("assert".into(), LuaFunction::from_func(assert).into());
 
     env.insert("ipairs".into(), LuaFunction::from_func(ipairs).into());
+    env.insert("next".into(), LuaFunction::from_func(next).into());
+    env.insert("pairs".into(), LuaFunction::from_func(pairs).into());
 
     env.insert("_VERSION".into(), VERSION.into());
 
@@ -300,6 +302,7 @@ fn ipair_next(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, R
                     Ok(1)
                 }
             }
+            // this should not happen; since this function is only called from `ipairs`, privately
             _ => Err(RuntimeError::NotInteger),
         },
         _ => Err(RuntimeError::NotTable),
@@ -323,7 +326,6 @@ pub fn ipairs(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, R
     Ok(3)
 }
 
-/*
 pub fn next(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
@@ -331,19 +333,95 @@ pub fn next(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, Run
 
     let mut it = stack.pop_n(args);
     let table = it.next().unwrap();
-    let index = match it.next() {
-        Some(index) => index,
-        None => LuaValue::Nil,
-    };
+    let index = it.next().unwrap_or_default();
     drop(it);
+
+    // iterate table through
+    // integer keys (array part) first, then hash part
 
     match table {
         LuaValue::Table(table) => {
-            if let LuaValue::Nil = index {
-            } else {
+            match index {
+                // index is nil, get first key for iteration
+                LuaValue::Nil => {
+                    if let Some((k, v)) = table.borrow().arr.first_key_value() {
+                        stack.data_stack.push((*k).into());
+                        stack.data_stack.push(v.clone());
+                        Ok(2)
+                    } else {
+                        // no array part
+                        if let Some((k, v)) = table.borrow().map.first() {
+                            stack.data_stack.push(k.clone());
+                            stack.data_stack.push(v.clone());
+                            Ok(2)
+                        } else {
+                            // no hash part
+                            stack.data_stack.push(LuaValue::Nil);
+                            Ok(1)
+                        }
+                    }
+                }
+
+                // index is integer, get next element in array part
+                LuaValue::Number(LuaNumber::Int(n)) => {
+                    let table = table.borrow();
+                    let mut range_it = table.arr.range(n..);
+                    if range_it.next().map(|(k, _)| *k) == Some(n) {
+                        if let Some((k, v)) = range_it.next() {
+                            stack.data_stack.push((*k).into());
+                            stack.data_stack.push(v.clone());
+                            Ok(2)
+                        } else {
+                            // n is the last element, check hash part
+                            if let Some((k, v)) = table.map.first() {
+                                stack.data_stack.push(k.clone());
+                                stack.data_stack.push(v.clone());
+                                Ok(2)
+                            } else {
+                                // no hash part
+                                stack.data_stack.push(LuaValue::Nil);
+                                Ok(1)
+                            }
+                        }
+                    } else {
+                        Err(RuntimeError::InvalidKey)
+                    }
+                }
+
+                index => {
+                    // hash part
+                    if let Some(cur_idx) = table.borrow().map.get_index_of(&index) {
+                        if let Some((k, v)) = table.borrow().map.get_index(cur_idx + 1) {
+                            stack.data_stack.push(k.clone());
+                            stack.data_stack.push(v.clone());
+                            Ok(2)
+                        } else {
+                            // no more elements
+                            stack.data_stack.push(LuaValue::Nil);
+                            Ok(1)
+                        }
+                    } else {
+                        Err(RuntimeError::InvalidKey)
+                    }
+                }
             }
         }
         _ => Err(RuntimeError::NotTable),
     }
 }
-*/
+
+pub fn pairs(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    if args == 0 {
+        return Err(RuntimeError::ValueExpected);
+    }
+    let table = if let LuaValue::Table(table) = stack.pop1(args) {
+        table
+    } else {
+        return Err(RuntimeError::NotTable);
+    };
+
+    stack.data_stack.push(LuaFunction::from_func(next).into());
+    stack.data_stack.push(LuaValue::Table(table));
+    stack.data_stack.push(LuaValue::Nil);
+    Ok(3)
+}

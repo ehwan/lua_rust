@@ -504,6 +504,7 @@ impl Stack {
 
         match table {
             LuaValue::Table(table) => {
+                // @TODO set nil should remove key
                 if let Some(val) = table.borrow_mut().get_mut(&key) {
                     *val = value;
                     return Ok(());
