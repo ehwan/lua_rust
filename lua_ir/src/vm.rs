@@ -1,6 +1,9 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use std::sync::Arc;
+use std::sync::RwLock;
+
 use rand::SeedableRng;
 
 use crate::builtin;
@@ -24,9 +27,10 @@ pub struct LuaEnv {
 
 impl LuaEnv {
     pub fn new() -> LuaEnv {
-        let env = Rc::new(RefCell::new(builtin::init_env().unwrap()));
-        env.borrow_mut()
-            .insert("_G".into(), LuaValue::Table(Rc::clone(&env)));
+        let env = Arc::new(RwLock::new(builtin::init_env().unwrap()));
+        env.write()
+            .unwrap()
+            .insert("_G".into(), LuaValue::Table(Arc::clone(&env)));
         LuaEnv {
             env: LuaValue::Table(env),
             rng: rand::rngs::StdRng::from_entropy(),
@@ -429,19 +433,19 @@ impl Stack {
                 Ok(())
             }
             LuaValue::Table(table) => {
-                let meta = table.borrow().get_metavalue("__len");
+                let meta = table.read().unwrap().get_metavalue("__len");
                 match meta {
                     Some(meta) => {
                         // For the unary operators (negation, length, and bitwise NOT),
                         // the metamethod is computed and called with a dummy second operand
                         // equal to the first one.
-                        self.data_stack.push(LuaValue::Table(Rc::clone(&table)));
+                        self.data_stack.push(LuaValue::Table(Arc::clone(&table)));
                         self.data_stack.push(LuaValue::Table(table));
                         self.function_call(env, chunk, 2, meta, Some(1))
                     }
                     _ => {
                         self.data_stack
-                            .push((table.borrow().len() as IntType).into());
+                            .push((table.read().unwrap().len() as IntType).into());
                         Ok(())
                     }
                 }
@@ -465,12 +469,12 @@ impl Stack {
         let table = self.data_stack.pop().unwrap();
         match table {
             LuaValue::Table(table) => {
-                let get = table.borrow().get(&key).cloned();
+                let get = table.read().unwrap().get(&key).cloned();
                 if let Some(get) = get {
                     self.data_stack.push(get);
                     Ok(())
                 } else {
-                    let meta = table.borrow().get_metavalue("__index");
+                    let meta = table.read().unwrap().get_metavalue("__index");
                     match meta {
                         Some(LuaValue::Function(meta_func)) => {
                             self.data_stack.push(LuaValue::Table(table));
@@ -522,7 +526,7 @@ impl Stack {
         match table {
             LuaValue::Table(table) => {
                 {
-                    let mut table = table.borrow_mut();
+                    let mut table = table.write().unwrap();
                     if let Some(val) = table.get_mut(&key) {
                         // if rhs is nil, remove the key
                         if value.is_nil() {
@@ -533,7 +537,7 @@ impl Stack {
                         return Ok(());
                     }
                 }
-                let meta = table.borrow().get_metavalue("__newindex");
+                let meta = table.read().unwrap().get_metavalue("__newindex");
                 match meta {
                     Some(LuaValue::Function(meta_func)) => {
                         self.data_stack.push(LuaValue::Table(table));
@@ -548,7 +552,7 @@ impl Stack {
                         self.newindex(env, chunk)
                     }
                     _ => {
-                        table.borrow_mut().insert(key, value);
+                        table.write().unwrap().insert(key, value);
                         Ok(())
                     }
                 }
@@ -580,7 +584,7 @@ impl Stack {
 
         match (lhs, rhs) {
             (LuaValue::Table(lhs), LuaValue::Table(rhs)) => {
-                if Rc::ptr_eq(&lhs, &rhs) {
+                if Arc::ptr_eq(&lhs, &rhs) {
                     self.data_stack.push(LuaValue::Boolean(true));
                     return Ok(());
                 } else {
@@ -820,15 +824,14 @@ impl Stack {
             }
             Instruction::TableInit(cap) => {
                 let table = LuaTable::with_capacity(*cap);
-                self.data_stack
-                    .push(LuaValue::Table(Rc::new(RefCell::new(table))));
+                self.data_stack.push(table.into());
             }
             Instruction::TableIndexInit => {
                 let value = self.data_stack.pop().unwrap();
                 let index = self.data_stack.pop().unwrap();
                 let table = self.data_stack.last_mut().unwrap();
                 if let LuaValue::Table(table) = table {
-                    table.borrow_mut().insert(index, value);
+                    table.write().unwrap().insert(index, value);
                 } else {
                     unreachable!("table must be on top of stack");
                 }
@@ -837,14 +840,15 @@ impl Stack {
                 let sp = self.usize_stack.pop().unwrap();
                 let values: Vec<_> = self.data_stack.drain(sp..).collect();
                 let table = self.data_stack.last().unwrap();
-                for (idx, value) in values.into_iter().enumerate() {
-                    let index = idx as IntType + *i;
-                    if let LuaValue::Table(table) = table {
-                        table.borrow_mut().arr.insert(index, value);
+                if let LuaValue::Table(table) = table {
+                    let mut table = table.write().unwrap();
+                    for (idx, value) in values.into_iter().enumerate() {
+                        let index = idx as IntType + *i;
+                        table.arr.insert(index, value);
                         // @TODO: use iterator and insert all at once
-                    } else {
-                        unreachable!("table must be on top of stack");
                     }
+                } else {
+                    unreachable!("table must be on top of stack");
                 }
             }
 

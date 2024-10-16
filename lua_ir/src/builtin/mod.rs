@@ -1,6 +1,6 @@
 use lua_tokenizer::IntType;
 
-use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::Chunk;
 use crate::LuaEnv;
@@ -100,7 +100,7 @@ pub fn rawlen(
     let arg = stack.pop1(args);
     let len = match arg {
         LuaValue::String(s) => s.len() as IntType,
-        LuaValue::Table(t) => t.borrow().len(),
+        LuaValue::Table(t) => t.read().unwrap().len(),
         _ => return Err(RuntimeError::NotTableOrString),
     };
     stack.data_stack.push((len).into());
@@ -119,7 +119,12 @@ pub fn rawget(
 
     match table {
         LuaValue::Table(t) => {
-            let get = t.borrow().get(&key).cloned().unwrap_or(LuaValue::Nil);
+            let get = t
+                .read()
+                .unwrap()
+                .get(&key)
+                .cloned()
+                .unwrap_or(LuaValue::Nil);
             stack.data_stack.push(get);
             Ok(1)
         }
@@ -145,7 +150,7 @@ pub fn rawset(
             } else if key.is_nan() {
                 Err(RuntimeError::TableIndexNan)
             } else {
-                t.borrow_mut().insert(key, value);
+                t.write().unwrap().insert(key, value);
                 Ok(1)
             }
         }
@@ -217,9 +222,10 @@ pub fn setmetatable(
 
     if let LuaValue::Table(table) = table {
         // check __metatable is defined
-        if let Some(meta_old) = &table.borrow().meta {
+        if let Some(meta_old) = &table.read().unwrap().meta {
             if meta_old
-                .borrow()
+                .read()
+                .unwrap()
                 .map
                 .contains_key(&LuaValue::from("__metatable"))
             {
@@ -228,11 +234,11 @@ pub fn setmetatable(
         }
         match meta {
             LuaValue::Nil => {
-                table.borrow_mut().meta = None;
+                table.write().unwrap().meta = None;
                 Ok(1)
             }
             LuaValue::Table(meta) => {
-                table.borrow_mut().meta = Some(meta);
+                table.write().unwrap().meta = Some(meta);
                 Ok(1)
             }
             _ => Err(RuntimeError::NotTable),
@@ -253,12 +259,12 @@ pub fn getmetatable(
     let value = stack.pop1(args);
     match value {
         LuaValue::Table(table) => {
-            if let Some(meta) = &table.borrow().meta {
+            if let Some(meta) = &table.read().unwrap().meta {
                 // check __metatable is defined
-                if let Some(assoc) = meta.borrow().get(&"__metatable".into()) {
+                if let Some(assoc) = meta.read().unwrap().get(&"__metatable".into()) {
                     stack.data_stack.push(assoc.clone());
                 } else {
-                    stack.data_stack.push(LuaValue::Table(Rc::clone(meta)));
+                    stack.data_stack.push(LuaValue::Table(Arc::clone(meta)));
                 }
             } else {
                 stack.data_stack.push(LuaValue::Nil);
@@ -363,7 +369,7 @@ fn ipair_next(
         LuaValue::Table(table) => match key {
             LuaValue::Number(LuaNumber::Int(mut n)) => {
                 n += 1;
-                if let Some(value) = table.borrow().get_arr(n) {
+                if let Some(value) = table.read().unwrap().get_arr(n) {
                     stack.data_stack.push((n).into());
                     stack.data_stack.push(value.clone());
                     Ok(2)
@@ -424,13 +430,13 @@ pub fn next(
             match index {
                 // index is nil, get first key for iteration
                 LuaValue::Nil => {
-                    if let Some((k, v)) = table.borrow().arr.first_key_value() {
+                    if let Some((k, v)) = table.read().unwrap().arr.first_key_value() {
                         stack.data_stack.push((*k).into());
                         stack.data_stack.push(v.clone());
                         Ok(2)
                     } else {
                         // no array part
-                        if let Some((k, v)) = table.borrow().map.first() {
+                        if let Some((k, v)) = table.read().unwrap().map.first() {
                             stack.data_stack.push(k.clone());
                             stack.data_stack.push(v.clone());
                             Ok(2)
@@ -444,7 +450,7 @@ pub fn next(
 
                 // index is integer, get next element in array part
                 LuaValue::Number(LuaNumber::Int(n)) => {
-                    let table = table.borrow();
+                    let table = table.read().unwrap();
                     let mut range_it = table.arr.range(n..);
                     if range_it.next().map(|(k, _)| *k) == Some(n) {
                         if let Some((k, v)) = range_it.next() {
@@ -470,8 +476,9 @@ pub fn next(
 
                 index => {
                     // hash part
-                    if let Some(cur_idx) = table.borrow().map.get_index_of(&index) {
-                        if let Some((k, v)) = table.borrow().map.get_index(cur_idx + 1) {
+                    let table = table.read().unwrap();
+                    if let Some(cur_idx) = table.map.get_index_of(&index) {
+                        if let Some((k, v)) = table.map.get_index(cur_idx + 1) {
                             stack.data_stack.push(k.clone());
                             stack.data_stack.push(v.clone());
                             Ok(2)

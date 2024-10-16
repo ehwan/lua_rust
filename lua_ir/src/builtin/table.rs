@@ -1,5 +1,5 @@
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::RwLock;
 
 use crate::Chunk;
 use crate::IntType;
@@ -22,7 +22,7 @@ pub fn init() -> Result<LuaValue, RuntimeError> {
     table.insert("sort".into(), LuaFunction::from_func(sort).into());
     table.insert("unpack".into(), LuaFunction::from_func(unpack).into());
 
-    Ok(LuaValue::Table(Rc::new(RefCell::new(table))))
+    Ok(table.into())
 }
 
 pub fn concat(
@@ -50,7 +50,7 @@ pub fn concat(
             Some(j) => j,
             _ => return Err(RuntimeError::NotNumber),
         },
-        _ => list.borrow().len() as IntType,
+        _ => list.read().unwrap().len() as IntType,
     };
     drop(it);
 
@@ -69,7 +69,7 @@ pub fn concat(
         if k != i {
             ret.extend(sep.iter().copied());
         }
-        match list.borrow().get_arr(k) {
+        match list.read().unwrap().get_arr(k) {
             Some(LuaValue::String(s)) => {
                 ret.extend(s.iter().copied());
             }
@@ -101,8 +101,9 @@ pub fn insert(
             let (table, value) = stack.pop2(args);
             match table {
                 LuaValue::Table(table) => {
-                    let len = table.borrow().len();
-                    table.borrow_mut().arr.insert(len + 1, value);
+                    let mut table = table.write().unwrap();
+                    let len = table.len();
+                    table.arr.insert(len + 1, value);
                 }
                 _ => {
                     return Err(RuntimeError::NotTable);
@@ -124,19 +125,20 @@ pub fn insert(
                     return Err(RuntimeError::NotNumber);
                 }
             };
-            let len = table.borrow().len();
+            let mut table = table.write().unwrap();
+            let len = table.len();
             if pos <= 0 || pos > len + 1 {
                 return Err(RuntimeError::OutOfRange);
             }
 
             if pos == len + 1 {
-                table.borrow_mut().arr.insert(len + 1, value);
+                table.arr.insert(len + 1, value);
             } else {
-                let split_right = table.borrow_mut().arr.split_off(&pos);
+                let split_right = table.arr.split_off(&pos);
                 for (idx, val) in split_right.into_iter() {
-                    table.borrow_mut().arr.insert(idx + 1, val);
+                    table.arr.insert(idx + 1, val);
                 }
-                table.borrow_mut().arr.insert(pos, value);
+                table.arr.insert(pos, value);
             }
             Ok(0)
         }
@@ -172,14 +174,14 @@ pub fn move_(
     };
     let a2 = match it.next() {
         Some(LuaValue::Table(t)) => t,
-        _ => Rc::clone(&a1),
+        _ => Arc::clone(&a1),
     };
     drop(it);
 
     if f <= e {
         for i in f..=e {
-            let value = a1.borrow_mut().arr.remove(&i).unwrap_or_default();
-            a2.borrow_mut().insert_arr(i - f + t, value);
+            let value = a1.write().unwrap().arr.remove(&i).unwrap_or_default();
+            a2.write().unwrap().insert_arr(i - f + t, value);
         }
     }
     stack.data_stack.push(LuaValue::Table(a2));
@@ -192,9 +194,7 @@ pub fn pack(
     args: usize,
 ) -> Result<usize, RuntimeError> {
     let new_table = LuaTable::arr_from_iter(stack.pop_n(args));
-    stack
-        .data_stack
-        .push(LuaValue::Table(Rc::new(RefCell::new(new_table))));
+    stack.data_stack.push(new_table.into());
     Ok(1)
 }
 pub fn remove(
@@ -212,7 +212,8 @@ pub fn remove(
             match list {
                 LuaValue::Table(table) => {
                     let removed = table
-                        .borrow_mut()
+                        .write()
+                        .unwrap()
                         .arr
                         .pop_last()
                         .map(|(_, v)| v)
@@ -228,7 +229,7 @@ pub fn remove(
             let (list, pos) = stack.pop2(args);
             match list {
                 LuaValue::Table(table) => {
-                    let len = table.borrow().len();
+                    let len = table.read().unwrap().len();
                     let pos = match pos.try_to_int() {
                         Some(pos) => pos,
                         None => return Err(RuntimeError::NotNumber),
@@ -250,18 +251,20 @@ pub fn remove(
                         return Ok(1);
                     }
 
-                    let split_right = table.borrow_mut().arr.split_off(&pos);
+                    let split_right = table.write().unwrap().arr.split_off(&pos);
                     let first_pos = split_right.first_key_value().map(|(k, _)| *k);
                     if first_pos == Some(pos) {
                         let mut it = split_right.into_iter();
                         let removed = it.next().unwrap().1;
                         stack.data_stack.push(removed);
+                        let mut table = table.write().unwrap();
                         for (idx, val) in it {
-                            table.borrow_mut().arr.insert(idx - 1, val);
+                            table.arr.insert(idx - 1, val);
                         }
                     } else {
+                        let mut table = table.write().unwrap();
                         for (idx, val) in split_right {
-                            table.borrow_mut().arr.insert(idx - 1, val);
+                            table.arr.insert(idx - 1, val);
                         }
                     }
                     Ok(1)
@@ -287,9 +290,9 @@ pub fn sort(
 
     let mut list_to_vec = Vec::new();
     unpack_impl(
-        Rc::clone(&list),
+        Arc::clone(&list),
         1,
-        list.borrow().len() as IntType,
+        list.read().unwrap().len() as IntType,
         &mut list_to_vec,
     )?;
 
@@ -355,16 +358,15 @@ pub fn sort(
             }
         });
     }
-    for (idx, list_to_vec) in list_to_vec.into_iter().enumerate() {
-        list.borrow_mut()
-            .arr
-            .insert(idx as IntType + 1, list_to_vec);
+    let mut list = list.write().unwrap();
+    for (idx, list_to_vec_elem) in list_to_vec.into_iter().enumerate() {
+        list.arr.insert(idx as IntType + 1, list_to_vec_elem);
     }
     Ok(0)
 }
 
 fn unpack_impl(
-    table: Rc<RefCell<LuaTable>>,
+    table: Arc<RwLock<LuaTable>>,
     mut i: IntType,
     j: IntType,
     out: &mut Vec<LuaValue>,
@@ -375,7 +377,8 @@ fn unpack_impl(
     let len = j - i + 1;
     out.reserve(len as usize);
 
-    for (idx, value) in table.borrow().arr.range(i..=j) {
+    let table = table.read().unwrap();
+    for (idx, value) in table.arr.range(i..=j) {
         if i < *idx {
             let nil_count = *idx - i;
 
@@ -385,6 +388,7 @@ fn unpack_impl(
         i = *idx + 1;
         out.push(value.clone());
     }
+    drop(table);
     if i <= j {
         let nil_count = j - i + 1;
         out.resize_with(out.len() + nil_count as usize, Default::default);
@@ -415,7 +419,7 @@ pub fn unpack(
             Some(j) => j,
             _ => return Err(RuntimeError::NotNumber),
         },
-        _ => table.borrow().len() as IntType,
+        _ => table.read().unwrap().len() as IntType,
     };
     drop(it);
 

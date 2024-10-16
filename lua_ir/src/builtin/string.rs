@@ -1,6 +1,3 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-
 use crate::Chunk;
 use crate::IntType;
 use crate::LuaEnv;
@@ -29,7 +26,7 @@ pub fn init() -> Result<LuaValue, RuntimeError> {
     string.insert("pack".into(), LuaFunction::from_func(pack).into());
     string.insert("packsize".into(), LuaFunction::from_func(packsize).into());
     string.insert("unpack".into(), LuaFunction::from_func(unpack).into());
-    Ok(LuaValue::Table(Rc::new(RefCell::new(string))))
+    Ok(string.into())
 }
 
 pub fn dump(

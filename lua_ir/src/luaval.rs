@@ -7,6 +7,9 @@ use crate::LuaTable;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use std::sync::Arc;
+use std::sync::RwLock;
+
 /// for local variables and upvalues.
 #[derive(Debug, Clone)]
 pub enum RefOrValue {
@@ -25,7 +28,7 @@ pub enum LuaValue {
     Boolean(bool),
     Number(LuaNumber),
     String(Vec<u8>),
-    Table(Rc<RefCell<LuaTable>>),
+    Table(Arc<RwLock<LuaTable>>),
     Function(LuaFunction),
     UserData(LuaUserData),
     Thread(LuaThread),
@@ -41,7 +44,7 @@ impl std::hash::Hash for LuaValue {
             LuaValue::Boolean(b) => b.hash(state),
             LuaValue::Number(n) => n.hash(state),
             LuaValue::String(s) => s.hash(state),
-            LuaValue::Table(t) => Rc::as_ptr(t).hash(state),
+            LuaValue::Table(t) => Arc::as_ptr(t).hash(state),
             LuaValue::Function(f) => f.hash(state),
             LuaValue::UserData(_) => {
                 unimplemented!("hash for userdata")
@@ -59,7 +62,7 @@ impl std::cmp::PartialEq for LuaValue {
             (LuaValue::Boolean(a), LuaValue::Boolean(b)) => a == b,
             (LuaValue::Number(a), LuaValue::Number(b)) => a == b,
             (LuaValue::String(a), LuaValue::String(b)) => a == b,
-            (LuaValue::Table(a), LuaValue::Table(b)) => Rc::ptr_eq(a, b),
+            (LuaValue::Table(a), LuaValue::Table(b)) => Arc::ptr_eq(a, b),
             (LuaValue::Function(a), LuaValue::Function(b)) => a == b,
             (LuaValue::UserData(_), LuaValue::UserData(_)) => {
                 unimplemented!("userdata equality")
@@ -81,7 +84,7 @@ impl std::fmt::Display for LuaValue {
             LuaValue::Number(n) => write!(f, "{}", n),
             LuaValue::String(s) => write!(f, "{}", String::from_utf8_lossy(s)),
             LuaValue::Table(t) => {
-                write!(f, "table {:p}", Rc::as_ptr(t))
+                write!(f, "table {:p}", Arc::as_ptr(t))
             }
             LuaValue::Function(func) => write!(f, "{}", func),
             LuaValue::UserData(_) => write!(f, "userdata"),
@@ -133,7 +136,7 @@ impl LuaValue {
 
     pub fn get_metavalue(&self, key: &str) -> Option<LuaValue> {
         match self {
-            LuaValue::Table(t) => t.borrow().get_metavalue(key),
+            LuaValue::Table(t) => t.read().unwrap().get_metavalue(key),
             _ => None,
         }
     }
@@ -182,7 +185,7 @@ impl From<&str> for LuaValue {
 }
 impl From<LuaTable> for LuaValue {
     fn from(t: LuaTable) -> Self {
-        LuaValue::Table(Rc::new(RefCell::new(t)))
+        LuaValue::Table(Arc::new(RwLock::new(t)))
     }
 }
 impl From<LuaFunction> for LuaValue {

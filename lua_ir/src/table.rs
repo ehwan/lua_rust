@@ -1,9 +1,9 @@
 use crate::IntType;
 use crate::{LuaNumber, LuaValue};
 
-use std::cell::RefCell;
 use std::collections::BTreeMap;
-use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::RwLock;
 
 use indexmap::IndexMap;
 
@@ -15,7 +15,7 @@ pub struct LuaTable {
     pub(crate) arr: BTreeMap<IntType, LuaValue>,
 
     /// metatable
-    pub(crate) meta: Option<Rc<RefCell<LuaTable>>>,
+    pub(crate) meta: Option<Arc<RwLock<LuaTable>>>,
 }
 impl LuaTable {
     pub fn with_capacity(capacity: usize) -> Self {
@@ -42,7 +42,7 @@ impl LuaTable {
     }
     pub fn get_metavalue(&self, key: &str) -> Option<LuaValue> {
         if let Some(meta) = &self.meta {
-            meta.borrow().map.get(&LuaValue::from(key)).cloned()
+            meta.read().unwrap().map.get(&LuaValue::from(key)).cloned()
         } else {
             None
         }

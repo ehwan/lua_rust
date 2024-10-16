@@ -1,6 +1,3 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-
 use rand::rngs::StdRng;
 use rand::Rng;
 use rand::SeedableRng;
@@ -56,7 +53,7 @@ pub fn init() -> Result<LuaValue, RuntimeError> {
         "randomseed".into(),
         LuaFunction::from_func(randomseed).into(),
     );
-    Ok(LuaValue::Table(Rc::new(RefCell::new(math))))
+    Ok(math.into())
 }
 
 pub fn abs(
