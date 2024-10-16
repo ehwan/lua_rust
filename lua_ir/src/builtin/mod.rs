@@ -3,6 +3,7 @@ use lua_tokenizer::IntType;
 use std::rc::Rc;
 
 use crate::Chunk;
+use crate::LuaEnv;
 use crate::LuaFunction;
 use crate::LuaNumber;
 use crate::LuaTable;
@@ -57,19 +58,29 @@ pub fn init_env() -> Result<LuaTable, RuntimeError> {
 // tonumber
 // pcall
 
-pub fn print(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn print(
+    stack: &mut Stack,
+    env: &mut LuaEnv,
+    chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     let args: Vec<_> = stack.pop_n(args).collect();
     for (idx, arg) in args.into_iter().enumerate() {
         if idx > 0 {
             print!("\t");
         }
-        let to_string_ed = tostring_impl(stack, _chunk, arg)?;
+        let to_string_ed = tostring_impl(stack, env, chunk, arg)?;
         print!("{}", String::from_utf8_lossy(&to_string_ed));
     }
     println!();
     Ok(0)
 }
-pub fn rawequal(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn rawequal(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args < 2 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -77,7 +88,12 @@ pub fn rawequal(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize,
     stack.data_stack.push(LuaValue::Boolean(lhs == rhs));
     Ok(1)
 }
-pub fn rawlen(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn rawlen(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -90,7 +106,12 @@ pub fn rawlen(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, R
     stack.data_stack.push((len).into());
     Ok(1)
 }
-pub fn rawget(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn rawget(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args < 2 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -105,7 +126,12 @@ pub fn rawget(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, R
         _ => Err(RuntimeError::NotTable),
     }
 }
-pub fn rawset(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn rawset(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args < 3 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -126,7 +152,12 @@ pub fn rawset(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, R
         _ => Err(RuntimeError::NotTable),
     }
 }
-pub fn select(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn select(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -172,7 +203,12 @@ pub fn select(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, R
     }
 }
 
-pub fn setmetatable(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn setmetatable(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args < 2 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -205,7 +241,12 @@ pub fn setmetatable(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<us
         Err(RuntimeError::NotTable)
     }
 }
-pub fn getmetatable(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn getmetatable(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -228,13 +269,18 @@ pub fn getmetatable(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<us
     }
 }
 
-fn tostring_impl(stack: &mut Stack, chunk: &Chunk, arg: LuaValue) -> Result<Vec<u8>, RuntimeError> {
+fn tostring_impl(
+    stack: &mut Stack,
+    env: &mut LuaEnv,
+    chunk: &Chunk,
+    arg: LuaValue,
+) -> Result<Vec<u8>, RuntimeError> {
     match arg.get_metavalue("__tostring") {
         Some(meta) => {
             stack.data_stack.push(arg);
-            stack.function_call(chunk, 1, meta, Some(1))?;
+            stack.function_call(env, chunk, 1, meta, Some(1))?;
             let arg = stack.data_stack.pop().unwrap();
-            tostring_impl(stack, chunk, arg)
+            tostring_impl(stack, env, chunk, arg)
         }
         _ => match arg.get_metavalue("__name") {
             Some(name) => match name {
@@ -245,17 +291,27 @@ fn tostring_impl(stack: &mut Stack, chunk: &Chunk, arg: LuaValue) -> Result<Vec<
         },
     }
 }
-pub fn tostring(stack: &mut Stack, chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn tostring(
+    stack: &mut Stack,
+    env: &mut LuaEnv,
+    chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
     let arg = stack.pop1(args);
-    let to_string_ed = LuaValue::String(tostring_impl(stack, chunk, arg)?);
+    let to_string_ed = LuaValue::String(tostring_impl(stack, env, chunk, arg)?);
     stack.data_stack.push(to_string_ed);
     Ok(1)
 }
 
-pub fn type_(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn type_(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -274,7 +330,12 @@ pub fn type_(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, Ru
     Ok(1)
 }
 
-pub fn assert(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn assert(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -287,7 +348,12 @@ pub fn assert(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, R
 }
 
 /// iterator function for `ipairs`
-fn ipair_next(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+fn ipair_next(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args < 2 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -312,7 +378,12 @@ fn ipair_next(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, R
         _ => Err(RuntimeError::NotTable),
     }
 }
-pub fn ipairs(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn ipairs(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -330,7 +401,12 @@ pub fn ipairs(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, R
     Ok(3)
 }
 
-pub fn next(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn next(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -414,7 +490,13 @@ pub fn next(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, Run
     }
 }
 
-pub fn pairs(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+// @TODO __pair metamethod
+pub fn pairs(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }

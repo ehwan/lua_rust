@@ -6,6 +6,7 @@ use rand::Rng;
 use rand::SeedableRng;
 
 use crate::Chunk;
+use crate::LuaEnv;
 use crate::LuaFunction;
 use crate::LuaNumber;
 use crate::LuaTable;
@@ -58,7 +59,12 @@ pub fn init() -> Result<LuaValue, RuntimeError> {
     Ok(LuaValue::Table(Rc::new(RefCell::new(math))))
 }
 
-pub fn abs(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn abs(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -71,7 +77,12 @@ pub fn abs(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, Runt
         None => Err(RuntimeError::NotNumber),
     }
 }
-pub fn acos(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn acos(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -83,7 +94,12 @@ pub fn acos(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, Run
         None => Err(RuntimeError::NotNumber),
     }
 }
-pub fn asin(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn asin(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -95,7 +111,12 @@ pub fn asin(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, Run
         None => Err(RuntimeError::NotNumber),
     }
 }
-pub fn atan(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn atan(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     match args {
         0 => Err(RuntimeError::ValueExpected),
         1 => match stack.pop1(args).try_to_number() {
@@ -120,7 +141,12 @@ pub fn atan(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, Run
         }
     }
 }
-pub fn ceil(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn ceil(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -132,7 +158,12 @@ pub fn ceil(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, Run
         _ => Err(RuntimeError::NotNumber),
     }
 }
-pub fn floor(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn floor(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -144,7 +175,12 @@ pub fn floor(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, Ru
         _ => Err(RuntimeError::NotNumber),
     }
 }
-pub fn cos(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn cos(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -156,7 +192,12 @@ pub fn cos(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, Runt
         _ => Err(RuntimeError::NotNumber),
     }
 }
-pub fn sin(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn sin(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -168,7 +209,12 @@ pub fn sin(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, Runt
         _ => Err(RuntimeError::NotNumber),
     }
 }
-pub fn deg(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn deg(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -180,7 +226,12 @@ pub fn deg(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, Runt
         _ => Err(RuntimeError::NotNumber),
     }
 }
-pub fn rad(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn rad(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -192,7 +243,12 @@ pub fn rad(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, Runt
         _ => Err(RuntimeError::NotNumber),
     }
 }
-pub fn exp(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn exp(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -204,7 +260,12 @@ pub fn exp(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, Runt
         _ => Err(RuntimeError::NotNumber),
     }
 }
-pub fn log(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn log(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -231,7 +292,12 @@ pub fn log(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, Runt
     }
 }
 
-pub fn sqrt(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn sqrt(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -244,7 +310,12 @@ pub fn sqrt(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, Run
     }
 }
 
-pub fn type_(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn type_(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -258,7 +329,12 @@ pub fn type_(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, Ru
     stack.data_stack.push(ret);
     Ok(1)
 }
-pub fn tointeger(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn tointeger(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -269,7 +345,12 @@ pub fn tointeger(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize
     stack.data_stack.push(ret);
     Ok(1)
 }
-pub fn ult(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn ult(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args < 2 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -292,16 +373,21 @@ pub fn ult(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, Runt
     Ok(1)
 }
 
-pub fn random(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn random(
+    stack: &mut Stack,
+    env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     let rand = match args {
         0 => {
             // [0,1)
-            stack.rng.gen_range(0.0..1.0).into()
+            env.rng.gen_range(0.0..1.0).into()
         }
         1 => {
             // [1,num]
             match stack.pop1(args).try_to_int() {
-                Some(num) => stack.rng.gen_range(1..=num).into(),
+                Some(num) => env.rng.gen_range(1..=num).into(),
                 None => return Err(RuntimeError::NotInteger),
             }
         }
@@ -310,7 +396,7 @@ pub fn random(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, R
             let (m, n) = stack.pop2(args);
 
             match (m.try_to_int(), n.try_to_int()) {
-                (Some(m), Some(n)) => stack.rng.gen_range(m..=n).into(),
+                (Some(m), Some(n)) => env.rng.gen_range(m..=n).into(),
                 _ => return Err(RuntimeError::NotInteger),
             }
         }
@@ -319,17 +405,22 @@ pub fn random(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, R
     Ok(1)
 }
 
-pub fn randomseed(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn randomseed(
+    stack: &mut Stack,
+    env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     match args {
         0 => {
-            stack.rng = StdRng::from_entropy();
+            env.rng = StdRng::from_entropy();
         }
         1 => {
             let seed = match stack.pop1(args).try_to_int() {
                 Some(num) => num,
                 None => return Err(RuntimeError::NotInteger),
             };
-            stack.rng = StdRng::seed_from_u64(seed as u64);
+            env.rng = StdRng::seed_from_u64(seed as u64);
         }
         _ => {
             let (seed1, seed2) = stack.pop2(args);
@@ -337,7 +428,7 @@ pub fn randomseed(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usiz
                 (Some(seed1), Some(seed2)) => {
                     // @TODO this should be 128bit seed
                     let seed = (seed1.rotate_left(32) ^ seed2) as u64;
-                    stack.rng = StdRng::seed_from_u64(seed as u64);
+                    env.rng = StdRng::seed_from_u64(seed as u64);
                 }
                 _ => return Err(RuntimeError::NotInteger),
             }
@@ -346,7 +437,12 @@ pub fn randomseed(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usiz
     Ok(0)
 }
 
-pub fn modf(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn modf(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -369,7 +465,12 @@ pub fn modf(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, Run
     }
 }
 
-pub fn fmod(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn fmod(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args < 2 {
         return Err(RuntimeError::ValueExpected);
     }

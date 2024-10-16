@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::Chunk;
+use crate::LuaEnv;
 use crate::LuaValue;
 use crate::RuntimeError;
 use crate::Stack;
@@ -25,7 +26,7 @@ pub enum LuaFunction {
     /// functions written in Lua
     LuaFunc(LuaFunctionLua),
     /// built-in functions written in Rust
-    RustFunc(Rc<dyn Fn(&mut Stack, &Chunk, usize) -> Result<usize, RuntimeError>>),
+    RustFunc(Rc<dyn Fn(&mut Stack, &mut LuaEnv, &Chunk, usize) -> Result<usize, RuntimeError>>),
 }
 impl std::cmp::PartialEq for LuaFunction {
     fn eq(&self, other: &Self) -> bool {
@@ -65,7 +66,7 @@ impl std::fmt::Debug for LuaFunction {
 
 impl LuaFunction {
     pub fn from_func(
-        func: impl Fn(&mut Stack, &Chunk, usize) -> Result<usize, RuntimeError> + 'static,
+        func: impl Fn(&mut Stack, &mut LuaEnv, &Chunk, usize) -> Result<usize, RuntimeError> + 'static,
     ) -> Self {
         LuaFunction::RustFunc(Rc::new(func))
     }

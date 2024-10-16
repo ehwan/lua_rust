@@ -3,6 +3,7 @@ use std::rc::Rc;
 
 use crate::Chunk;
 use crate::IntType;
+use crate::LuaEnv;
 use crate::LuaFunction;
 use crate::LuaTable;
 use crate::LuaValue;
@@ -24,7 +25,12 @@ pub fn init() -> Result<LuaValue, RuntimeError> {
     Ok(LuaValue::Table(Rc::new(RefCell::new(table))))
 }
 
-pub fn concat(stack: &mut Stack, chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn concat(
+    stack: &mut Stack,
+    env: &mut LuaEnv,
+    chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     let mut it = stack.pop_n(args);
     let list = match it.next() {
         Some(LuaValue::Table(t)) => t,
@@ -54,7 +60,7 @@ pub fn concat(stack: &mut Stack, chunk: &Chunk, args: usize) -> Result<usize, Ru
     }
 
     let sep = match sep {
-        Some(sep) => super::tostring_impl(stack, chunk, sep)?,
+        Some(sep) => super::tostring_impl(stack, env, chunk, sep)?,
         None => Vec::new(),
     };
 
@@ -80,7 +86,12 @@ pub fn concat(stack: &mut Stack, chunk: &Chunk, args: usize) -> Result<usize, Ru
     Ok(1)
 }
 
-pub fn insert(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn insert(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     match args {
         0 | 1 => {
             drop(stack.pop_n(args));
@@ -131,7 +142,12 @@ pub fn insert(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, R
         }
     }
 }
-pub fn move_(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn move_(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args < 4 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -169,14 +185,24 @@ pub fn move_(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, Ru
     stack.data_stack.push(LuaValue::Table(a2));
     Ok(1)
 }
-pub fn pack(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn pack(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     let new_table = LuaTable::arr_from_iter(stack.pop_n(args));
     stack
         .data_stack
         .push(LuaValue::Table(Rc::new(RefCell::new(new_table))));
     Ok(1)
 }
-pub fn remove(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn remove(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     match args {
         0 => {
             return Err(RuntimeError::ValueExpected);
@@ -245,7 +271,12 @@ pub fn remove(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, R
         }
     }
 }
-pub fn sort(stack: &mut Stack, chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn sort(
+    stack: &mut Stack,
+    env: &mut LuaEnv,
+    chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     let mut it = stack.pop_n(args);
     let list = match it.next() {
         Some(LuaValue::Table(list)) => list,
@@ -269,7 +300,10 @@ pub fn sort(stack: &mut Stack, chunk: &Chunk, args: usize) -> Result<usize, Runt
         list_to_vec.sort_unstable_by(|a, b| {
             stack.data_stack.push(a.clone());
             stack.data_stack.push(b.clone());
-            if stack.function_call(chunk, 2, cmp.clone(), Some(1)).is_err() {
+            if stack
+                .function_call(env, chunk, 2, cmp.clone(), Some(1))
+                .is_err()
+            {
                 std::cmp::Ordering::Equal
             } else {
                 let ret = stack.data_stack.pop().unwrap().to_bool();
@@ -278,7 +312,10 @@ pub fn sort(stack: &mut Stack, chunk: &Chunk, args: usize) -> Result<usize, Runt
                 } else {
                     stack.data_stack.push(b.clone());
                     stack.data_stack.push(a.clone());
-                    if stack.function_call(chunk, 2, cmp.clone(), Some(1)).is_err() {
+                    if stack
+                        .function_call(env, chunk, 2, cmp.clone(), Some(1))
+                        .is_err()
+                    {
                         std::cmp::Ordering::Equal
                     } else {
                         let ret = stack.data_stack.pop().unwrap().to_bool();
@@ -295,7 +332,7 @@ pub fn sort(stack: &mut Stack, chunk: &Chunk, args: usize) -> Result<usize, Runt
         list_to_vec.sort_unstable_by(|a, b| {
             stack.data_stack.push(a.clone());
             stack.data_stack.push(b.clone());
-            if stack.lt(chunk).is_err() {
+            if stack.lt(env, chunk).is_err() {
                 std::cmp::Ordering::Equal
             } else {
                 let ret = stack.data_stack.pop().unwrap().to_bool();
@@ -304,7 +341,7 @@ pub fn sort(stack: &mut Stack, chunk: &Chunk, args: usize) -> Result<usize, Runt
                 } else {
                     stack.data_stack.push(b.clone());
                     stack.data_stack.push(a.clone());
-                    if stack.lt(chunk).is_err() {
+                    if stack.lt(env, chunk).is_err() {
                         std::cmp::Ordering::Equal
                     } else {
                         let ret = stack.data_stack.pop().unwrap().to_bool();
@@ -355,7 +392,12 @@ fn unpack_impl(
 
     Ok(len as usize)
 }
-pub fn unpack(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn unpack(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     let mut it = stack.pop_n(args);
     let table = match it.next() {
         Some(LuaValue::Table(t)) => t,

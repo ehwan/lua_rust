@@ -3,6 +3,7 @@ use std::rc::Rc;
 
 use crate::Chunk;
 use crate::IntType;
+use crate::LuaEnv;
 use crate::LuaFunction;
 use crate::LuaTable;
 use crate::LuaValue;
@@ -20,18 +21,81 @@ pub fn init() -> Result<LuaValue, RuntimeError> {
     string.insert("rep".into(), LuaFunction::from_func(rep).into());
     string.insert("reverse".into(), LuaFunction::from_func(reverse).into());
     string.insert("upper".into(), LuaFunction::from_func(upper).into());
+    string.insert("dump".into(), LuaFunction::from_func(dump).into());
+    string.insert("format".into(), LuaFunction::from_func(format).into());
+    string.insert("gmatch".into(), LuaFunction::from_func(gmatch).into());
+    string.insert("gsub".into(), LuaFunction::from_func(gsub).into());
+    string.insert("match".into(), LuaFunction::from_func(match_).into());
+    string.insert("pack".into(), LuaFunction::from_func(pack).into());
+    string.insert("packsize".into(), LuaFunction::from_func(packsize).into());
+    string.insert("unpack".into(), LuaFunction::from_func(unpack).into());
     Ok(LuaValue::Table(Rc::new(RefCell::new(string))))
 }
 
-// @TODO
-// dump
-// format
-// gmatch
-// gsub
-// match
-// pack
-// packsize
-// unpack
+pub fn dump(
+    _stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    _args: usize,
+) -> Result<usize, RuntimeError> {
+    unimplemented!("string.dump");
+}
+pub fn format(
+    _stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    _args: usize,
+) -> Result<usize, RuntimeError> {
+    unimplemented!("string.format");
+}
+pub fn gmatch(
+    _stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    _args: usize,
+) -> Result<usize, RuntimeError> {
+    unimplemented!("string.gmatch");
+}
+pub fn gsub(
+    _stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    _args: usize,
+) -> Result<usize, RuntimeError> {
+    unimplemented!("string.gsub");
+}
+pub fn match_(
+    _stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    _args: usize,
+) -> Result<usize, RuntimeError> {
+    unimplemented!("string.match");
+}
+pub fn pack(
+    _stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    _args: usize,
+) -> Result<usize, RuntimeError> {
+    unimplemented!("string.pack");
+}
+pub fn packsize(
+    _stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    _args: usize,
+) -> Result<usize, RuntimeError> {
+    unimplemented!("string.packsize");
+}
+pub fn unpack(
+    _stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    _args: usize,
+) -> Result<usize, RuntimeError> {
+    unimplemented!("string.unpack");
+}
 
 pub fn sub_impl(s: &[u8], mut i: IntType, mut j: IntType) -> &'_ [u8] {
     if i < 0 {
@@ -58,7 +122,12 @@ pub fn sub_impl(s: &[u8], mut i: IntType, mut j: IntType) -> &'_ [u8] {
         &s[((i - 1) as usize)..(j as usize)]
     }
 }
-pub fn byte(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn byte(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -89,7 +158,12 @@ pub fn byte(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, Run
     }
     Ok(sub.len())
 }
-pub fn sub(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn sub(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args < 2 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -116,7 +190,12 @@ pub fn sub(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, Runt
     Ok(1)
 }
 
-pub fn char_(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn char_(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     let chars: Result<Vec<u8>, _> = stack
         .pop_n(args)
         .into_iter()
@@ -136,7 +215,12 @@ pub fn char_(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, Ru
     Ok(1)
 }
 
-pub fn len(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn len(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -149,7 +233,12 @@ pub fn len(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, Runt
     }
 }
 
-pub fn lower(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn lower(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -162,7 +251,12 @@ pub fn lower(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, Ru
         _ => return Err(RuntimeError::NotString),
     }
 }
-pub fn upper(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn upper(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -175,7 +269,12 @@ pub fn upper(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, Ru
         _ => return Err(RuntimeError::NotString),
     }
 }
-pub fn rep(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn rep(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args < 2 {
         return Err(RuntimeError::ValueExpected);
     }
@@ -212,7 +311,12 @@ pub fn rep(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, Runt
     Ok(1)
 }
 
-pub fn reverse(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+pub fn reverse(
+    stack: &mut Stack,
+    _env: &mut LuaEnv,
+    _chunk: &Chunk,
+    args: usize,
+) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }

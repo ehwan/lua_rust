@@ -15,6 +15,25 @@ use crate::LuaValue;
 use crate::Instruction;
 use crate::RuntimeError;
 
+pub struct LuaEnv {
+    /// _env
+    pub(crate) env: LuaValue,
+    /// random number generator
+    pub(crate) rng: rand::rngs::StdRng,
+}
+
+impl LuaEnv {
+    pub fn new() -> LuaEnv {
+        let env = Rc::new(RefCell::new(builtin::init_env().unwrap()));
+        env.borrow_mut()
+            .insert("_G".into(), LuaValue::Table(Rc::clone(&env)));
+        LuaEnv {
+            env: LuaValue::Table(env),
+            rng: rand::rngs::StdRng::from_entropy(),
+        }
+    }
+}
+
 pub struct FunctionStackElem {
     /// function object
     pub function_object: LuaFunctionLua,
@@ -25,11 +44,6 @@ pub struct FunctionStackElem {
 }
 
 pub struct Stack {
-    /// _env
-    pub env: LuaValue,
-
-    pub(crate) rng: rand::rngs::StdRng,
-
     /// local variable stack
     pub local_variables: Vec<RefOrValue>,
     /// offset of local variables for current scope
@@ -51,12 +65,7 @@ impl Stack {
     pub fn new(stack_size: usize) -> Stack {
         let mut local_variables = Vec::new();
         local_variables.resize_with(stack_size, || RefOrValue::Value(LuaValue::Nil));
-        let env = Rc::new(RefCell::new(builtin::init_env().unwrap()));
-        env.borrow_mut()
-            .insert("_G".into(), LuaValue::Table(Rc::clone(&env)));
         Stack {
-            env: LuaValue::Table(env),
-            rng: rand::rngs::StdRng::from_entropy(),
             local_variables,
             data_stack: Vec::new(),
             usize_stack: Vec::new(),
@@ -109,6 +118,7 @@ impl Stack {
     /// It tries to search metamethod on lhs first, then rhs.
     fn try_call_metamethod(
         &mut self,
+        env: &mut LuaEnv,
         chunk: &Chunk,
         lhs: LuaValue,
         rhs: LuaValue,
@@ -118,20 +128,20 @@ impl Stack {
             Some(meta) => {
                 self.data_stack.push(lhs);
                 self.data_stack.push(rhs);
-                self.function_call(chunk, 2, meta, Some(1))
+                self.function_call(env, chunk, 2, meta, Some(1))
             }
             None => match rhs.get_metavalue(meta_name) {
                 Some(meta) => {
                     self.data_stack.push(lhs);
                     self.data_stack.push(rhs);
-                    self.function_call(chunk, 2, meta, Some(1))
+                    self.function_call(env, chunk, 2, meta, Some(1))
                 }
                 None => Err(RuntimeError::NoMetaMethod),
             },
         }
     }
     /// add operation with __add metamethod
-    pub fn add(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+    pub fn add(&mut self, env: &mut LuaEnv, chunk: &Chunk) -> Result<(), RuntimeError> {
         let rhs = self.data_stack.pop().unwrap();
         let lhs = self.data_stack.pop().unwrap();
         match (lhs, rhs) {
@@ -141,12 +151,12 @@ impl Stack {
                 Ok(())
             }
             // else, try to call metamethod, search on left first
-            (lhs, rhs) => self.try_call_metamethod(chunk, lhs, rhs, "__add"),
+            (lhs, rhs) => self.try_call_metamethod(env, chunk, lhs, rhs, "__add"),
         }
     }
 
     /// sub operation with __sub metamethod
-    pub fn sub(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+    pub fn sub(&mut self, env: &mut LuaEnv, chunk: &Chunk) -> Result<(), RuntimeError> {
         let rhs = self.data_stack.pop().unwrap();
         let lhs = self.data_stack.pop().unwrap();
         match (lhs, rhs) {
@@ -155,11 +165,11 @@ impl Stack {
                 Ok(())
             }
             // else, try to call metamethod, search on left first
-            (lhs, rhs) => self.try_call_metamethod(chunk, lhs, rhs, "__sub"),
+            (lhs, rhs) => self.try_call_metamethod(env, chunk, lhs, rhs, "__sub"),
         }
     }
     /// mul operation with __mul metamethod
-    pub fn mul(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+    pub fn mul(&mut self, env: &mut LuaEnv, chunk: &Chunk) -> Result<(), RuntimeError> {
         let rhs = self.data_stack.pop().unwrap();
         let lhs = self.data_stack.pop().unwrap();
         match (lhs, rhs) {
@@ -168,11 +178,11 @@ impl Stack {
                 Ok(())
             }
             // else, try to call metamethod, search on left first
-            (lhs, rhs) => self.try_call_metamethod(chunk, lhs, rhs, "__mul"),
+            (lhs, rhs) => self.try_call_metamethod(env, chunk, lhs, rhs, "__mul"),
         }
     }
     /// div operation with __div metamethod
-    pub fn div(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+    pub fn div(&mut self, env: &mut LuaEnv, chunk: &Chunk) -> Result<(), RuntimeError> {
         let rhs = self.data_stack.pop().unwrap();
         let lhs = self.data_stack.pop().unwrap();
         match (lhs, rhs) {
@@ -181,11 +191,11 @@ impl Stack {
                 Ok(())
             }
             // else, try to call metamethod, search on left first
-            (lhs, rhs) => self.try_call_metamethod(chunk, lhs, rhs, "__div"),
+            (lhs, rhs) => self.try_call_metamethod(env, chunk, lhs, rhs, "__div"),
         }
     }
     /// mod operation with __mod metamethod
-    pub fn mod_(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+    pub fn mod_(&mut self, env: &mut LuaEnv, chunk: &Chunk) -> Result<(), RuntimeError> {
         let rhs = self.data_stack.pop().unwrap();
         let lhs = self.data_stack.pop().unwrap();
         match (lhs, rhs) {
@@ -194,11 +204,11 @@ impl Stack {
                 Ok(())
             }
             // else, try to call metamethod, search on left first
-            (lhs, rhs) => self.try_call_metamethod(chunk, lhs, rhs, "__mod"),
+            (lhs, rhs) => self.try_call_metamethod(env, chunk, lhs, rhs, "__mod"),
         }
     }
     /// pow operation with __pow metamethod
-    pub fn pow(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+    pub fn pow(&mut self, env: &mut LuaEnv, chunk: &Chunk) -> Result<(), RuntimeError> {
         let rhs = self.data_stack.pop().unwrap();
         let lhs = self.data_stack.pop().unwrap();
         match (lhs, rhs) {
@@ -207,11 +217,11 @@ impl Stack {
                 Ok(())
             }
             // else, try to call metamethod, search on left first
-            (lhs, rhs) => self.try_call_metamethod(chunk, lhs, rhs, "__pow"),
+            (lhs, rhs) => self.try_call_metamethod(env, chunk, lhs, rhs, "__pow"),
         }
     }
     /// unary minus operation with __unm metamethod
-    pub fn unm(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+    pub fn unm(&mut self, env: &mut LuaEnv, chunk: &Chunk) -> Result<(), RuntimeError> {
         let lhs = self.data_stack.pop().unwrap();
         match lhs {
             LuaValue::Number(num) => {
@@ -225,14 +235,14 @@ impl Stack {
                     // equal to the first one.
                     self.data_stack.push(lhs.clone());
                     self.data_stack.push(lhs);
-                    self.function_call(chunk, 2, meta, Some(1))
+                    self.function_call(env, chunk, 2, meta, Some(1))
                 }
                 _ => Err(RuntimeError::NoMetaMethod),
             },
         }
     }
     /// floor division operation with __idiv metamethod
-    pub fn idiv(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+    pub fn idiv(&mut self, env: &mut LuaEnv, chunk: &Chunk) -> Result<(), RuntimeError> {
         let rhs = self.data_stack.pop().unwrap();
         let lhs = self.data_stack.pop().unwrap();
         match (lhs, rhs) {
@@ -241,11 +251,11 @@ impl Stack {
                 Ok(())
             }
             // else, try to call metamethod, search on left first
-            (lhs, rhs) => self.try_call_metamethod(chunk, lhs, rhs, "__idiv"),
+            (lhs, rhs) => self.try_call_metamethod(env, chunk, lhs, rhs, "__idiv"),
         }
     }
     /// bitwise and operation with __band metamethod
-    pub fn band(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+    pub fn band(&mut self, env: &mut LuaEnv, chunk: &Chunk) -> Result<(), RuntimeError> {
         let rhs = self.data_stack.pop().unwrap();
         let lhs = self.data_stack.pop().unwrap();
         match (&lhs, &rhs) {
@@ -255,15 +265,15 @@ impl Stack {
                         self.data_stack.push((lhs & rhs).into());
                         Ok(())
                     }
-                    _ => self.try_call_metamethod(chunk, lhs, rhs, "__band"),
+                    _ => self.try_call_metamethod(env, chunk, lhs, rhs, "__band"),
                 }
             }
             // else, try to call metamethod, search on left first
-            _ => self.try_call_metamethod(chunk, lhs, rhs, "__band"),
+            _ => self.try_call_metamethod(env, chunk, lhs, rhs, "__band"),
         }
     }
     /// bitwise or operation with __bor metamethod
-    pub fn bor(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+    pub fn bor(&mut self, env: &mut LuaEnv, chunk: &Chunk) -> Result<(), RuntimeError> {
         let rhs = self.data_stack.pop().unwrap();
         let lhs = self.data_stack.pop().unwrap();
         match (&lhs, &rhs) {
@@ -273,15 +283,15 @@ impl Stack {
                         self.data_stack.push((lhs | rhs).into());
                         Ok(())
                     }
-                    _ => self.try_call_metamethod(chunk, lhs, rhs, "__bor"),
+                    _ => self.try_call_metamethod(env, chunk, lhs, rhs, "__bor"),
                 }
             }
             // else, try to call metamethod, search on left first
-            _ => self.try_call_metamethod(chunk, lhs, rhs, "__bor"),
+            _ => self.try_call_metamethod(env, chunk, lhs, rhs, "__bor"),
         }
     }
     /// bitwise xor operation with __bxor metamethod
-    pub fn bxor(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+    pub fn bxor(&mut self, env: &mut LuaEnv, chunk: &Chunk) -> Result<(), RuntimeError> {
         let rhs = self.data_stack.pop().unwrap();
         let lhs = self.data_stack.pop().unwrap();
         match (&lhs, &rhs) {
@@ -291,15 +301,15 @@ impl Stack {
                         self.data_stack.push((lhs ^ rhs).into());
                         Ok(())
                     }
-                    _ => self.try_call_metamethod(chunk, lhs, rhs, "__bxor"),
+                    _ => self.try_call_metamethod(env, chunk, lhs, rhs, "__bxor"),
                 }
             }
             // else, try to call metamethod, search on left first
-            _ => self.try_call_metamethod(chunk, lhs, rhs, "__bxor"),
+            _ => self.try_call_metamethod(env, chunk, lhs, rhs, "__bxor"),
         }
     }
     /// bitwise shift left operation with __shl metamethod
-    pub fn shl(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+    pub fn shl(&mut self, env: &mut LuaEnv, chunk: &Chunk) -> Result<(), RuntimeError> {
         let rhs = self.data_stack.pop().unwrap();
         let lhs = self.data_stack.pop().unwrap();
         match (&lhs, &rhs) {
@@ -309,15 +319,15 @@ impl Stack {
                         self.data_stack.push((lhs << rhs).into());
                         Ok(())
                     }
-                    _ => self.try_call_metamethod(chunk, lhs, rhs, "__shl"),
+                    _ => self.try_call_metamethod(env, chunk, lhs, rhs, "__shl"),
                 }
             }
             // else, try to call metamethod, search on left first
-            _ => self.try_call_metamethod(chunk, lhs, rhs, "__shl"),
+            _ => self.try_call_metamethod(env, chunk, lhs, rhs, "__shl"),
         }
     }
     /// bitwise shift right operation with __shr metamethod
-    pub fn shr(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+    pub fn shr(&mut self, env: &mut LuaEnv, chunk: &Chunk) -> Result<(), RuntimeError> {
         let rhs = self.data_stack.pop().unwrap();
         let lhs = self.data_stack.pop().unwrap();
         match (&lhs, &rhs) {
@@ -327,15 +337,15 @@ impl Stack {
                         self.data_stack.push((lhs >> rhs).into());
                         Ok(())
                     }
-                    _ => self.try_call_metamethod(chunk, lhs, rhs, "__shr"),
+                    _ => self.try_call_metamethod(env, chunk, lhs, rhs, "__shr"),
                 }
             }
             // else, try to call metamethod, search on left first
-            _ => self.try_call_metamethod(chunk, lhs, rhs, "__shr"),
+            _ => self.try_call_metamethod(env, chunk, lhs, rhs, "__shr"),
         }
     }
     /// bitwise not operation with __bnot metamethod
-    pub fn bnot(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+    pub fn bnot(&mut self, env: &mut LuaEnv, chunk: &Chunk) -> Result<(), RuntimeError> {
         let lhs = self.data_stack.pop().unwrap();
         match &lhs {
             LuaValue::Number(lhs_num) => match lhs_num.try_to_int() {
@@ -350,7 +360,7 @@ impl Stack {
                         // equal to the first one.
                         self.data_stack.push(lhs.clone());
                         self.data_stack.push(lhs);
-                        self.function_call(chunk, 2, meta, Some(1))
+                        self.function_call(env, chunk, 2, meta, Some(1))
                     }
                     _ => Err(RuntimeError::NoMetaMethod),
                 },
@@ -362,14 +372,14 @@ impl Stack {
                     // equal to the first one.
                     self.data_stack.push(lhs.clone());
                     self.data_stack.push(lhs);
-                    self.function_call(chunk, 2, meta, Some(1))
+                    self.function_call(env, chunk, 2, meta, Some(1))
                 }
                 _ => Err(RuntimeError::NoMetaMethod),
             },
         }
     }
     /// concat operation with __concat metamethod
-    pub fn concat(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+    pub fn concat(&mut self, env: &mut LuaEnv, chunk: &Chunk) -> Result<(), RuntimeError> {
         let rhs = self.data_stack.pop().unwrap();
         let lhs = self.data_stack.pop().unwrap();
         match lhs {
@@ -386,7 +396,7 @@ impl Stack {
                     self.data_stack.push(LuaValue::String(lhs));
                     Ok(())
                 }
-                _ => self.try_call_metamethod(chunk, lhs, rhs, "__concat"),
+                _ => self.try_call_metamethod(env, chunk, lhs, rhs, "__concat"),
             },
 
             LuaValue::String(lhs_str) => match rhs {
@@ -402,14 +412,16 @@ impl Stack {
                     self.data_stack.push(LuaValue::String(lhs));
                     Ok(())
                 }
-                _ => self.try_call_metamethod(chunk, LuaValue::String(lhs_str), rhs, "__concat"),
+                _ => {
+                    self.try_call_metamethod(env, chunk, LuaValue::String(lhs_str), rhs, "__concat")
+                }
             },
 
-            _ => self.try_call_metamethod(chunk, lhs, rhs, "__concat"),
+            _ => self.try_call_metamethod(env, chunk, lhs, rhs, "__concat"),
         }
     }
     /// `#` length operation with __len metamethod
-    pub fn len(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+    pub fn len(&mut self, env: &mut LuaEnv, chunk: &Chunk) -> Result<(), RuntimeError> {
         let lhs = self.data_stack.pop().unwrap();
         match lhs {
             LuaValue::String(s) => {
@@ -425,7 +437,7 @@ impl Stack {
                         // equal to the first one.
                         self.data_stack.push(LuaValue::Table(Rc::clone(&table)));
                         self.data_stack.push(LuaValue::Table(table));
-                        self.function_call(chunk, 2, meta, Some(1))
+                        self.function_call(env, chunk, 2, meta, Some(1))
                     }
                     _ => {
                         self.data_stack
@@ -441,14 +453,14 @@ impl Stack {
                     // equal to the first one.
                     self.data_stack.push(lhs.clone());
                     self.data_stack.push(lhs);
-                    self.function_call(chunk, 2, meta, Some(1))
+                    self.function_call(env, chunk, 2, meta, Some(1))
                 }
                 _ => Err(RuntimeError::NoMetaMethod),
             },
         }
     }
     /// table index get operation with __index metamethod
-    pub fn index(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+    pub fn index(&mut self, env: &mut LuaEnv, chunk: &Chunk) -> Result<(), RuntimeError> {
         let key = self.data_stack.pop().unwrap();
         let table = self.data_stack.pop().unwrap();
         match table {
@@ -463,12 +475,18 @@ impl Stack {
                         Some(LuaValue::Function(meta_func)) => {
                             self.data_stack.push(LuaValue::Table(table));
                             self.data_stack.push(key);
-                            self.function_call(chunk, 2, LuaValue::Function(meta_func), Some(1))
+                            self.function_call(
+                                env,
+                                chunk,
+                                2,
+                                LuaValue::Function(meta_func),
+                                Some(1),
+                            )
                         }
                         Some(LuaValue::Table(meta_table)) => {
                             self.data_stack.push(LuaValue::Table(meta_table));
                             self.data_stack.push(key);
-                            self.index(chunk)
+                            self.index(env, chunk)
                         }
                         _ => {
                             self.data_stack.push(LuaValue::Nil);
@@ -483,12 +501,12 @@ impl Stack {
                     Some(LuaValue::Function(meta_func)) => {
                         self.data_stack.push(table);
                         self.data_stack.push(key);
-                        self.function_call(chunk, 2, LuaValue::Function(meta_func), Some(1))
+                        self.function_call(env, chunk, 2, LuaValue::Function(meta_func), Some(1))
                     }
                     Some(LuaValue::Table(meta_table)) => {
                         self.data_stack.push(LuaValue::Table(meta_table));
                         self.data_stack.push(key);
-                        self.index(chunk)
+                        self.index(env, chunk)
                     }
                     _ => Err(RuntimeError::NotTable),
                 }
@@ -496,7 +514,7 @@ impl Stack {
         }
     }
     /// table index set operation with __newindex metamethod
-    pub fn newindex(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+    pub fn newindex(&mut self, env: &mut LuaEnv, chunk: &Chunk) -> Result<(), RuntimeError> {
         let key = self.data_stack.pop().unwrap();
         let table = self.data_stack.pop().unwrap();
         let value = self.data_stack.pop().unwrap();
@@ -521,13 +539,13 @@ impl Stack {
                         self.data_stack.push(LuaValue::Table(table));
                         self.data_stack.push(key);
                         self.data_stack.push(value);
-                        self.function_call(chunk, 3, LuaValue::Function(meta_func), Some(0))
+                        self.function_call(env, chunk, 3, LuaValue::Function(meta_func), Some(0))
                     }
                     Some(LuaValue::Table(meta_table)) => {
                         self.data_stack.push(value);
                         self.data_stack.push(LuaValue::Table(meta_table));
                         self.data_stack.push(key);
-                        self.newindex(chunk)
+                        self.newindex(env, chunk)
                     }
                     _ => {
                         table.borrow_mut().insert(key, value);
@@ -542,13 +560,13 @@ impl Stack {
                         self.data_stack.push(table);
                         self.data_stack.push(key);
                         self.data_stack.push(value);
-                        self.function_call(chunk, 3, LuaValue::Function(meta_func), Some(0))
+                        self.function_call(env, chunk, 3, LuaValue::Function(meta_func), Some(0))
                     }
                     Some(LuaValue::Table(meta_table)) => {
                         self.data_stack.push(value);
                         self.data_stack.push(LuaValue::Table(meta_table));
                         self.data_stack.push(key);
-                        self.newindex(chunk)
+                        self.newindex(env, chunk)
                     }
                     _ => Err(RuntimeError::NotTable),
                 }
@@ -556,7 +574,7 @@ impl Stack {
         }
     }
     /// equality operation with __eq metamethod
-    pub fn eq(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+    pub fn eq(&mut self, env: &mut LuaEnv, chunk: &Chunk) -> Result<(), RuntimeError> {
         let rhs = self.data_stack.pop().unwrap();
         let lhs = self.data_stack.pop().unwrap();
 
@@ -567,6 +585,7 @@ impl Stack {
                     return Ok(());
                 } else {
                     self.try_call_metamethod(
+                        env,
                         chunk,
                         LuaValue::Table(lhs),
                         LuaValue::Table(rhs),
@@ -581,7 +600,7 @@ impl Stack {
         }
     }
     /// less than operation with __lt metamethod
-    pub fn lt(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+    pub fn lt(&mut self, env: &mut LuaEnv, chunk: &Chunk) -> Result<(), RuntimeError> {
         let rhs = self.data_stack.pop().unwrap();
         let lhs = self.data_stack.pop().unwrap();
 
@@ -594,12 +613,12 @@ impl Stack {
                 self.data_stack.push(LuaValue::Boolean(lhs < rhs));
                 Ok(())
             }
-            (lhs, rhs) => self.try_call_metamethod(chunk, lhs, rhs, "__lt"),
+            (lhs, rhs) => self.try_call_metamethod(env, chunk, lhs, rhs, "__lt"),
         }
     }
 
     /// less than or equal operation with __le metamethod
-    pub fn le(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+    pub fn le(&mut self, env: &mut LuaEnv, chunk: &Chunk) -> Result<(), RuntimeError> {
         let rhs = self.data_stack.pop().unwrap();
         let lhs = self.data_stack.pop().unwrap();
 
@@ -612,7 +631,7 @@ impl Stack {
                 self.data_stack.push(LuaValue::Boolean(lhs <= rhs));
                 Ok(())
             }
-            (lhs, rhs) => self.try_call_metamethod(chunk, lhs, rhs, "__le"),
+            (lhs, rhs) => self.try_call_metamethod(env, chunk, lhs, rhs, "__le"),
         }
     }
 
@@ -620,6 +639,7 @@ impl Stack {
     /// this does not return until the function call is finished.
     pub fn function_call(
         &mut self,
+        env: &mut LuaEnv,
         chunk: &Chunk,
         // number of arguments actually passed
         args_num: usize,
@@ -687,12 +707,12 @@ impl Stack {
                 self.counter = func_info.address;
                 while self.usize_stack.len() > usize_len0 {
                     let instruction = chunk.instructions.get(self.counter).unwrap();
-                    self.cycle(chunk, instruction)?;
+                    self.cycle(env, chunk, instruction)?;
                 }
                 Ok(())
             }
             LuaValue::Function(LuaFunction::RustFunc(rust_internal)) => {
-                let ret_num = rust_internal(self, chunk, args_num)?;
+                let ret_num = rust_internal(self, env, chunk, args_num)?;
                 if let Some(expected) = expected_ret {
                     let adjusted = self.data_stack.len() - ret_num + expected;
                     self.data_stack.resize_with(adjusted, Default::default);
@@ -704,7 +724,7 @@ impl Stack {
                 if let Some(meta) = func {
                     self.data_stack
                         .insert(self.data_stack.len() - args_num, other);
-                    self.function_call(chunk, args_num + 1, meta, expected_ret)
+                    self.function_call(env, chunk, args_num + 1, meta, expected_ret)
                 } else {
                     Err(RuntimeError::NotFunction)
                 }
@@ -712,7 +732,12 @@ impl Stack {
         }
     }
     /// execute single instruction
-    pub fn cycle(&mut self, chunk: &Chunk, instruction: &Instruction) -> Result<(), RuntimeError> {
+    pub fn cycle(
+        &mut self,
+        env: &mut LuaEnv,
+        chunk: &Chunk,
+        instruction: &Instruction,
+    ) -> Result<(), RuntimeError> {
         match instruction {
             Instruction::Clone => {
                 let top = self.data_stack.last().unwrap().clone();
@@ -791,7 +816,7 @@ impl Stack {
                 self.data_stack.push(LuaValue::String(s.clone()));
             }
             Instruction::GetEnv => {
-                self.data_stack.push(self.env.clone());
+                self.data_stack.push(env.env.clone());
             }
             Instruction::TableInit(cap) => {
                 let table = LuaTable::with_capacity(*cap);
@@ -824,10 +849,10 @@ impl Stack {
             }
 
             Instruction::TableIndex => {
-                self.index(chunk)?;
+                self.index(env, chunk)?;
             }
             Instruction::TableIndexSet => {
-                self.newindex(chunk)?;
+                self.newindex(env, chunk)?;
             }
 
             Instruction::FunctionInit(func_id, num_upvalues) => {
@@ -882,62 +907,62 @@ impl Stack {
             }
 
             Instruction::BinaryAdd => {
-                self.add(chunk)?;
+                self.add(env, chunk)?;
             }
             Instruction::BinarySub => {
-                self.sub(chunk)?;
+                self.sub(env, chunk)?;
             }
             Instruction::BinaryMul => {
-                self.mul(chunk)?;
+                self.mul(env, chunk)?;
             }
             Instruction::BinaryDiv => {
-                self.div(chunk)?;
+                self.div(env, chunk)?;
             }
             Instruction::BinaryFloorDiv => {
-                self.idiv(chunk)?;
+                self.idiv(env, chunk)?;
             }
             Instruction::BinaryMod => {
-                self.mod_(chunk)?;
+                self.mod_(env, chunk)?;
             }
             Instruction::BinaryPow => {
-                self.pow(chunk)?;
+                self.pow(env, chunk)?;
             }
             Instruction::BinaryConcat => {
-                self.concat(chunk)?;
+                self.concat(env, chunk)?;
             }
             Instruction::BinaryBitwiseAnd => {
-                self.band(chunk)?;
+                self.band(env, chunk)?;
             }
             Instruction::BinaryBitwiseOr => {
-                self.bor(chunk)?;
+                self.bor(env, chunk)?;
             }
             Instruction::BinaryBitwiseXor => {
-                self.bxor(chunk)?;
+                self.bxor(env, chunk)?;
             }
             Instruction::BinaryShiftLeft => {
-                self.shl(chunk)?;
+                self.shl(env, chunk)?;
             }
             Instruction::BinaryShiftRight => {
-                self.shr(chunk)?;
+                self.shr(env, chunk)?;
             }
             Instruction::BinaryEqual => {
-                self.eq(chunk)?;
+                self.eq(env, chunk)?;
             }
             Instruction::BinaryLessThan => {
-                self.lt(chunk)?;
+                self.lt(env, chunk)?;
             }
             Instruction::BinaryLessEqual => {
-                self.le(chunk)?;
+                self.le(env, chunk)?;
             }
 
             Instruction::UnaryMinus => {
-                self.unm(chunk)?;
+                self.unm(env, chunk)?;
             }
             Instruction::UnaryBitwiseNot => {
-                self.bnot(chunk)?;
+                self.bnot(env, chunk)?;
             }
             Instruction::UnaryLength => {
-                self.len(chunk)?;
+                self.len(env, chunk)?;
             }
             Instruction::UnaryLogicalNot => {
                 let top = self.data_stack.pop().unwrap().to_bool();
@@ -948,7 +973,7 @@ impl Stack {
                 let func = self.data_stack.pop().unwrap();
                 let sp = self.usize_stack.pop().unwrap();
                 let num_args = self.data_stack.len() - sp;
-                self.function_call(chunk, num_args, func, *expected_ret)?;
+                self.function_call(env, chunk, num_args, func, *expected_ret)?;
             }
 
             // sp -> top
@@ -997,9 +1022,9 @@ impl Stack {
         Ok(())
     }
     /// run the whole chunk
-    pub fn run(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+    pub fn run(&mut self, env: &mut LuaEnv, chunk: &Chunk) -> Result<(), RuntimeError> {
         while let Some(instruction) = chunk.instructions.get(self.counter) {
-            self.cycle(chunk, instruction)?;
+            self.cycle(env, chunk, instruction)?;
         }
         Ok(())
     }

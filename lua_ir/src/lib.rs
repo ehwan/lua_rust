@@ -28,4 +28,5 @@ pub use context::Context;
 pub use error::RuntimeError;
 pub use instruction::Instruction;
 pub use vm::Chunk;
+pub use vm::LuaEnv;
 pub use vm::Stack;

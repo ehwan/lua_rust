@@ -3,7 +3,7 @@ use codespan_reporting::{
     files::SimpleFiles,
     term::termcolor::{ColorChoice, StandardStream},
 };
-use lua_ir::Stack;
+use lua_ir::{LuaEnv, Stack};
 
 fn main() {
     let filename = std::env::args().nth(1).expect("no filename given");
@@ -51,7 +51,8 @@ fn main() {
     }
 
     let mut stack = Stack::new(chunk.stack_size);
-    match stack.run(&chunk) {
+    let mut env = LuaEnv::new();
+    match stack.run(&mut env, &chunk) {
         Ok(_) => {}
         Err(e) => {
             eprintln!("Error: {:?}", e);
