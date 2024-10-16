@@ -3,13 +3,14 @@ use crate::{LuaNumber, LuaValue};
 
 use std::cell::RefCell;
 use std::collections::BTreeMap;
-use std::collections::HashMap;
 use std::rc::Rc;
+
+use indexmap::IndexMap;
 
 #[derive(Debug, Clone)]
 pub struct LuaTable {
     /// every key except number goes here
-    pub(crate) map: HashMap<LuaValue, LuaValue>,
+    pub(crate) map: IndexMap<LuaValue, LuaValue>,
     /// every key with number goes here
     pub(crate) arr: BTreeMap<IntType, LuaValue>,
 
@@ -19,7 +20,7 @@ pub struct LuaTable {
 impl LuaTable {
     pub fn with_capacity(capacity: usize) -> Self {
         LuaTable {
-            map: HashMap::with_capacity(capacity),
+            map: IndexMap::with_capacity(capacity),
             arr: BTreeMap::new(),
             meta: None,
         }
@@ -27,21 +28,21 @@ impl LuaTable {
     pub fn arr_from_iter(it: impl Iterator<Item = LuaValue>) -> Self {
         let arr = BTreeMap::from_iter(it.enumerate().map(|(idx, val)| (idx as IntType + 1, val)));
         LuaTable {
-            map: HashMap::new(),
+            map: IndexMap::new(),
             arr,
             meta: None,
         }
     }
     pub fn new() -> Self {
         LuaTable {
-            map: HashMap::new(),
+            map: IndexMap::new(),
             arr: BTreeMap::new(),
             meta: None,
         }
     }
     pub fn get_metavalue(&self, key: &str) -> Option<LuaValue> {
         if let Some(meta) = &self.meta {
-            meta.borrow().map.get(&key.into()).cloned()
+            meta.borrow().map.get(&LuaValue::from(key)).cloned()
         } else {
             None
         }
