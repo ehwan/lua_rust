@@ -229,7 +229,14 @@ impl Context {
         if expected == Some(0) {
             return;
         }
-        self.instructions.push(Instruction::Numeric(value));
+        match value {
+            lua_semantics::IntOrFloat::Int(n) => {
+                self.instructions.push(Instruction::Numeric(n.into()));
+            }
+            lua_semantics::IntOrFloat::Float(n) => {
+                self.instructions.push(Instruction::Numeric(n.into()));
+            }
+        }
         if let Some(expected) = expected {
             self.emit_expression_nil(Some(expected - 1));
         }

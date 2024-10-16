@@ -157,12 +157,12 @@ impl From<bool> for LuaValue {
 }
 impl From<IntType> for LuaValue {
     fn from(n: IntType) -> Self {
-        LuaValue::Number(n.into())
+        LuaValue::Number(LuaNumber::Int(n))
     }
 }
 impl From<FloatType> for LuaValue {
     fn from(n: FloatType) -> Self {
-        LuaValue::Number(n.into())
+        LuaValue::Number(LuaNumber::Float(n))
     }
 }
 impl From<LuaNumber> for LuaValue {

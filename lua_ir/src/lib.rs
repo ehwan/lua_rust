@@ -12,17 +12,15 @@ mod vm;
 /// It is actually `usize`,
 /// we just use this type alias to make the code more readable,
 /// and distinguish it from other `usize` like index of instructions.
-pub type LabelType = usize;
+type LabelType = usize;
 
 pub use lua_semantics::FloatType;
-pub use lua_semantics::IntOrFloat;
 pub use lua_semantics::IntType;
 
 pub use function::FunctionInfo;
 pub use function::LuaFunction;
 pub use function::LuaFunctionLua;
 pub use luaval::LuaValue;
-pub use luaval::RefOrValue;
 pub use number::LuaNumber;
 pub use table::LuaTable;
 

@@ -1,7 +1,6 @@
 use lua_semantics::IntType;
 
-use crate::IntOrFloat;
-use crate::LabelType;
+use crate::{LabelType, LuaNumber};
 
 #[derive(Debug, Clone)]
 pub enum Instruction {
@@ -39,7 +38,7 @@ pub enum Instruction {
     /// push bool
     Boolean(bool),
     /// push int or float
-    Numeric(IntOrFloat),
+    Numeric(LuaNumber),
     /// push string
     String(Vec<u8>),
 

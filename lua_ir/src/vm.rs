@@ -1,13 +1,12 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use lua_tokenizer::IntOrFloat;
-use lua_tokenizer::IntType;
 use rand::SeedableRng;
 
 use crate::builtin;
 use crate::luaval::RefOrValue;
 use crate::FunctionInfo;
+use crate::IntType;
 use crate::LuaFunction;
 use crate::LuaFunctionLua;
 use crate::LuaTable;
@@ -787,14 +786,7 @@ impl Stack {
             Instruction::Boolean(b) => {
                 self.data_stack.push(LuaValue::Boolean(*b));
             }
-            Instruction::Numeric(n) => match *n {
-                IntOrFloat::Int(i) => {
-                    self.data_stack.push(i.into());
-                }
-                IntOrFloat::Float(f) => {
-                    self.data_stack.push(f.into());
-                }
-            },
+            Instruction::Numeric(n) => self.data_stack.push(LuaValue::Number(*n)),
             Instruction::String(s) => {
                 self.data_stack.push(LuaValue::String(s.clone()));
             }
