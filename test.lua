@@ -64,6 +64,11 @@ for k, v in ipairs(a) do
     print( k, v )
 end
 
+print( 'sorting' )
+a = { 3, 5, 1, 4, 2 }
+table.sort( a )
+print( table.unpack( a ) )
+
 
 
 function func()

@@ -245,13 +245,14 @@ pub fn remove(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, R
         }
     }
 }
-pub fn sort(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
-    let (list, _cmp) = stack.pop2(args);
-
-    let list = match list {
-        LuaValue::Table(t) => t,
+pub fn sort(stack: &mut Stack, chunk: &Chunk, args: usize) -> Result<usize, RuntimeError> {
+    let mut it = stack.pop_n(args);
+    let list = match it.next() {
+        Some(LuaValue::Table(list)) => list,
         _ => return Err(RuntimeError::NotTable),
     };
+    let cmp = it.next();
+    drop(it);
 
     let mut list_to_vec = Vec::new();
     unpack_impl(
@@ -261,7 +262,68 @@ pub fn sort(stack: &mut Stack, _chunk: &Chunk, args: usize) -> Result<usize, Run
         &mut list_to_vec,
     )?;
 
-    unimplemented!("table.sort")
+    if list_to_vec.len() < 2 {
+        return Ok(0);
+    }
+    if let Some(cmp) = cmp {
+        list_to_vec.sort_unstable_by(|a, b| {
+            stack.data_stack.push(a.clone());
+            stack.data_stack.push(b.clone());
+            if stack.function_call(chunk, 2, cmp.clone(), Some(1)).is_err() {
+                std::cmp::Ordering::Equal
+            } else {
+                let ret = stack.data_stack.pop().unwrap().to_bool();
+                if ret {
+                    std::cmp::Ordering::Less
+                } else {
+                    stack.data_stack.push(b.clone());
+                    stack.data_stack.push(a.clone());
+                    if stack.function_call(chunk, 2, cmp.clone(), Some(1)).is_err() {
+                        std::cmp::Ordering::Equal
+                    } else {
+                        let ret = stack.data_stack.pop().unwrap().to_bool();
+                        if ret {
+                            std::cmp::Ordering::Greater
+                        } else {
+                            std::cmp::Ordering::Equal
+                        }
+                    }
+                }
+            }
+        });
+    } else {
+        list_to_vec.sort_unstable_by(|a, b| {
+            stack.data_stack.push(a.clone());
+            stack.data_stack.push(b.clone());
+            if stack.lt(chunk).is_err() {
+                std::cmp::Ordering::Equal
+            } else {
+                let ret = stack.data_stack.pop().unwrap().to_bool();
+                if ret {
+                    std::cmp::Ordering::Less
+                } else {
+                    stack.data_stack.push(b.clone());
+                    stack.data_stack.push(a.clone());
+                    if stack.lt(chunk).is_err() {
+                        std::cmp::Ordering::Equal
+                    } else {
+                        let ret = stack.data_stack.pop().unwrap().to_bool();
+                        if ret {
+                            std::cmp::Ordering::Greater
+                        } else {
+                            std::cmp::Ordering::Equal
+                        }
+                    }
+                }
+            }
+        });
+    }
+    for (idx, list_to_vec) in list_to_vec.into_iter().enumerate() {
+        list.borrow_mut()
+            .arr
+            .insert(idx as IntType + 1, list_to_vec);
+    }
+    Ok(0)
 }
 
 fn unpack_impl(
