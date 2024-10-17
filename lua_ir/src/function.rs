@@ -4,9 +4,9 @@ use std::sync::RwLock;
 
 use crate::Chunk;
 use crate::LuaEnv;
+use crate::LuaThread;
 use crate::LuaValue;
 use crate::RuntimeError;
-use crate::Stack;
 
 /// function information
 #[derive(Debug, Clone, Copy)]
@@ -26,7 +26,16 @@ pub enum LuaFunction {
     /// functions written in Lua
     LuaFunc(LuaFunctionLua),
     /// built-in functions written in Rust
-    RustFunc(Box<dyn Fn(&mut Stack, &mut LuaEnv, &Chunk, usize) -> Result<usize, RuntimeError>>),
+    RustFunc(
+        Box<
+            dyn Fn(
+                &mut LuaEnv,
+                &Arc<RwLock<LuaThread>>,
+                &Chunk,
+                usize,
+            ) -> Result<usize, RuntimeError>,
+        >,
+    ),
 }
 
 impl std::fmt::Debug for LuaFunction {
@@ -40,7 +49,8 @@ impl std::fmt::Debug for LuaFunction {
 
 impl LuaFunction {
     pub fn from_func(
-        func: impl Fn(&mut Stack, &mut LuaEnv, &Chunk, usize) -> Result<usize, RuntimeError> + 'static,
+        func: impl Fn(&mut LuaEnv, &Arc<RwLock<LuaThread>>, &Chunk, usize) -> Result<usize, RuntimeError>
+            + 'static,
     ) -> Self {
         LuaFunction::RustFunc(Box::new(func))
     }

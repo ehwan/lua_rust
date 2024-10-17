@@ -2,14 +2,17 @@ use rand::rngs::StdRng;
 use rand::Rng;
 use rand::SeedableRng;
 
+use std::sync::Arc;
+use std::sync::RwLock;
+
 use crate::Chunk;
 use crate::LuaEnv;
 use crate::LuaFunction;
 use crate::LuaNumber;
 use crate::LuaTable;
+use crate::LuaThread;
 use crate::LuaValue;
 use crate::RuntimeError;
-use crate::Stack;
 
 /// init math module
 pub fn init() -> Result<LuaValue, RuntimeError> {
@@ -57,74 +60,81 @@ pub fn init() -> Result<LuaValue, RuntimeError> {
 }
 
 pub fn abs(
-    stack: &mut Stack,
     _env: &mut LuaEnv,
+    thread: &Arc<RwLock<LuaThread>>,
     _chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
-    match stack.pop1(args).try_to_number() {
+    let mut t = thread.write().unwrap();
+    match t.pop1(args).try_to_number() {
         Some(num) => {
             let abs = num.abs();
-            stack.data_stack.push(abs.into());
+            t.data_stack.push(abs.into());
             Ok(1)
         }
         None => Err(RuntimeError::NotNumber),
     }
 }
 pub fn acos(
-    stack: &mut Stack,
     _env: &mut LuaEnv,
+    thread: &Arc<RwLock<LuaThread>>,
     _chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
-    match stack.pop1(args).try_to_number() {
+    let mut t = thread.write().unwrap();
+    match t.pop1(args).try_to_number() {
         Some(num) => {
-            stack.data_stack.push(num.to_float().acos().into());
+            t.data_stack.push(num.to_float().acos().into());
             Ok(1)
         }
         None => Err(RuntimeError::NotNumber),
     }
 }
 pub fn asin(
-    stack: &mut Stack,
     _env: &mut LuaEnv,
+    thread: &Arc<RwLock<LuaThread>>,
     _chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
-    match stack.pop1(args).try_to_number() {
+    let mut t = thread.write().unwrap();
+    match t.pop1(args).try_to_number() {
         Some(num) => {
-            stack.data_stack.push(num.to_float().asin().into());
+            t.data_stack.push(num.to_float().asin().into());
             Ok(1)
         }
         None => Err(RuntimeError::NotNumber),
     }
 }
 pub fn atan(
-    stack: &mut Stack,
     _env: &mut LuaEnv,
+    thread: &Arc<RwLock<LuaThread>>,
     _chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
     match args {
         0 => Err(RuntimeError::ValueExpected),
-        1 => match stack.pop1(args).try_to_number() {
-            Some(num) => {
-                stack.data_stack.push(num.to_float().atan2(1.0).into());
-                Ok(1)
+        1 => {
+            let mut t = thread.write().unwrap();
+            match t.pop1(args).try_to_number() {
+                Some(num) => {
+                    t.data_stack.push(num.to_float().atan2(1.0).into());
+                    Ok(1)
+                }
+                None => Err(RuntimeError::NotNumber),
             }
-            None => Err(RuntimeError::NotNumber),
-        },
+        }
         _ => {
-            let (y, x) = stack.pop2(args);
+            let mut t = thread.write().unwrap();
+            let (y, x) = t.pop2(args);
             let y = match y.try_to_number() {
                 Some(num) => num.to_float(),
                 None => return Err(RuntimeError::NotNumber),
@@ -133,174 +143,184 @@ pub fn atan(
                 Some(num) => num.to_float(),
                 None => return Err(RuntimeError::NotNumber),
             };
-            stack.data_stack.push(y.atan2(x).into());
+            t.data_stack.push(y.atan2(x).into());
             Ok(1)
         }
     }
 }
 pub fn ceil(
-    stack: &mut Stack,
     _env: &mut LuaEnv,
+    thread: &Arc<RwLock<LuaThread>>,
     _chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
-    match stack.pop1(args).try_to_number() {
+    let mut t = thread.write().unwrap();
+    match t.pop1(args).try_to_number() {
         Some(num) => {
-            stack.data_stack.push(num.ceil().into());
+            t.data_stack.push(num.ceil().into());
             Ok(1)
         }
         _ => Err(RuntimeError::NotNumber),
     }
 }
 pub fn floor(
-    stack: &mut Stack,
     _env: &mut LuaEnv,
+    thread: &Arc<RwLock<LuaThread>>,
     _chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
-    match stack.pop1(args).try_to_number() {
+    let mut t = thread.write().unwrap();
+    match t.pop1(args).try_to_number() {
         Some(num) => {
-            stack.data_stack.push(num.floor().into());
+            t.data_stack.push(num.floor().into());
             Ok(1)
         }
         _ => Err(RuntimeError::NotNumber),
     }
 }
 pub fn cos(
-    stack: &mut Stack,
     _env: &mut LuaEnv,
+    thread: &Arc<RwLock<LuaThread>>,
     _chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
-    match stack.pop1(args).try_to_number() {
+    let mut t = thread.write().unwrap();
+    match t.pop1(args).try_to_number() {
         Some(num) => {
-            stack.data_stack.push(num.cos().into());
+            t.data_stack.push(num.cos().into());
             Ok(1)
         }
         _ => Err(RuntimeError::NotNumber),
     }
 }
 pub fn sin(
-    stack: &mut Stack,
     _env: &mut LuaEnv,
+    thread: &Arc<RwLock<LuaThread>>,
     _chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
-    match stack.pop1(args).try_to_number() {
+    let mut t = thread.write().unwrap();
+    match t.pop1(args).try_to_number() {
         Some(num) => {
-            stack.data_stack.push(num.sin().into());
+            t.data_stack.push(num.sin().into());
             Ok(1)
         }
         _ => Err(RuntimeError::NotNumber),
     }
 }
 pub fn deg(
-    stack: &mut Stack,
     _env: &mut LuaEnv,
+    thread: &Arc<RwLock<LuaThread>>,
     _chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
-    match stack.pop1(args).try_to_number() {
+    let mut t = thread.write().unwrap();
+    match t.pop1(args).try_to_number() {
         Some(num) => {
-            stack.data_stack.push(num.deg().into());
+            t.data_stack.push(num.deg().into());
             Ok(1)
         }
         _ => Err(RuntimeError::NotNumber),
     }
 }
 pub fn rad(
-    stack: &mut Stack,
     _env: &mut LuaEnv,
+    thread: &Arc<RwLock<LuaThread>>,
     _chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
-    match stack.pop1(args).try_to_number() {
+    let mut t = thread.write().unwrap();
+    match t.pop1(args).try_to_number() {
         Some(num) => {
-            stack.data_stack.push(num.deg().into());
+            t.data_stack.push(num.deg().into());
             Ok(1)
         }
         _ => Err(RuntimeError::NotNumber),
     }
 }
 pub fn exp(
-    stack: &mut Stack,
     _env: &mut LuaEnv,
+    thread: &Arc<RwLock<LuaThread>>,
     _chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
-    match stack.pop1(args).try_to_number() {
+    let mut t = thread.write().unwrap();
+    match t.pop1(args).try_to_number() {
         Some(num) => {
-            stack.data_stack.push(num.exp().into());
+            t.data_stack.push(num.exp().into());
             Ok(1)
         }
         _ => Err(RuntimeError::NotNumber),
     }
 }
 pub fn log(
-    stack: &mut Stack,
     _env: &mut LuaEnv,
+    thread: &Arc<RwLock<LuaThread>>,
     _chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
-    let mut it = stack.pop_n(args);
+    let mut t = thread.write().unwrap();
+    let mut it = t.pop_n(args);
     let x = match it.next().unwrap().try_to_number() {
         Some(num) => num,
         None => return Err(RuntimeError::NotNumber),
     };
     let next = it.next();
     drop(it);
+    drop(t);
     match next {
         Some(base) => match base.try_to_number() {
             Some(base) => {
-                stack.data_stack.push(x.log(base).into());
+                thread.write().unwrap().data_stack.push(x.log(base).into());
                 Ok(1)
             }
             None => Err(RuntimeError::NotNumber),
         },
         None => {
             // default to e
-            stack.data_stack.push(x.ln().into());
+            thread.write().unwrap().data_stack.push(x.ln().into());
             Ok(1)
         }
     }
 }
 
 pub fn sqrt(
-    stack: &mut Stack,
     _env: &mut LuaEnv,
+    thread: &Arc<RwLock<LuaThread>>,
     _chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
-    match stack.pop1(args).try_to_number() {
+    let mut t = thread.write().unwrap();
+    match t.pop1(args).try_to_number() {
         Some(num) => {
-            stack.data_stack.push(num.sqrt().into());
+            t.data_stack.push(num.sqrt().into());
             Ok(1)
         }
         _ => Err(RuntimeError::NotNumber),
@@ -308,50 +328,53 @@ pub fn sqrt(
 }
 
 pub fn type_(
-    stack: &mut Stack,
     _env: &mut LuaEnv,
+    thread: &Arc<RwLock<LuaThread>>,
     _chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
-    let ret = match stack.pop1(args) {
+    let mut t = thread.write().unwrap();
+    let ret = match t.pop1(args) {
         LuaValue::Number(num) => match num {
             LuaNumber::Int(_) => "integer".into(),
             LuaNumber::Float(_) => "float".into(),
         },
         _ => ().into(),
     };
-    stack.data_stack.push(ret);
+    t.data_stack.push(ret);
     Ok(1)
 }
 pub fn tointeger(
-    stack: &mut Stack,
     _env: &mut LuaEnv,
+    thread: &Arc<RwLock<LuaThread>>,
     _chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
-    let ret = match stack.pop1(args).try_to_int() {
+    let mut t = thread.write().unwrap();
+    let ret = match t.pop1(args).try_to_int() {
         Some(num) => num.into(),
         _ => LuaValue::Nil,
     };
-    stack.data_stack.push(ret);
+    t.data_stack.push(ret);
     Ok(1)
 }
 pub fn ult(
-    stack: &mut Stack,
     _env: &mut LuaEnv,
+    thread: &Arc<RwLock<LuaThread>>,
     _chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
     if args < 2 {
         return Err(RuntimeError::ValueExpected);
     }
-    let (a, b) = stack.pop2(args);
+    let mut t = thread.write().unwrap();
+    let (a, b) = t.pop2(args);
     let a = match a.try_to_int() {
         Some(num) => num,
         None => return Err(RuntimeError::NotInteger),
@@ -366,13 +389,13 @@ pub fn ult(
     #[cfg(not(feature = "32bit"))]
     let res = (a as u64) < (b as u64);
 
-    stack.data_stack.push(res.into());
+    t.data_stack.push(res.into());
     Ok(1)
 }
 
 pub fn random(
-    stack: &mut Stack,
     env: &mut LuaEnv,
+    thread: &Arc<RwLock<LuaThread>>,
     _chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
@@ -383,14 +406,14 @@ pub fn random(
         }
         1 => {
             // [1,num]
-            match stack.pop1(args).try_to_int() {
+            match thread.write().unwrap().pop1(args).try_to_int() {
                 Some(num) => env.rng.gen_range(1..=num).into(),
                 None => return Err(RuntimeError::NotInteger),
             }
         }
         _ => {
             // [m, n]
-            let (m, n) = stack.pop2(args);
+            let (m, n) = thread.write().unwrap().pop2(args);
 
             match (m.try_to_int(), n.try_to_int()) {
                 (Some(m), Some(n)) => env.rng.gen_range(m..=n).into(),
@@ -398,13 +421,13 @@ pub fn random(
             }
         }
     };
-    stack.data_stack.push(rand);
+    thread.write().unwrap().data_stack.push(rand);
     Ok(1)
 }
 
 pub fn randomseed(
-    stack: &mut Stack,
     env: &mut LuaEnv,
+    thread: &Arc<RwLock<LuaThread>>,
     _chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
@@ -413,14 +436,14 @@ pub fn randomseed(
             env.rng = StdRng::from_entropy();
         }
         1 => {
-            let seed = match stack.pop1(args).try_to_int() {
+            let seed = match thread.write().unwrap().pop1(args).try_to_int() {
                 Some(num) => num,
                 None => return Err(RuntimeError::NotInteger),
             };
             env.rng = StdRng::seed_from_u64(seed as u64);
         }
         _ => {
-            let (seed1, seed2) = stack.pop2(args);
+            let (seed1, seed2) = thread.write().unwrap().pop2(args);
             match (seed1.try_to_int(), seed2.try_to_int()) {
                 (Some(seed1), Some(seed2)) => {
                     // @TODO this should be 128bit seed
@@ -435,26 +458,27 @@ pub fn randomseed(
 }
 
 pub fn modf(
-    stack: &mut Stack,
     _env: &mut LuaEnv,
+    thread: &Arc<RwLock<LuaThread>>,
     _chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
-    match stack.pop1(args) {
+    let mut t = thread.write().unwrap();
+    match t.pop1(args) {
         LuaValue::Number(num) => match num {
             LuaNumber::Int(i) => {
-                stack.data_stack.push(i.into());
-                stack.data_stack.push(0.0.into());
+                t.data_stack.push(i.into());
+                t.data_stack.push(0.0.into());
                 Ok(2)
             }
             LuaNumber::Float(f) => {
                 let fract = f.fract();
                 let int = f - fract;
-                stack.data_stack.push(int.into());
-                stack.data_stack.push(fract.into());
+                t.data_stack.push(int.into());
+                t.data_stack.push(fract.into());
                 Ok(2)
             }
         },
@@ -463,15 +487,16 @@ pub fn modf(
 }
 
 pub fn fmod(
-    stack: &mut Stack,
     _env: &mut LuaEnv,
+    thread: &Arc<RwLock<LuaThread>>,
     _chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
     if args < 2 {
         return Err(RuntimeError::ValueExpected);
     }
-    let (x, y) = stack.pop2(args);
+    let mut t = thread.write().unwrap();
+    let (x, y) = t.pop2(args);
     let x = match x.try_to_number() {
         Some(num) => num,
         None => return Err(RuntimeError::NotNumber),
@@ -480,6 +505,6 @@ pub fn fmod(
         Some(num) => num,
         None => return Err(RuntimeError::NotNumber),
     };
-    stack.data_stack.push((x % y).into());
+    t.data_stack.push((x % y).into());
     Ok(1)
 }

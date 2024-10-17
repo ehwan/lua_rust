@@ -6,9 +6,9 @@ use crate::IntType;
 use crate::LuaEnv;
 use crate::LuaFunction;
 use crate::LuaTable;
+use crate::LuaThread;
 use crate::LuaValue;
 use crate::RuntimeError;
-use crate::Stack;
 
 /// init table module
 pub fn init() -> Result<LuaValue, RuntimeError> {
@@ -26,14 +26,15 @@ pub fn init() -> Result<LuaValue, RuntimeError> {
 }
 
 pub fn concat(
-    stack: &mut Stack,
     env: &mut LuaEnv,
+    thread: &Arc<RwLock<LuaThread>>,
     chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
-    let mut it = stack.pop_n(args);
+    let mut t = thread.write().unwrap();
+    let mut it = t.pop_n(args);
     let list = match it.next() {
-        Some(LuaValue::Table(t)) => t,
+        Some(LuaValue::Table(table)) => table,
         _ => return Err(RuntimeError::NotTable),
     };
 
@@ -55,12 +56,13 @@ pub fn concat(
     drop(it);
 
     if i > j {
-        stack.data_stack.push(LuaValue::String(Default::default()));
+        t.data_stack.push(LuaValue::String(Default::default()));
         return Ok(1);
     }
 
+    drop(t);
     let sep = match sep {
-        Some(sep) => super::tostring_impl(stack, env, chunk, sep)?,
+        Some(sep) => super::tostring_impl(env, thread, chunk, sep)?,
         None => Vec::new(),
     };
 
@@ -82,23 +84,27 @@ pub fn concat(
         }
     }
 
-    stack.data_stack.push(LuaValue::String(ret));
+    thread
+        .write()
+        .unwrap()
+        .data_stack
+        .push(LuaValue::String(ret));
     Ok(1)
 }
 
 pub fn insert(
-    stack: &mut Stack,
     _env: &mut LuaEnv,
+    thread: &Arc<RwLock<LuaThread>>,
     _chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
     match args {
         0 | 1 => {
-            drop(stack.pop_n(args));
+            drop(thread.write().unwrap().pop_n(args));
             Err(RuntimeError::ValueExpected)
         }
         2 => {
-            let (table, value) = stack.pop2(args);
+            let (table, value) = thread.write().unwrap().pop2(args);
             match table {
                 LuaValue::Table(table) => {
                     let mut table = table.write().unwrap();
@@ -112,7 +118,7 @@ pub fn insert(
             Ok(0)
         }
         _ => {
-            let (table, pos, value) = stack.pop3(args);
+            let (table, pos, value) = thread.write().unwrap().pop3(args);
             let table = match table {
                 LuaValue::Table(table) => table,
                 _ => {
@@ -145,8 +151,8 @@ pub fn insert(
     }
 }
 pub fn move_(
-    stack: &mut Stack,
     _env: &mut LuaEnv,
+    thread: &Arc<RwLock<LuaThread>>,
     _chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
@@ -154,29 +160,32 @@ pub fn move_(
         return Err(RuntimeError::ValueExpected);
     }
 
-    let mut it = stack.pop_n(args);
+    let (a1, f, e, t, a2) = {
+        let mut t = thread.write().unwrap();
+        let mut it = t.pop_n(args);
 
-    let a1 = match it.next().unwrap() {
-        LuaValue::Table(table) => table,
-        _ => return Err(RuntimeError::NotTable),
+        let a1 = match it.next().unwrap() {
+            LuaValue::Table(table) => table,
+            _ => return Err(RuntimeError::NotTable),
+        };
+        let f = match it.next().unwrap().try_to_int() {
+            Some(i) => i,
+            None => return Err(RuntimeError::NotNumber),
+        };
+        let e = match it.next().unwrap().try_to_int() {
+            Some(i) => i,
+            None => return Err(RuntimeError::NotNumber),
+        };
+        let t = match it.next().unwrap().try_to_int() {
+            Some(i) => i,
+            None => return Err(RuntimeError::NotNumber),
+        };
+        let a2 = match it.next() {
+            Some(LuaValue::Table(table)) => table,
+            _ => Arc::clone(&a1),
+        };
+        (a1, f, e, t, a2)
     };
-    let f = match it.next().unwrap().try_to_int() {
-        Some(i) => i,
-        None => return Err(RuntimeError::NotNumber),
-    };
-    let e = match it.next().unwrap().try_to_int() {
-        Some(i) => i,
-        None => return Err(RuntimeError::NotNumber),
-    };
-    let t = match it.next().unwrap().try_to_int() {
-        Some(i) => i,
-        None => return Err(RuntimeError::NotNumber),
-    };
-    let a2 = match it.next() {
-        Some(LuaValue::Table(t)) => t,
-        _ => Arc::clone(&a1),
-    };
-    drop(it);
 
     if f <= e {
         for i in f..=e {
@@ -184,22 +193,23 @@ pub fn move_(
             a2.write().unwrap().insert_arr(i - f + t, value);
         }
     }
-    stack.data_stack.push(LuaValue::Table(a2));
+    thread.write().unwrap().data_stack.push(LuaValue::Table(a2));
     Ok(1)
 }
 pub fn pack(
-    stack: &mut Stack,
     _env: &mut LuaEnv,
+    thread: &Arc<RwLock<LuaThread>>,
     _chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
-    let new_table = LuaTable::arr_from_iter(stack.pop_n(args));
-    stack.data_stack.push(new_table.into());
+    let mut t = thread.write().unwrap();
+    let new_table = LuaTable::arr_from_iter(t.pop_n(args));
+    t.data_stack.push(new_table.into());
     Ok(1)
 }
 pub fn remove(
-    stack: &mut Stack,
     _env: &mut LuaEnv,
+    thread: &Arc<RwLock<LuaThread>>,
     _chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
@@ -208,7 +218,7 @@ pub fn remove(
             return Err(RuntimeError::ValueExpected);
         }
         1 => {
-            let list = stack.pop1(args);
+            let list = thread.write().unwrap().pop1(args);
             match list {
                 LuaValue::Table(table) => {
                     let removed = table
@@ -218,7 +228,7 @@ pub fn remove(
                         .pop_last()
                         .map(|(_, v)| v)
                         .unwrap_or_default();
-                    stack.data_stack.push(removed);
+                    thread.write().unwrap().data_stack.push(removed);
                     Ok(1)
                 }
                 _ => Err(RuntimeError::NotTable),
@@ -226,7 +236,7 @@ pub fn remove(
         }
 
         _ => {
-            let (list, pos) = stack.pop2(args);
+            let (list, pos) = thread.write().unwrap().pop2(args);
             match list {
                 LuaValue::Table(table) => {
                     let len = table.read().unwrap().len();
@@ -243,30 +253,25 @@ pub fn remove(
                         if len != 0 {
                             return Err(RuntimeError::OutOfRange);
                         } else {
-                            stack.data_stack.push(LuaValue::Nil);
+                            thread.write().unwrap().data_stack.push(LuaValue::Nil);
                             return Ok(1);
                         }
                     } else if pos == len + 1 {
-                        stack.data_stack.push(LuaValue::Nil);
+                        thread.write().unwrap().data_stack.push(LuaValue::Nil);
                         return Ok(1);
                     }
 
-                    let split_right = table.write().unwrap().arr.split_off(&pos);
+                    let mut split_right = table.write().unwrap().arr.split_off(&pos);
                     let first_pos = split_right.first_key_value().map(|(k, _)| *k);
                     if first_pos == Some(pos) {
-                        let mut it = split_right.into_iter();
-                        let removed = it.next().unwrap().1;
-                        stack.data_stack.push(removed);
-                        let mut table = table.write().unwrap();
-                        for (idx, val) in it {
-                            table.arr.insert(idx - 1, val);
-                        }
-                    } else {
-                        let mut table = table.write().unwrap();
-                        for (idx, val) in split_right {
-                            table.arr.insert(idx - 1, val);
-                        }
+                        let removed = split_right.pop_first().unwrap().1;
+                        thread.write().unwrap().data_stack.push(removed);
                     }
+                    table
+                        .write()
+                        .unwrap()
+                        .arr
+                        .extend(split_right.into_iter().map(|(key, val)| (key - 1, val)));
                     Ok(1)
                 }
                 _ => Err(RuntimeError::NotTable),
@@ -275,18 +280,20 @@ pub fn remove(
     }
 }
 pub fn sort(
-    stack: &mut Stack,
     env: &mut LuaEnv,
+    thread: &Arc<RwLock<LuaThread>>,
     chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
-    let mut it = stack.pop_n(args);
+    let mut t = thread.write().unwrap();
+    let mut it = t.pop_n(args);
     let list = match it.next() {
         Some(LuaValue::Table(list)) => list,
         _ => return Err(RuntimeError::NotTable),
     };
     let cmp = it.next();
     drop(it);
+    drop(t);
 
     let mut list_to_vec = Vec::new();
     unpack_impl(
@@ -301,27 +308,31 @@ pub fn sort(
     }
     if let Some(cmp) = cmp {
         list_to_vec.sort_unstable_by(|a, b| {
-            stack.data_stack.push(a.clone());
-            stack.data_stack.push(b.clone());
-            if stack
-                .function_call(env, chunk, 2, cmp.clone(), Some(1))
+            let mut t = thread.write().unwrap();
+            t.data_stack.push(a.clone());
+            t.data_stack.push(b.clone());
+            drop(t);
+            if env
+                .function_call(thread, chunk, 2, cmp.clone(), Some(1))
                 .is_err()
             {
                 std::cmp::Ordering::Equal
             } else {
-                let ret = stack.data_stack.pop().unwrap().to_bool();
+                let mut t = thread.write().unwrap();
+                let ret = t.data_stack.pop().unwrap().to_bool();
                 if ret {
                     std::cmp::Ordering::Less
                 } else {
-                    stack.data_stack.push(b.clone());
-                    stack.data_stack.push(a.clone());
-                    if stack
-                        .function_call(env, chunk, 2, cmp.clone(), Some(1))
+                    t.data_stack.push(b.clone());
+                    t.data_stack.push(a.clone());
+                    drop(t);
+                    if env
+                        .function_call(thread, chunk, 2, cmp.clone(), Some(1))
                         .is_err()
                     {
                         std::cmp::Ordering::Equal
                     } else {
-                        let ret = stack.data_stack.pop().unwrap().to_bool();
+                        let ret = thread.write().unwrap().data_stack.pop().unwrap().to_bool();
                         if ret {
                             std::cmp::Ordering::Greater
                         } else {
@@ -333,21 +344,25 @@ pub fn sort(
         });
     } else {
         list_to_vec.sort_unstable_by(|a, b| {
-            stack.data_stack.push(a.clone());
-            stack.data_stack.push(b.clone());
-            if stack.lt(env, chunk).is_err() {
+            let mut t = thread.write().unwrap();
+            t.data_stack.push(a.clone());
+            t.data_stack.push(b.clone());
+            drop(t);
+            if env.lt(thread, chunk).is_err() {
                 std::cmp::Ordering::Equal
             } else {
-                let ret = stack.data_stack.pop().unwrap().to_bool();
+                let mut t = thread.write().unwrap();
+                let ret = t.data_stack.pop().unwrap().to_bool();
                 if ret {
                     std::cmp::Ordering::Less
                 } else {
-                    stack.data_stack.push(b.clone());
-                    stack.data_stack.push(a.clone());
-                    if stack.lt(env, chunk).is_err() {
+                    t.data_stack.push(b.clone());
+                    t.data_stack.push(a.clone());
+                    drop(t);
+                    if env.lt(thread, chunk).is_err() {
                         std::cmp::Ordering::Equal
                     } else {
-                        let ret = stack.data_stack.pop().unwrap().to_bool();
+                        let ret = thread.write().unwrap().data_stack.pop().unwrap().to_bool();
                         if ret {
                             std::cmp::Ordering::Greater
                         } else {
@@ -397,12 +412,13 @@ fn unpack_impl(
     Ok(len as usize)
 }
 pub fn unpack(
-    stack: &mut Stack,
     _env: &mut LuaEnv,
+    thread: &Arc<RwLock<LuaThread>>,
     _chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
-    let mut it = stack.pop_n(args);
+    let mut t = thread.write().unwrap();
+    let mut it = t.pop_n(args);
     let table = match it.next() {
         Some(LuaValue::Table(t)) => t,
         _ => return Err(RuntimeError::NotTable),
@@ -423,5 +439,5 @@ pub fn unpack(
     };
     drop(it);
 
-    unpack_impl(table, i, j, &mut stack.data_stack)
+    unpack_impl(table, i, j, &mut t.data_stack)
 }

@@ -3,6 +3,7 @@ use crate::FloatType;
 use crate::IntType;
 use crate::LuaFunction;
 use crate::LuaTable;
+use crate::LuaThread;
 
 use std::sync::Arc;
 use std::sync::RwLock;
@@ -131,6 +132,9 @@ impl LuaValue {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct LuaUserData {}
+
 impl Default for LuaValue {
     fn default() -> Self {
         LuaValue::Nil
@@ -192,9 +196,3 @@ impl From<LuaThread> for LuaValue {
         LuaValue::Thread(Arc::new(RwLock::new(t)))
     }
 }
-
-#[derive(Debug, Clone)]
-pub struct LuaUserData {}
-
-#[derive(Debug, Clone)]
-pub struct LuaThread {}

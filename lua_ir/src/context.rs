@@ -186,6 +186,10 @@ impl Context {
                 self.emit_expression(*expr.index, Some(1));
                 self.instructions.push(Instruction::TableIndexSet);
             }
+            lua_semantics::Expression::Env => {
+                // _ENV is a special case, do not modify it
+                self.instructions.push(Instruction::Pop);
+            }
             _ => {
                 unimplemented!("unimplemented expression: {:?}", entry);
             }
