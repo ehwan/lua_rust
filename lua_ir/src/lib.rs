@@ -30,3 +30,4 @@ pub use instruction::Instruction;
 pub use vm::Chunk;
 pub use vm::LuaEnv;
 pub use vm::LuaThread;
+pub use vm::ThreadStatus;

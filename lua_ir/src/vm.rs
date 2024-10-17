@@ -38,8 +38,8 @@ impl LuaEnv {
         }
     }
 
-    pub fn main_thread(&self) -> Rc<RefCell<LuaThread>> {
-        Rc::clone(&self.main_thread)
+    pub fn main_thread(&self) -> &Rc<RefCell<LuaThread>> {
+        &self.main_thread
     }
 
     /// Try to call binary metamethod f(lhs, rhs).
@@ -1198,6 +1198,13 @@ pub struct FunctionStackElem {
     pub variadic: Vec<LuaValue>,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum ThreadStatus {
+    Init,    // initialized, `resume` not called
+    Running, // `resume` called, not finished
+    Dead,    // reached end of chunk
+}
+
 #[derive(Debug, Clone)]
 pub struct LuaThread {
     /// local variable stack
@@ -1216,6 +1223,12 @@ pub struct LuaThread {
 
     /// current instruction counter
     pub counter: usize,
+
+    /// status of this thread.
+    /// `None` if this thread is main thread.
+    pub status: Option<ThreadStatus>,
+
+    pub func: Option<Rc<RefCell<LuaFunction>>>,
 }
 impl LuaThread {
     pub fn new() -> LuaThread {
@@ -1226,6 +1239,8 @@ impl LuaThread {
             function_stack: Vec::new(),
             counter: 0,
             bp: 0,
+            status: None,
+            func: None,
         }
     }
 

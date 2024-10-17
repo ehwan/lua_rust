@@ -18,6 +18,12 @@ pub enum RuntimeError {
     NotString,
     NotNumber,
     NotFunction,
+    NotThread,
+
+    /// resume, yield, close called on non-coroutine
+    NotCoroutine,
+
+    ThreadDead,
 
     NoMetaMethod,
 
