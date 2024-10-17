@@ -649,76 +649,78 @@ impl Stack {
         expected_ret: Option<usize>,
     ) -> Result<(), RuntimeError> {
         match func {
-            LuaValue::Function(LuaFunction::LuaFunc(lua_internal)) => {
-                let func_id = lua_internal.function_id;
-                let func_info = &chunk.functions[func_id];
+            LuaValue::Function(func) => match &*func.borrow() {
+                LuaFunction::LuaFunc(lua_internal) => {
+                    let func_id = lua_internal.function_id;
+                    let func_info = &chunk.functions[func_id];
 
-                let usize_len0 = self.usize_stack.len();
+                    let usize_len0 = self.usize_stack.len();
 
-                self.usize_stack.push(self.counter);
-                self.usize_stack.push(self.bp);
-                self.usize_stack.push(self.data_stack.len() - args_num);
+                    self.usize_stack.push(self.counter);
+                    self.usize_stack.push(self.bp);
+                    self.usize_stack.push(self.data_stack.len() - args_num);
 
-                self.bp = self.local_variables.len();
-                self.local_variables.resize_with(
-                    self.local_variables.len() + func_info.stack_size,
-                    Default::default,
-                );
-                let variadic = if args_num > func_info.args {
-                    let variadic = if func_info.is_variadic {
-                        let variadic_num = args_num - func_info.args;
-                        self.data_stack
-                            .drain(self.data_stack.len() - variadic_num..)
-                            .collect()
+                    self.bp = self.local_variables.len();
+                    self.local_variables.resize_with(
+                        self.local_variables.len() + func_info.stack_size,
+                        Default::default,
+                    );
+                    let variadic = if args_num > func_info.args {
+                        let variadic = if func_info.is_variadic {
+                            let variadic_num = args_num - func_info.args;
+                            self.data_stack
+                                .drain(self.data_stack.len() - variadic_num..)
+                                .collect()
+                        } else {
+                            self.data_stack.resize_with(
+                                self.data_stack.len() - args_num + func_info.args,
+                                Default::default,
+                            );
+                            Vec::new()
+                        };
+                        for (idx, arg) in self
+                            .data_stack
+                            .drain(self.data_stack.len() - func_info.args..)
+                            .enumerate()
+                        {
+                            self.local_variables[self.bp + idx] = RefOrValue::Value(arg);
+                        }
+
+                        variadic
                     } else {
-                        self.data_stack.resize_with(
-                            self.data_stack.len() - args_num + func_info.args,
-                            Default::default,
-                        );
+                        for (idx, arg) in self
+                            .data_stack
+                            .drain(self.data_stack.len() - args_num..)
+                            .enumerate()
+                        {
+                            self.local_variables[self.bp + idx] = RefOrValue::Value(arg);
+                        }
                         Vec::new()
                     };
-                    for (idx, arg) in self
-                        .data_stack
-                        .drain(self.data_stack.len() - func_info.args..)
-                        .enumerate()
-                    {
-                        self.local_variables[self.bp + idx] = RefOrValue::Value(arg);
+
+                    let func_stack = FunctionStackElem {
+                        function_object: lua_internal.clone(),
+                        return_expected: expected_ret,
+                        variadic,
+                    };
+
+                    self.function_stack.push(func_stack);
+                    self.counter = func_info.address;
+                    while self.usize_stack.len() > usize_len0 {
+                        let instruction = chunk.instructions.get(self.counter).unwrap();
+                        self.cycle(env, chunk, instruction)?;
                     }
-
-                    variadic
-                } else {
-                    for (idx, arg) in self
-                        .data_stack
-                        .drain(self.data_stack.len() - args_num..)
-                        .enumerate()
-                    {
-                        self.local_variables[self.bp + idx] = RefOrValue::Value(arg);
+                    Ok(())
+                }
+                LuaFunction::RustFunc(rust_internal) => {
+                    let ret_num = rust_internal(self, env, chunk, args_num)?;
+                    if let Some(expected) = expected_ret {
+                        let adjusted = self.data_stack.len() - ret_num + expected;
+                        self.data_stack.resize_with(adjusted, Default::default);
                     }
-                    Vec::new()
-                };
-
-                let func_stack = FunctionStackElem {
-                    function_object: lua_internal,
-                    return_expected: expected_ret,
-                    variadic,
-                };
-
-                self.function_stack.push(func_stack);
-                self.counter = func_info.address;
-                while self.usize_stack.len() > usize_len0 {
-                    let instruction = chunk.instructions.get(self.counter).unwrap();
-                    self.cycle(env, chunk, instruction)?;
+                    Ok(())
                 }
-                Ok(())
-            }
-            LuaValue::Function(LuaFunction::RustFunc(rust_internal)) => {
-                let ret_num = rust_internal(self, env, chunk, args_num)?;
-                if let Some(expected) = expected_ret {
-                    let adjusted = self.data_stack.len() - ret_num + expected;
-                    self.data_stack.resize_with(adjusted, Default::default);
-                }
-                Ok(())
-            }
+            },
             other => {
                 let func = other.get_metavalue("__call");
                 if let Some(meta) = func {
@@ -861,7 +863,7 @@ impl Stack {
                     upvalues: Vec::with_capacity(*num_upvalues),
                 };
                 let func = LuaFunction::LuaFunc(func);
-                self.data_stack.push(LuaValue::Function(func));
+                self.data_stack.push(func.into());
             }
             Instruction::FunctionInitUpvalueFromLocalVar(src_local_id) => {
                 let local_var = {
@@ -877,21 +879,29 @@ impl Stack {
                     }
                 };
 
-                let dst_func = match self.data_stack.last_mut().unwrap() {
-                    LuaValue::Function(LuaFunction::LuaFunc(f)) => f,
+                match self.data_stack.last_mut().unwrap() {
+                    LuaValue::Function(func) => match &mut *func.borrow_mut() {
+                        LuaFunction::LuaFunc(f) => {
+                            f.upvalues.push(local_var);
+                        }
+                        _ => unreachable!("stack top must be function"),
+                    },
                     _ => unreachable!("stack top must be function"),
-                };
-                dst_func.upvalues.push(local_var);
+                }
             }
             Instruction::FunctionInitUpvalueFromUpvalue(src_upvalue_id) => {
                 let func = self.function_stack.last().unwrap();
                 let value = Rc::clone(&func.function_object.upvalues[*src_upvalue_id]);
 
-                let dst_func = match self.data_stack.last_mut().unwrap() {
-                    LuaValue::Function(LuaFunction::LuaFunc(f)) => f,
+                match self.data_stack.last_mut().unwrap() {
+                    LuaValue::Function(func) => match &mut *func.borrow_mut() {
+                        LuaFunction::LuaFunc(f) => {
+                            f.upvalues.push(value);
+                        }
+                        _ => unreachable!("stack top must be function"),
+                    },
                     _ => unreachable!("stack top must be function"),
-                };
-                dst_func.upvalues.push(value);
+                }
             }
 
             Instruction::FunctionUpvalue(upvalue_id) => {
