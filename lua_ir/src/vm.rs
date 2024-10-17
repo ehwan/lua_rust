@@ -718,12 +718,6 @@ impl LuaEnv {
                                 .usize_stack
                                 .push(thread_mut.data_stack.len() - args_num);
 
-                            thread_mut.bp = thread_mut.local_variables.len();
-                            thread_mut.local_variables.resize_with(
-                                thread_mut.local_variables.len() + func_info.stack_size,
-                                Default::default,
-                            );
-
                             let variadic = if func_info.is_variadic {
                                 if args_num <= func_info.args {
                                     thread_mut.data_stack.resize_with(
@@ -747,13 +741,17 @@ impl LuaEnv {
                                 );
                                 Vec::new()
                             };
-                            for (idx, arg) in thread_mut
-                                .data_stack
-                                .drain(thread_mut.data_stack.len() - func_info.args..)
-                                .enumerate()
+
+                            thread_mut.bp = thread_mut.local_variables.len();
+                            thread_mut.local_variables.reserve(func_info.stack_size);
+
                             {
-                                thread_mut.local_variables[thread_mut.bp + idx] =
-                                    RefOrValue::Value(arg);
+                                let mut args: Vec<_> = thread_mut
+                                    .data_stack
+                                    .drain(thread_mut.data_stack.len() - func_info.args..)
+                                    .map(|arg| RefOrValue::Value(arg))
+                                    .collect();
+                                thread_mut.local_variables.append(&mut args);
                             }
 
                             let func_stack = FunctionStackElem {
@@ -877,6 +875,15 @@ impl LuaEnv {
             Instruction::InitLocalVariable(local_id) => {
                 let top = thread.borrow_mut().data_stack.pop().unwrap();
                 let idx = *local_id + thread.borrow().bp;
+                {
+                    let len = thread.borrow().local_variables.len();
+                    if len <= idx {
+                        thread
+                            .borrow_mut()
+                            .local_variables
+                            .resize_with(idx + 1, Default::default);
+                    }
+                }
                 *thread.borrow_mut().local_variables.get_mut(idx).unwrap() = RefOrValue::Value(top);
             }
             Instruction::IsNil => {
@@ -958,7 +965,7 @@ impl LuaEnv {
                 let local_var = {
                     let local_idx = *src_local_id + thread.borrow().bp;
                     let mut thread = thread.borrow_mut();
-                    let local_var = &mut thread.local_variables[local_idx];
+                    let local_var = thread.local_variables.get_mut(local_idx).unwrap();
                     // upvalue must be reference.
                     match local_var {
                         RefOrValue::Ref(r) => Rc::clone(r),
@@ -1203,11 +1210,9 @@ pub struct LuaThread {
     pub counter: usize,
 }
 impl LuaThread {
-    pub fn new(stack_size: usize) -> LuaThread {
-        let mut local_variables = Vec::new();
-        local_variables.resize_with(stack_size, || RefOrValue::Value(LuaValue::Nil));
+    pub fn new() -> LuaThread {
         LuaThread {
-            local_variables,
+            local_variables: Vec::new(),
             data_stack: Vec::new(),
             usize_stack: Vec::new(),
             function_stack: Vec::new(),

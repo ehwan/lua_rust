@@ -53,7 +53,7 @@ fn main() {
         println!("{:04}: {:?}", i, instr);
     }
 
-    let thread = LuaThread::new(chunk.stack_size);
+    let thread = LuaThread::new();
     let thread = Rc::new(RefCell::new(thread));
     let mut env = LuaEnv::new();
     match env.run(&thread, &chunk) {
