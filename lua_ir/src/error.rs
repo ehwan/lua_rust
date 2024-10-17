@@ -18,6 +18,7 @@ pub enum RuntimeError {
     NotString,
     NotNumber,
     NotFunction,
+    NotThread,
 
     NoMetaMethod,
 

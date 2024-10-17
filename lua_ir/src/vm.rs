@@ -38,8 +38,8 @@ impl LuaEnv {
         }
     }
 
-    pub fn main_thread(&self) -> Rc<RefCell<LuaThread>> {
-        Rc::clone(&self.main_thread)
+    pub fn main_thread(&self) -> &Rc<RefCell<LuaThread>> {
+        &self.main_thread
     }
 
     /// Try to call binary metamethod f(lhs, rhs).

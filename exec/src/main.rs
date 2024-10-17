@@ -5,6 +5,8 @@ use codespan_reporting::{
 };
 use lua_ir::LuaEnv;
 
+use std::rc::Rc;
+
 fn main() {
     let filename = std::env::args().nth(1).expect("no filename given");
     let source = std::fs::read_to_string(&filename).expect("failed to read file");
@@ -51,7 +53,7 @@ fn main() {
     }
 
     let mut env = LuaEnv::new();
-    let main_thread = env.main_thread();
+    let main_thread = Rc::clone(env.main_thread());
     match env.run(&main_thread, &chunk) {
         Ok(_) => {}
         Err(e) => {
