@@ -21,6 +21,8 @@ pub struct LuaEnv {
     pub(crate) env: LuaValue,
     /// random number generator
     pub(crate) rng: rand::rngs::StdRng,
+
+    pub(crate) main_thread: Rc<RefCell<LuaThread>>,
 }
 
 impl LuaEnv {
@@ -31,7 +33,13 @@ impl LuaEnv {
         LuaEnv {
             env: LuaValue::Table(env),
             rng: rand::rngs::StdRng::from_entropy(),
+
+            main_thread: Rc::new(RefCell::new(LuaThread::new())),
         }
+    }
+
+    pub fn main_thread(&self) -> Rc<RefCell<LuaThread>> {
+        Rc::clone(&self.main_thread)
     }
 
     /// Try to call binary metamethod f(lhs, rhs).

@@ -3,10 +3,7 @@ use codespan_reporting::{
     files::SimpleFiles,
     term::termcolor::{ColorChoice, StandardStream},
 };
-use lua_ir::{LuaEnv, LuaThread};
-
-use std::cell::RefCell;
-use std::rc::Rc;
+use lua_ir::LuaEnv;
 
 fn main() {
     let filename = std::env::args().nth(1).expect("no filename given");
@@ -53,10 +50,9 @@ fn main() {
         println!("{:04}: {:?}", i, instr);
     }
 
-    let thread = LuaThread::new();
-    let thread = Rc::new(RefCell::new(thread));
     let mut env = LuaEnv::new();
-    match env.run(&thread, &chunk) {
+    let main_thread = env.main_thread();
+    match env.run(&main_thread, &chunk) {
         Ok(_) => {}
         Err(e) => {
             eprintln!("Error: {:?}", e);
