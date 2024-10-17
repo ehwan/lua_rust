@@ -29,4 +29,4 @@ pub use error::RuntimeError;
 pub use instruction::Instruction;
 pub use vm::Chunk;
 pub use vm::LuaEnv;
-pub use vm::Stack;
+pub use vm::LuaThread;

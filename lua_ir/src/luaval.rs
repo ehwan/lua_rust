@@ -3,6 +3,7 @@ use crate::FloatType;
 use crate::IntType;
 use crate::LuaFunction;
 use crate::LuaTable;
+use crate::LuaThread;
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -195,6 +196,3 @@ impl From<LuaThread> for LuaValue {
 
 #[derive(Debug, Clone)]
 pub struct LuaUserData {}
-
-#[derive(Debug, Clone)]
-pub struct LuaThread {}

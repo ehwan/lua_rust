@@ -6,9 +6,9 @@ use crate::IntType;
 use crate::LuaEnv;
 use crate::LuaFunction;
 use crate::LuaTable;
+use crate::LuaThread;
 use crate::LuaValue;
 use crate::RuntimeError;
-use crate::Stack;
 
 /// init string module
 pub fn init() -> Result<LuaValue, RuntimeError> {
@@ -33,64 +33,64 @@ pub fn init() -> Result<LuaValue, RuntimeError> {
 }
 
 pub fn dump(
-    _stack: &mut Stack,
     _env: &mut LuaEnv,
+    _thread: &Rc<RefCell<LuaThread>>,
     _chunk: &Chunk,
     _args: usize,
 ) -> Result<usize, RuntimeError> {
     unimplemented!("string.dump");
 }
 pub fn format(
-    _stack: &mut Stack,
     _env: &mut LuaEnv,
+    _thread: &Rc<RefCell<LuaThread>>,
     _chunk: &Chunk,
     _args: usize,
 ) -> Result<usize, RuntimeError> {
     unimplemented!("string.format");
 }
 pub fn gmatch(
-    _stack: &mut Stack,
     _env: &mut LuaEnv,
+    _thread: &Rc<RefCell<LuaThread>>,
     _chunk: &Chunk,
     _args: usize,
 ) -> Result<usize, RuntimeError> {
     unimplemented!("string.gmatch");
 }
 pub fn gsub(
-    _stack: &mut Stack,
     _env: &mut LuaEnv,
+    _thread: &Rc<RefCell<LuaThread>>,
     _chunk: &Chunk,
     _args: usize,
 ) -> Result<usize, RuntimeError> {
     unimplemented!("string.gsub");
 }
 pub fn match_(
-    _stack: &mut Stack,
     _env: &mut LuaEnv,
+    _thread: &Rc<RefCell<LuaThread>>,
     _chunk: &Chunk,
     _args: usize,
 ) -> Result<usize, RuntimeError> {
     unimplemented!("string.match");
 }
 pub fn pack(
-    _stack: &mut Stack,
     _env: &mut LuaEnv,
+    _thread: &Rc<RefCell<LuaThread>>,
     _chunk: &Chunk,
     _args: usize,
 ) -> Result<usize, RuntimeError> {
     unimplemented!("string.pack");
 }
 pub fn packsize(
-    _stack: &mut Stack,
     _env: &mut LuaEnv,
+    _thread: &Rc<RefCell<LuaThread>>,
     _chunk: &Chunk,
     _args: usize,
 ) -> Result<usize, RuntimeError> {
     unimplemented!("string.packsize");
 }
 pub fn unpack(
-    _stack: &mut Stack,
     _env: &mut LuaEnv,
+    _thread: &Rc<RefCell<LuaThread>>,
     _chunk: &Chunk,
     _args: usize,
 ) -> Result<usize, RuntimeError> {
@@ -123,15 +123,16 @@ pub fn sub_impl(s: &[u8], mut i: IntType, mut j: IntType) -> &'_ [u8] {
     }
 }
 pub fn byte(
-    stack: &mut Stack,
     _env: &mut LuaEnv,
+    thread: &Rc<RefCell<LuaThread>>,
     _chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
-    let mut it = stack.pop_n(args);
+    let mut thread_mut = thread.borrow_mut();
+    let mut it = thread_mut.pop_n(args);
     let s = match it.next().unwrap() {
         LuaValue::String(s) => s,
         _ => return Err(RuntimeError::NotString),
@@ -151,23 +152,26 @@ pub fn byte(
         None => 1,
     };
     drop(it);
+    drop(thread_mut);
 
     let sub = sub_impl(&s, i, j);
-    for c in sub {
-        stack.data_stack.push((*c as IntType).into());
-    }
+    thread
+        .borrow_mut()
+        .data_stack
+        .extend(sub.iter().map(|c| (*c as IntType).into()));
     Ok(sub.len())
 }
 pub fn sub(
-    stack: &mut Stack,
     _env: &mut LuaEnv,
+    thread: &Rc<RefCell<LuaThread>>,
     _chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
     if args < 2 {
         return Err(RuntimeError::ValueExpected);
     }
-    let mut it = stack.pop_n(args);
+    let mut thread_mut = thread.borrow_mut();
+    let mut it = thread_mut.pop_n(args);
     let s = match it.next().unwrap() {
         LuaValue::String(s) => s,
         _ => return Err(RuntimeError::NotString),
@@ -184,19 +188,24 @@ pub fn sub(
         None => s.len() as IntType,
     };
     drop(it);
+    drop(thread_mut);
 
     let sub = sub_impl(&s, i, j);
-    stack.data_stack.push(LuaValue::String(sub.to_vec()));
+    thread
+        .borrow_mut()
+        .data_stack
+        .push(LuaValue::String(sub.to_vec()));
     Ok(1)
 }
 
 pub fn char_(
-    stack: &mut Stack,
     _env: &mut LuaEnv,
+    thread: &Rc<RefCell<LuaThread>>,
     _chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
-    let chars: Result<Vec<u8>, _> = stack
+    let chars: Result<Vec<u8>, _> = thread
+        .borrow_mut()
         .pop_n(args)
         .into_iter()
         .map(|c| match c.try_to_int() {
@@ -211,22 +220,23 @@ pub fn char_(
         })
         .collect();
     let chars = chars?;
-    stack.data_stack.push(LuaValue::String(chars));
+    thread.borrow_mut().data_stack.push(LuaValue::String(chars));
     Ok(1)
 }
 
 pub fn len(
-    stack: &mut Stack,
     _env: &mut LuaEnv,
+    thread: &Rc<RefCell<LuaThread>>,
     _chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
-    match stack.pop1(args) {
+    let mut thread_mut = thread.borrow_mut();
+    match thread_mut.pop1(args) {
         LuaValue::String(s) => {
-            stack.data_stack.push((s.len() as IntType).into());
+            thread_mut.data_stack.push((s.len() as IntType).into());
             Ok(1)
         }
         _ => Err(RuntimeError::NotString),
@@ -234,51 +244,54 @@ pub fn len(
 }
 
 pub fn lower(
-    stack: &mut Stack,
     _env: &mut LuaEnv,
+    thread: &Rc<RefCell<LuaThread>>,
     _chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
-    match stack.pop1(args) {
+    let mut thread_mut = thread.borrow_mut();
+    match thread_mut.pop1(args) {
         LuaValue::String(s) => {
             let ret = LuaValue::String(s.into_iter().map(|c| c.to_ascii_lowercase()).collect());
-            stack.data_stack.push(ret);
+            thread_mut.data_stack.push(ret);
             Ok(1)
         }
         _ => return Err(RuntimeError::NotString),
     }
 }
 pub fn upper(
-    stack: &mut Stack,
     _env: &mut LuaEnv,
+    thread: &Rc<RefCell<LuaThread>>,
     _chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
-    match stack.pop1(args) {
+    let mut thread_mut = thread.borrow_mut();
+    match thread_mut.pop1(args) {
         LuaValue::String(s) => {
             let ret = LuaValue::String(s.into_iter().map(|c| c.to_ascii_uppercase()).collect());
-            stack.data_stack.push(ret);
+            thread_mut.data_stack.push(ret);
             Ok(1)
         }
         _ => return Err(RuntimeError::NotString),
     }
 }
 pub fn rep(
-    stack: &mut Stack,
     _env: &mut LuaEnv,
+    thread: &Rc<RefCell<LuaThread>>,
     _chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
     if args < 2 {
         return Err(RuntimeError::ValueExpected);
     }
-    let mut it = stack.pop_n(args);
+    let mut thread_mut = thread.borrow_mut();
+    let mut it = thread_mut.pop_n(args);
     let s = match it.next().unwrap() {
         LuaValue::String(s) => s,
         _ => return Err(RuntimeError::NotString),
@@ -289,7 +302,7 @@ pub fn rep(
     };
     if n <= 0 {
         drop(it);
-        stack.data_stack.push(LuaValue::String(vec![]));
+        thread_mut.data_stack.push(LuaValue::String(vec![]));
         return Ok(1);
     }
 
@@ -299,6 +312,7 @@ pub fn rep(
         _ => return Err(RuntimeError::NotString),
     };
     drop(it);
+    drop(thread_mut);
 
     let mut ret = Vec::with_capacity(s.len() * n as usize + sep.len() * (n as usize - 1));
     for i in 0..n {
@@ -307,24 +321,24 @@ pub fn rep(
         }
         ret.extend_from_slice(&s);
     }
-    stack.data_stack.push(LuaValue::String(ret));
+    thread.borrow_mut().data_stack.push(LuaValue::String(ret));
     Ok(1)
 }
 
 pub fn reverse(
-    stack: &mut Stack,
     _env: &mut LuaEnv,
+    thread: &Rc<RefCell<LuaThread>>,
     _chunk: &Chunk,
     args: usize,
 ) -> Result<usize, RuntimeError> {
     if args == 0 {
         return Err(RuntimeError::ValueExpected);
     }
-    let mut s = match stack.pop1(args) {
+    let mut s = match thread.borrow_mut().pop1(args) {
         LuaValue::String(s) => s,
         _ => return Err(RuntimeError::NotString),
     };
     s.reverse();
-    stack.data_stack.push(LuaValue::String(s));
+    thread.borrow_mut().data_stack.push(LuaValue::String(s));
     Ok(1)
 }
