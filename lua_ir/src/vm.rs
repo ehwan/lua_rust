@@ -23,6 +23,7 @@ pub struct LuaEnv {
     pub(crate) rng: rand::rngs::StdRng,
 
     pub(crate) main_thread: Rc<RefCell<LuaThread>>,
+    pub(crate) running_thread: Rc<RefCell<LuaThread>>,
 }
 
 impl LuaEnv {
@@ -30,23 +31,89 @@ impl LuaEnv {
         let env = Rc::new(RefCell::new(builtin::init_env().unwrap()));
         env.borrow_mut()
             .insert("_G".into(), LuaValue::Table(Rc::clone(&env)));
+        let main_thread = Rc::new(RefCell::new(LuaThread::new()));
         LuaEnv {
             env: LuaValue::Table(env),
             rng: rand::rngs::StdRng::from_entropy(),
 
-            main_thread: Rc::new(RefCell::new(LuaThread::new())),
+            main_thread: Rc::clone(&main_thread),
+            running_thread: main_thread,
         }
+    }
+
+    /// clone i'th value from top of the stack and push it.
+    pub fn clone_stack_relative(&self, i_from_top: usize) {
+        let mut thread = self.running_thread.borrow_mut();
+        let idx = thread.data_stack.len() - i_from_top - 1;
+        let top = thread.data_stack[idx].clone();
+        thread.data_stack.push(top);
     }
 
     pub fn main_thread(&self) -> &Rc<RefCell<LuaThread>> {
         &self.main_thread
     }
 
+    pub fn push(&self, value: LuaValue) {
+        self.running_thread.borrow_mut().data_stack.push(value);
+    }
+    pub fn push2(&self, value1: LuaValue, value2: LuaValue) {
+        let mut thread = self.running_thread.borrow_mut();
+        thread.data_stack.push(value1);
+        thread.data_stack.push(value2);
+    }
+    pub fn push3(&self, value1: LuaValue, value2: LuaValue, value3: LuaValue) {
+        let mut thread = self.running_thread.borrow_mut();
+        thread.data_stack.push(value1);
+        thread.data_stack.push(value2);
+        thread.data_stack.push(value3);
+    }
+    pub fn push4(&self, value1: LuaValue, value2: LuaValue, value3: LuaValue, value4: LuaValue) {
+        let mut thread = self.running_thread.borrow_mut();
+        thread.data_stack.push(value1);
+        thread.data_stack.push(value2);
+        thread.data_stack.push(value3);
+        thread.data_stack.push(value4);
+    }
+    pub fn pop(&self) -> LuaValue {
+        self.running_thread.borrow_mut().data_stack.pop().unwrap()
+    }
+    pub fn pop2(&self) -> (LuaValue, LuaValue) {
+        let mut thread = self.running_thread.borrow_mut();
+        let value2 = thread.data_stack.pop().unwrap();
+        let value1 = thread.data_stack.pop().unwrap();
+        (value1, value2)
+    }
+    pub fn pop3(&self) -> (LuaValue, LuaValue, LuaValue) {
+        let mut thread = self.running_thread.borrow_mut();
+        let value3 = thread.data_stack.pop().unwrap();
+        let value2 = thread.data_stack.pop().unwrap();
+        let value1 = thread.data_stack.pop().unwrap();
+        (value1, value2, value3)
+    }
+    pub fn pop_n(&self, n: usize) {
+        let len = self.running_thread.borrow().data_stack.len();
+        self.running_thread
+            .borrow_mut()
+            .data_stack
+            .truncate(len - n);
+    }
+    pub fn borrow_running_thread(&self) -> std::cell::Ref<LuaThread> {
+        self.running_thread.borrow()
+    }
+    pub fn borrow_running_thread_mut(&self) -> std::cell::RefMut<LuaThread> {
+        self.running_thread.borrow_mut()
+    }
+    pub fn fill_nil(&self, n: usize) {
+        let mut thread = self.running_thread.borrow_mut();
+        thread
+            .data_stack
+            .extend(std::iter::repeat(LuaValue::Nil).take(n));
+    }
+
     /// Try to call binary metamethod f(lhs, rhs).
     /// It tries to search metamethod on lhs first, then rhs.
     fn try_call_metamethod(
         &mut self,
-        thread: &Rc<RefCell<LuaThread>>,
         chunk: &Chunk,
         lhs: LuaValue,
         rhs: LuaValue,
@@ -54,134 +121,126 @@ impl LuaEnv {
     ) -> Result<(), RuntimeError> {
         match lhs.get_metavalue(meta_name) {
             Some(meta) => {
-                thread.borrow_mut().data_stack.push(lhs);
-                thread.borrow_mut().data_stack.push(rhs);
-                self.function_call(thread, chunk, 2, meta, Some(1))
+                self.push2(lhs, rhs);
+                self.function_call(chunk, 2, meta, Some(1))
             }
             None => match rhs.get_metavalue(meta_name) {
                 Some(meta) => {
-                    thread.borrow_mut().data_stack.push(lhs);
-                    thread.borrow_mut().data_stack.push(rhs);
-                    self.function_call(thread, chunk, 2, meta, Some(1))
+                    self.push2(lhs, rhs);
+                    self.function_call(chunk, 2, meta, Some(1))
                 }
                 None => Err(RuntimeError::NoMetaMethod),
             },
         }
     }
+    /// string-fy a value
+    pub fn tostring(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+        let top = self.pop();
+        let meta = top.get_metavalue("__tostring");
+        match meta {
+            Some(meta) => {
+                self.push(top);
+                self.function_call(chunk, 1, meta, Some(1))?;
+                self.tostring(chunk)
+            }
+            _ => {
+                let name = top.get_metavalue("__name");
+                let s = match name {
+                    Some(name) => match name {
+                        LuaValue::String(name) => LuaValue::String(name),
+                        _ => LuaValue::String(name.to_string().into_bytes()),
+                    },
+                    None => match top {
+                        LuaValue::String(s) => LuaValue::String(s),
+                        top => LuaValue::String(top.to_string().into_bytes()),
+                    },
+                };
+                self.push(s);
+                Ok(())
+            }
+        }
+    }
+
     /// add operation with __add metamethod
-    pub fn add(
-        &mut self,
-        thread: &Rc<RefCell<LuaThread>>,
-        chunk: &Chunk,
-    ) -> Result<(), RuntimeError> {
-        let rhs = thread.borrow_mut().data_stack.pop().unwrap();
-        let lhs = thread.borrow_mut().data_stack.pop().unwrap();
+    pub fn add(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+        let (lhs, rhs) = self.pop2();
         match (lhs, rhs) {
             // if both are numbers, add them
             (LuaValue::Number(lhs), LuaValue::Number(rhs)) => {
-                thread.borrow_mut().data_stack.push((lhs + rhs).into());
+                self.push((lhs + rhs).into());
                 Ok(())
             }
             // else, try to call metamethod, search on left first
-            (lhs, rhs) => self.try_call_metamethod(thread, chunk, lhs, rhs, "__add"),
+            (lhs, rhs) => self.try_call_metamethod(chunk, lhs, rhs, "__add"),
         }
     }
 
     /// sub operation with __sub metamethod
-    pub fn sub(
-        &mut self,
-        thread: &Rc<RefCell<LuaThread>>,
-        chunk: &Chunk,
-    ) -> Result<(), RuntimeError> {
-        let rhs = thread.borrow_mut().data_stack.pop().unwrap();
-        let lhs = thread.borrow_mut().data_stack.pop().unwrap();
+    pub fn sub(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+        let (lhs, rhs) = self.pop2();
         match (lhs, rhs) {
             (LuaValue::Number(lhs), LuaValue::Number(rhs)) => {
-                thread.borrow_mut().data_stack.push((lhs - rhs).into());
+                self.push((lhs - rhs).into());
                 Ok(())
             }
             // else, try to call metamethod, search on left first
-            (lhs, rhs) => self.try_call_metamethod(thread, chunk, lhs, rhs, "__sub"),
+            (lhs, rhs) => self.try_call_metamethod(chunk, lhs, rhs, "__sub"),
         }
     }
     /// mul operation with __mul metamethod
-    pub fn mul(
-        &mut self,
-        thread: &Rc<RefCell<LuaThread>>,
-        chunk: &Chunk,
-    ) -> Result<(), RuntimeError> {
-        let rhs = thread.borrow_mut().data_stack.pop().unwrap();
-        let lhs = thread.borrow_mut().data_stack.pop().unwrap();
+    pub fn mul(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+        let (lhs, rhs) = self.pop2();
         match (lhs, rhs) {
             (LuaValue::Number(lhs), LuaValue::Number(rhs)) => {
-                thread.borrow_mut().data_stack.push((lhs * rhs).into());
+                self.push((lhs * rhs).into());
                 Ok(())
             }
             // else, try to call metamethod, search on left first
-            (lhs, rhs) => self.try_call_metamethod(thread, chunk, lhs, rhs, "__mul"),
+            (lhs, rhs) => self.try_call_metamethod(chunk, lhs, rhs, "__mul"),
         }
     }
     /// div operation with __div metamethod
-    pub fn div(
-        &mut self,
-        thread: &Rc<RefCell<LuaThread>>,
-        chunk: &Chunk,
-    ) -> Result<(), RuntimeError> {
-        let rhs = thread.borrow_mut().data_stack.pop().unwrap();
-        let lhs = thread.borrow_mut().data_stack.pop().unwrap();
+    pub fn div(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+        let (lhs, rhs) = self.pop2();
         match (lhs, rhs) {
             (LuaValue::Number(lhs), LuaValue::Number(rhs)) => {
-                thread.borrow_mut().data_stack.push((lhs / rhs).into());
+                self.push((lhs / rhs).into());
                 Ok(())
             }
             // else, try to call metamethod, search on left first
-            (lhs, rhs) => self.try_call_metamethod(thread, chunk, lhs, rhs, "__div"),
+            (lhs, rhs) => self.try_call_metamethod(chunk, lhs, rhs, "__div"),
         }
     }
     /// mod operation with __mod metamethod
-    pub fn mod_(
-        &mut self,
-        thread: &Rc<RefCell<LuaThread>>,
-        chunk: &Chunk,
-    ) -> Result<(), RuntimeError> {
-        let rhs = thread.borrow_mut().data_stack.pop().unwrap();
-        let lhs = thread.borrow_mut().data_stack.pop().unwrap();
+    pub fn mod_(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+        let (lhs, rhs) = self.pop2();
         match (lhs, rhs) {
             (LuaValue::Number(lhs), LuaValue::Number(rhs)) => {
-                thread.borrow_mut().data_stack.push((lhs % rhs).into());
+                self.push((lhs % rhs).into());
                 Ok(())
             }
             // else, try to call metamethod, search on left first
-            (lhs, rhs) => self.try_call_metamethod(thread, chunk, lhs, rhs, "__mod"),
+            (lhs, rhs) => self.try_call_metamethod(chunk, lhs, rhs, "__mod"),
         }
     }
     /// pow operation with __pow metamethod
-    pub fn pow(
-        &mut self,
-        thread: &Rc<RefCell<LuaThread>>,
-        chunk: &Chunk,
-    ) -> Result<(), RuntimeError> {
-        let rhs = thread.borrow_mut().data_stack.pop().unwrap();
-        let lhs = thread.borrow_mut().data_stack.pop().unwrap();
+    pub fn pow(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+        let (lhs, rhs) = self.pop2();
         match (lhs, rhs) {
             (LuaValue::Number(lhs), LuaValue::Number(rhs)) => {
-                thread.borrow_mut().data_stack.push((lhs.pow(rhs)).into());
+                self.push((lhs.pow(rhs)).into());
                 Ok(())
             }
             // else, try to call metamethod, search on left first
-            (lhs, rhs) => self.try_call_metamethod(thread, chunk, lhs, rhs, "__pow"),
+            (lhs, rhs) => self.try_call_metamethod(chunk, lhs, rhs, "__pow"),
         }
     }
     /// unary minus operation with __unm metamethod
-    pub fn unm(
-        &mut self,
-        thread: &Rc<RefCell<LuaThread>>,
-        chunk: &Chunk,
-    ) -> Result<(), RuntimeError> {
-        let lhs = thread.borrow_mut().data_stack.pop().unwrap();
+    pub fn unm(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+        let lhs = self.pop();
         match lhs {
             LuaValue::Number(num) => {
-                thread.borrow_mut().data_stack.push((-num).into());
+                self.push((-num).into());
                 Ok(())
             }
             lhs => match lhs.get_metavalue("__unm") {
@@ -189,155 +248,117 @@ impl LuaEnv {
                     // For the unary operators (negation, length, and bitwise NOT),
                     // the metamethod is computed and called with a dummy second operand
                     // equal to the first one.
-                    thread.borrow_mut().data_stack.push(lhs.clone());
-                    thread.borrow_mut().data_stack.push(lhs);
-                    self.function_call(thread, chunk, 2, meta, Some(1))
+                    self.push2(lhs.clone(), lhs);
+                    self.function_call(chunk, 2, meta, Some(1))
                 }
                 _ => Err(RuntimeError::NoMetaMethod),
             },
         }
     }
     /// floor division operation with __idiv metamethod
-    pub fn idiv(
-        &mut self,
-        thread: &Rc<RefCell<LuaThread>>,
-        chunk: &Chunk,
-    ) -> Result<(), RuntimeError> {
-        let rhs = thread.borrow_mut().data_stack.pop().unwrap();
-        let lhs = thread.borrow_mut().data_stack.pop().unwrap();
+    pub fn idiv(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+        let (lhs, rhs) = self.pop2();
         match (lhs, rhs) {
             (LuaValue::Number(lhs), LuaValue::Number(rhs)) => {
-                thread
-                    .borrow_mut()
-                    .data_stack
-                    .push((lhs.floor_div(rhs)).into());
+                self.push((lhs.floor_div(rhs)).into());
                 Ok(())
             }
             // else, try to call metamethod, search on left first
-            (lhs, rhs) => self.try_call_metamethod(thread, chunk, lhs, rhs, "__idiv"),
+            (lhs, rhs) => self.try_call_metamethod(chunk, lhs, rhs, "__idiv"),
         }
     }
     /// bitwise and operation with __band metamethod
-    pub fn band(
-        &mut self,
-        thread: &Rc<RefCell<LuaThread>>,
-        chunk: &Chunk,
-    ) -> Result<(), RuntimeError> {
-        let rhs = thread.borrow_mut().data_stack.pop().unwrap();
-        let lhs = thread.borrow_mut().data_stack.pop().unwrap();
+    pub fn band(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+        let (lhs, rhs) = self.pop2();
         match (&lhs, &rhs) {
             (LuaValue::Number(lhs_num), LuaValue::Number(rhs_num)) => {
                 match (lhs_num.try_to_int(), rhs_num.try_to_int()) {
                     (Some(lhs), Some(rhs)) => {
-                        thread.borrow_mut().data_stack.push((lhs & rhs).into());
+                        self.push((lhs & rhs).into());
                         Ok(())
                     }
-                    _ => self.try_call_metamethod(thread, chunk, lhs, rhs, "__band"),
+                    _ => self.try_call_metamethod(chunk, lhs, rhs, "__band"),
                 }
             }
             // else, try to call metamethod, search on left first
-            _ => self.try_call_metamethod(thread, chunk, lhs, rhs, "__band"),
+            _ => self.try_call_metamethod(chunk, lhs, rhs, "__band"),
         }
     }
     /// bitwise or operation with __bor metamethod
-    pub fn bor(
-        &mut self,
-        thread: &Rc<RefCell<LuaThread>>,
-        chunk: &Chunk,
-    ) -> Result<(), RuntimeError> {
-        let rhs = thread.borrow_mut().data_stack.pop().unwrap();
-        let lhs = thread.borrow_mut().data_stack.pop().unwrap();
+    pub fn bor(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+        let (lhs, rhs) = self.pop2();
         match (&lhs, &rhs) {
             (LuaValue::Number(lhs_num), LuaValue::Number(rhs_num)) => {
                 match (lhs_num.try_to_int(), rhs_num.try_to_int()) {
                     (Some(lhs), Some(rhs)) => {
-                        thread.borrow_mut().data_stack.push((lhs | rhs).into());
+                        self.push((lhs | rhs).into());
                         Ok(())
                     }
-                    _ => self.try_call_metamethod(thread, chunk, lhs, rhs, "__bor"),
+                    _ => self.try_call_metamethod(chunk, lhs, rhs, "__bor"),
                 }
             }
             // else, try to call metamethod, search on left first
-            _ => self.try_call_metamethod(thread, chunk, lhs, rhs, "__bor"),
+            _ => self.try_call_metamethod(chunk, lhs, rhs, "__bor"),
         }
     }
     /// bitwise xor operation with __bxor metamethod
-    pub fn bxor(
-        &mut self,
-        thread: &Rc<RefCell<LuaThread>>,
-        chunk: &Chunk,
-    ) -> Result<(), RuntimeError> {
-        let rhs = thread.borrow_mut().data_stack.pop().unwrap();
-        let lhs = thread.borrow_mut().data_stack.pop().unwrap();
+    pub fn bxor(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+        let (lhs, rhs) = self.pop2();
         match (&lhs, &rhs) {
             (LuaValue::Number(lhs_num), LuaValue::Number(rhs_num)) => {
                 match (lhs_num.try_to_int(), rhs_num.try_to_int()) {
                     (Some(lhs), Some(rhs)) => {
-                        thread.borrow_mut().data_stack.push((lhs ^ rhs).into());
+                        self.push((lhs ^ rhs).into());
                         Ok(())
                     }
-                    _ => self.try_call_metamethod(thread, chunk, lhs, rhs, "__bxor"),
+                    _ => self.try_call_metamethod(chunk, lhs, rhs, "__bxor"),
                 }
             }
             // else, try to call metamethod, search on left first
-            _ => self.try_call_metamethod(thread, chunk, lhs, rhs, "__bxor"),
+            _ => self.try_call_metamethod(chunk, lhs, rhs, "__bxor"),
         }
     }
     /// bitwise shift left operation with __shl metamethod
-    pub fn shl(
-        &mut self,
-        thread: &Rc<RefCell<LuaThread>>,
-        chunk: &Chunk,
-    ) -> Result<(), RuntimeError> {
-        let rhs = thread.borrow_mut().data_stack.pop().unwrap();
-        let lhs = thread.borrow_mut().data_stack.pop().unwrap();
+    pub fn shl(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+        let (lhs, rhs) = self.pop2();
         match (&lhs, &rhs) {
             (LuaValue::Number(lhs_num), LuaValue::Number(rhs_num)) => {
                 match (lhs_num.try_to_int(), rhs_num.try_to_int()) {
                     (Some(lhs), Some(rhs)) => {
-                        thread.borrow_mut().data_stack.push((lhs << rhs).into());
+                        self.push((lhs << rhs).into());
                         Ok(())
                     }
-                    _ => self.try_call_metamethod(thread, chunk, lhs, rhs, "__shl"),
+                    _ => self.try_call_metamethod(chunk, lhs, rhs, "__shl"),
                 }
             }
             // else, try to call metamethod, search on left first
-            _ => self.try_call_metamethod(thread, chunk, lhs, rhs, "__shl"),
+            _ => self.try_call_metamethod(chunk, lhs, rhs, "__shl"),
         }
     }
     /// bitwise shift right operation with __shr metamethod
-    pub fn shr(
-        &mut self,
-        thread: &Rc<RefCell<LuaThread>>,
-        chunk: &Chunk,
-    ) -> Result<(), RuntimeError> {
-        let rhs = thread.borrow_mut().data_stack.pop().unwrap();
-        let lhs = thread.borrow_mut().data_stack.pop().unwrap();
+    pub fn shr(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+        let (lhs, rhs) = self.pop2();
         match (&lhs, &rhs) {
             (LuaValue::Number(lhs_num), LuaValue::Number(rhs_num)) => {
                 match (lhs_num.try_to_int(), rhs_num.try_to_int()) {
                     (Some(lhs), Some(rhs)) => {
-                        thread.borrow_mut().data_stack.push((lhs >> rhs).into());
+                        self.push((lhs >> rhs).into());
                         Ok(())
                     }
-                    _ => self.try_call_metamethod(thread, chunk, lhs, rhs, "__shr"),
+                    _ => self.try_call_metamethod(chunk, lhs, rhs, "__shr"),
                 }
             }
             // else, try to call metamethod, search on left first
-            _ => self.try_call_metamethod(thread, chunk, lhs, rhs, "__shr"),
+            _ => self.try_call_metamethod(chunk, lhs, rhs, "__shr"),
         }
     }
     /// bitwise not operation with __bnot metamethod
-    pub fn bnot(
-        &mut self,
-        thread: &Rc<RefCell<LuaThread>>,
-        chunk: &Chunk,
-    ) -> Result<(), RuntimeError> {
-        let lhs = thread.borrow_mut().data_stack.pop().unwrap();
+    pub fn bnot(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+        let lhs = self.pop();
         match &lhs {
             LuaValue::Number(lhs_num) => match lhs_num.try_to_int() {
                 Some(i) => {
-                    thread.borrow_mut().data_stack.push((!i).into());
+                    self.push((!i).into());
                     Ok(())
                 }
                 _ => match lhs.get_metavalue("__bnot") {
@@ -345,9 +366,8 @@ impl LuaEnv {
                         // For the unary operators (negation, length, and bitwise NOT),
                         // the metamethod is computed and called with a dummy second operand
                         // equal to the first one.
-                        thread.borrow_mut().data_stack.push(lhs.clone());
-                        thread.borrow_mut().data_stack.push(lhs);
-                        self.function_call(thread, chunk, 2, meta, Some(1))
+                        self.push2(lhs.clone(), lhs);
+                        self.function_call(chunk, 2, meta, Some(1))
                     }
                     _ => Err(RuntimeError::NoMetaMethod),
                 },
@@ -357,83 +377,58 @@ impl LuaEnv {
                     // For the unary operators (negation, length, and bitwise NOT),
                     // the metamethod is computed and called with a dummy second operand
                     // equal to the first one.
-                    thread.borrow_mut().data_stack.push(lhs.clone());
-                    thread.borrow_mut().data_stack.push(lhs);
-                    self.function_call(thread, chunk, 2, meta, Some(1))
+                    self.push2(lhs.clone(), lhs);
+                    self.function_call(chunk, 2, meta, Some(1))
                 }
                 _ => Err(RuntimeError::NoMetaMethod),
             },
         }
     }
     /// concat operation with __concat metamethod
-    pub fn concat(
-        &mut self,
-        thread: &Rc<RefCell<LuaThread>>,
-        chunk: &Chunk,
-    ) -> Result<(), RuntimeError> {
-        let rhs = thread.borrow_mut().data_stack.pop().unwrap();
-        let lhs = thread.borrow_mut().data_stack.pop().unwrap();
+    pub fn concat(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+        let (lhs, rhs) = self.pop2();
         match lhs {
             LuaValue::Number(lhs_num) => match rhs {
                 LuaValue::Number(rhs_num) => {
                     let mut concated = lhs_num.to_string().into_bytes();
                     concated.append(&mut rhs_num.to_string().into_bytes());
-                    thread
-                        .borrow_mut()
-                        .data_stack
-                        .push(LuaValue::String(concated));
+                    self.push(LuaValue::String(concated));
                     Ok(())
                 }
                 LuaValue::String(mut rhs) => {
                     let mut lhs = lhs_num.to_string().into_bytes();
                     lhs.append(&mut rhs);
-                    thread.borrow_mut().data_stack.push(LuaValue::String(lhs));
+                    self.push(LuaValue::String(lhs));
                     Ok(())
                 }
-                _ => self.try_call_metamethod(thread, chunk, lhs, rhs, "__concat"),
+                _ => self.try_call_metamethod(chunk, lhs, rhs, "__concat"),
             },
 
             LuaValue::String(lhs_str) => match rhs {
                 LuaValue::Number(rhs_num) => {
                     let mut concated = lhs_str;
                     concated.append(&mut rhs_num.to_string().into_bytes());
-                    thread
-                        .borrow_mut()
-                        .data_stack
-                        .push(LuaValue::String(concated));
+                    self.push(LuaValue::String(concated));
                     Ok(())
                 }
                 LuaValue::String(mut rhs) => {
                     let mut lhs = lhs_str;
                     lhs.append(&mut rhs);
-                    thread.borrow_mut().data_stack.push(LuaValue::String(lhs));
+                    self.push(LuaValue::String(lhs));
                     Ok(())
                 }
-                _ => self.try_call_metamethod(
-                    thread,
-                    chunk,
-                    LuaValue::String(lhs_str),
-                    rhs,
-                    "__concat",
-                ),
+                _ => self.try_call_metamethod(chunk, LuaValue::String(lhs_str), rhs, "__concat"),
             },
 
-            _ => self.try_call_metamethod(thread, chunk, lhs, rhs, "__concat"),
+            _ => self.try_call_metamethod(chunk, lhs, rhs, "__concat"),
         }
     }
     /// `#` length operation with __len metamethod
-    pub fn len(
-        &mut self,
-        thread: &Rc<RefCell<LuaThread>>,
-        chunk: &Chunk,
-    ) -> Result<(), RuntimeError> {
-        let lhs = thread.borrow_mut().data_stack.pop().unwrap();
+    pub fn len(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+        let lhs = self.pop();
         match lhs {
             LuaValue::String(s) => {
-                thread
-                    .borrow_mut()
-                    .data_stack
-                    .push((s.len() as IntType).into());
+                self.push((s.len() as IntType).into());
                 Ok(())
             }
             LuaValue::Table(table) => {
@@ -443,18 +438,11 @@ impl LuaEnv {
                         // For the unary operators (negation, length, and bitwise NOT),
                         // the metamethod is computed and called with a dummy second operand
                         // equal to the first one.
-                        thread
-                            .borrow_mut()
-                            .data_stack
-                            .push(LuaValue::Table(Rc::clone(&table)));
-                        thread.borrow_mut().data_stack.push(LuaValue::Table(table));
-                        self.function_call(thread, chunk, 2, meta, Some(1))
+                        self.push2(LuaValue::Table(Rc::clone(&table)), LuaValue::Table(table));
+                        self.function_call(chunk, 2, meta, Some(1))
                     }
                     _ => {
-                        thread
-                            .borrow_mut()
-                            .data_stack
-                            .push((table.borrow().len() as IntType).into());
+                        self.push((table.borrow().len() as IntType).into());
                         Ok(())
                     }
                 }
@@ -464,52 +452,35 @@ impl LuaEnv {
                     // For the unary operators (negation, length, and bitwise NOT),
                     // the metamethod is computed and called with a dummy second operand
                     // equal to the first one.
-                    thread.borrow_mut().data_stack.push(lhs.clone());
-                    thread.borrow_mut().data_stack.push(lhs);
-                    self.function_call(thread, chunk, 2, meta, Some(1))
+                    self.push2(lhs.clone(), lhs);
+                    self.function_call(chunk, 2, meta, Some(1))
                 }
                 _ => Err(RuntimeError::NoMetaMethod),
             },
         }
     }
     /// table index get operation with __index metamethod
-    pub fn index(
-        &mut self,
-        thread: &Rc<RefCell<LuaThread>>,
-        chunk: &Chunk,
-    ) -> Result<(), RuntimeError> {
-        let key = thread.borrow_mut().data_stack.pop().unwrap();
-        let table = thread.borrow_mut().data_stack.pop().unwrap();
+    pub fn index(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+        let (table, key) = self.pop2();
         match table {
             LuaValue::Table(table) => {
                 let get = table.borrow().get(&key).cloned();
                 if let Some(get) = get {
-                    thread.borrow_mut().data_stack.push(get);
+                    self.push(get);
                     Ok(())
                 } else {
                     let meta = table.borrow().get_metavalue("__index");
                     match meta {
                         Some(LuaValue::Function(meta_func)) => {
-                            thread.borrow_mut().data_stack.push(LuaValue::Table(table));
-                            thread.borrow_mut().data_stack.push(key);
-                            self.function_call(
-                                thread,
-                                chunk,
-                                2,
-                                LuaValue::Function(meta_func),
-                                Some(1),
-                            )
+                            self.push2(LuaValue::Table(table), key);
+                            self.function_call(chunk, 2, LuaValue::Function(meta_func), Some(1))
                         }
                         Some(LuaValue::Table(meta_table)) => {
-                            thread
-                                .borrow_mut()
-                                .data_stack
-                                .push(LuaValue::Table(meta_table));
-                            thread.borrow_mut().data_stack.push(key);
-                            self.index(thread, chunk)
+                            self.push2(LuaValue::Table(meta_table), key);
+                            self.index(chunk)
                         }
                         _ => {
-                            thread.borrow_mut().data_stack.push(LuaValue::Nil);
+                            self.push(LuaValue::Nil);
                             Ok(())
                         }
                     }
@@ -519,17 +490,12 @@ impl LuaEnv {
                 let meta = table.get_metavalue("__index");
                 match meta {
                     Some(LuaValue::Function(meta_func)) => {
-                        thread.borrow_mut().data_stack.push(table);
-                        thread.borrow_mut().data_stack.push(key);
-                        self.function_call(thread, chunk, 2, LuaValue::Function(meta_func), Some(1))
+                        self.push2(table, key);
+                        self.function_call(chunk, 2, LuaValue::Function(meta_func), Some(1))
                     }
                     Some(LuaValue::Table(meta_table)) => {
-                        thread
-                            .borrow_mut()
-                            .data_stack
-                            .push(LuaValue::Table(meta_table));
-                        thread.borrow_mut().data_stack.push(key);
-                        self.index(thread, chunk)
+                        self.push2(LuaValue::Table(meta_table), key);
+                        self.index(chunk)
                     }
                     _ => Err(RuntimeError::NotTable),
                 }
@@ -537,23 +503,17 @@ impl LuaEnv {
         }
     }
     /// table index set operation with __newindex metamethod
-    pub fn newindex(
-        &mut self,
-        thread: &Rc<RefCell<LuaThread>>,
-        chunk: &Chunk,
-    ) -> Result<(), RuntimeError> {
-        let key = thread.borrow_mut().data_stack.pop().unwrap();
-        let table = thread.borrow_mut().data_stack.pop().unwrap();
-        let value = thread.borrow_mut().data_stack.pop().unwrap();
+    pub fn newindex(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+        let (value, table, key) = self.pop3();
 
         match table {
             LuaValue::Table(table) => {
                 {
-                    let mut table = table.borrow_mut();
-                    if let Some(val) = table.get_mut(&key) {
+                    let mut table_mut = table.borrow_mut();
+                    if let Some(val) = table_mut.get_mut(&key) {
                         // if rhs is nil, remove the key
                         if value.is_nil() {
-                            table.remove(&key);
+                            table_mut.remove(&key);
                         } else {
                             *val = value;
                         }
@@ -563,19 +523,12 @@ impl LuaEnv {
                 let meta = table.borrow().get_metavalue("__newindex");
                 match meta {
                     Some(LuaValue::Function(meta_func)) => {
-                        thread.borrow_mut().data_stack.push(LuaValue::Table(table));
-                        thread.borrow_mut().data_stack.push(key);
-                        thread.borrow_mut().data_stack.push(value);
-                        self.function_call(thread, chunk, 3, LuaValue::Function(meta_func), Some(0))
+                        self.push3(LuaValue::Table(table), key, value);
+                        self.function_call(chunk, 3, LuaValue::Function(meta_func), Some(0))
                     }
                     Some(LuaValue::Table(meta_table)) => {
-                        thread.borrow_mut().data_stack.push(value);
-                        thread
-                            .borrow_mut()
-                            .data_stack
-                            .push(LuaValue::Table(meta_table));
-                        thread.borrow_mut().data_stack.push(key);
-                        self.newindex(thread, chunk)
+                        self.push3(value, LuaValue::Table(meta_table), key);
+                        self.newindex(chunk)
                     }
                     _ => {
                         table.borrow_mut().insert(key, value);
@@ -587,19 +540,12 @@ impl LuaEnv {
                 let meta = table.get_metavalue("__newindex");
                 match meta {
                     Some(LuaValue::Function(meta_func)) => {
-                        thread.borrow_mut().data_stack.push(table);
-                        thread.borrow_mut().data_stack.push(key);
-                        thread.borrow_mut().data_stack.push(value);
-                        self.function_call(thread, chunk, 3, LuaValue::Function(meta_func), Some(0))
+                        self.push3(table, key, value);
+                        self.function_call(chunk, 3, LuaValue::Function(meta_func), Some(0))
                     }
                     Some(LuaValue::Table(meta_table)) => {
-                        thread.borrow_mut().data_stack.push(value);
-                        thread
-                            .borrow_mut()
-                            .data_stack
-                            .push(LuaValue::Table(meta_table));
-                        thread.borrow_mut().data_stack.push(key);
-                        self.newindex(thread, chunk)
+                        self.push3(value, LuaValue::Table(meta_table), key);
+                        self.newindex(chunk)
                     }
                     _ => Err(RuntimeError::NotTable),
                 }
@@ -607,22 +553,16 @@ impl LuaEnv {
         }
     }
     /// equality operation with __eq metamethod
-    pub fn eq(
-        &mut self,
-        thread: &Rc<RefCell<LuaThread>>,
-        chunk: &Chunk,
-    ) -> Result<(), RuntimeError> {
-        let rhs = thread.borrow_mut().data_stack.pop().unwrap();
-        let lhs = thread.borrow_mut().data_stack.pop().unwrap();
+    pub fn eq(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+        let (lhs, rhs) = self.pop2();
 
         match (lhs, rhs) {
             (LuaValue::Table(lhs), LuaValue::Table(rhs)) => {
                 if Rc::ptr_eq(&lhs, &rhs) {
-                    thread.borrow_mut().data_stack.push(LuaValue::Boolean(true));
+                    self.push(LuaValue::Boolean(true));
                     return Ok(());
                 } else {
                     self.try_call_metamethod(
-                        thread,
                         chunk,
                         LuaValue::Table(lhs),
                         LuaValue::Table(rhs),
@@ -631,67 +571,42 @@ impl LuaEnv {
                 }
             }
             (lhs, rhs) => {
-                thread
-                    .borrow_mut()
-                    .data_stack
-                    .push(LuaValue::Boolean(lhs == rhs));
+                self.push(LuaValue::Boolean(lhs == rhs));
                 Ok(())
             }
         }
     }
     /// less than operation with __lt metamethod
-    pub fn lt(
-        &mut self,
-        thread: &Rc<RefCell<LuaThread>>,
-        chunk: &Chunk,
-    ) -> Result<(), RuntimeError> {
-        let rhs = thread.borrow_mut().data_stack.pop().unwrap();
-        let lhs = thread.borrow_mut().data_stack.pop().unwrap();
+    pub fn lt(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+        let (lhs, rhs) = self.pop2();
 
         match (lhs, rhs) {
             (LuaValue::Number(lhs), LuaValue::Number(rhs)) => {
-                thread
-                    .borrow_mut()
-                    .data_stack
-                    .push(LuaValue::Boolean(lhs < rhs));
+                self.push(LuaValue::Boolean(lhs < rhs));
                 Ok(())
             }
             (LuaValue::String(lhs), LuaValue::String(rhs)) => {
-                thread
-                    .borrow_mut()
-                    .data_stack
-                    .push(LuaValue::Boolean(lhs < rhs));
+                self.push(LuaValue::Boolean(lhs < rhs));
                 Ok(())
             }
-            (lhs, rhs) => self.try_call_metamethod(thread, chunk, lhs, rhs, "__lt"),
+            (lhs, rhs) => self.try_call_metamethod(chunk, lhs, rhs, "__lt"),
         }
     }
 
     /// less than or equal operation with __le metamethod
-    pub fn le(
-        &mut self,
-        thread: &Rc<RefCell<LuaThread>>,
-        chunk: &Chunk,
-    ) -> Result<(), RuntimeError> {
-        let rhs = thread.borrow_mut().data_stack.pop().unwrap();
-        let lhs = thread.borrow_mut().data_stack.pop().unwrap();
+    pub fn le(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
+        let (lhs, rhs) = self.pop2();
 
         match (lhs, rhs) {
             (LuaValue::Number(lhs), LuaValue::Number(rhs)) => {
-                thread
-                    .borrow_mut()
-                    .data_stack
-                    .push(LuaValue::Boolean(lhs <= rhs));
+                self.push(LuaValue::Boolean(lhs <= rhs));
                 Ok(())
             }
             (LuaValue::String(lhs), LuaValue::String(rhs)) => {
-                thread
-                    .borrow_mut()
-                    .data_stack
-                    .push(LuaValue::Boolean(lhs <= rhs));
+                self.push(LuaValue::Boolean(lhs <= rhs));
                 Ok(())
             }
-            (lhs, rhs) => self.try_call_metamethod(thread, chunk, lhs, rhs, "__le"),
+            (lhs, rhs) => self.try_call_metamethod(chunk, lhs, rhs, "__le"),
         }
     }
 
@@ -699,7 +614,6 @@ impl LuaEnv {
     /// this does not return until the function call is finished.
     pub fn function_call(
         &mut self,
-        thread: &Rc<RefCell<LuaThread>>,
         chunk: &Chunk,
         // number of arguments actually passed
         args_num: usize,
@@ -713,78 +627,86 @@ impl LuaEnv {
                 let func_borrow = func.borrow();
                 match &*func_borrow {
                     LuaFunction::LuaFunc(lua_internal) => {
-                        let usize_len0 = thread.borrow().usize_stack.len();
-                        {
-                            let func_id = lua_internal.function_id;
-                            let func_info = &chunk.functions[func_id];
+                        let usize_len0 = self.running_thread.borrow().usize_stack.len();
 
-                            let thread_mut = &mut *thread.borrow_mut();
+                        let mut thread_mut_ = self.running_thread.borrow_mut();
+                        let thread_mut = &mut *thread_mut_;
 
-                            thread_mut.usize_stack.push(thread_mut.counter);
-                            thread_mut.usize_stack.push(thread_mut.bp);
-                            thread_mut
-                                .usize_stack
-                                .push(thread_mut.data_stack.len() - args_num);
+                        let func_info = &chunk.functions[lua_internal.function_id];
 
-                            let variadic = if func_info.is_variadic {
-                                if args_num <= func_info.args {
-                                    thread_mut.data_stack.resize_with(
-                                        thread_mut.data_stack.len() - args_num + func_info.args,
-                                        Default::default,
-                                    );
-                                    Vec::new()
-                                } else {
-                                    thread_mut
-                                        .data_stack
-                                        .drain(
-                                            thread_mut.data_stack.len() - args_num
-                                                + func_info.args..,
-                                        )
-                                        .collect()
-                                }
-                            } else {
+                        // adjust function arguments
+                        // extract variadic arguments if needed
+                        // push function call stack
+                        let variadic = if func_info.is_variadic {
+                            if args_num <= func_info.args {
                                 thread_mut.data_stack.resize_with(
                                     thread_mut.data_stack.len() - args_num + func_info.args,
                                     Default::default,
                                 );
                                 Vec::new()
-                            };
-
-                            thread_mut.bp = thread_mut.local_variables.len();
-                            thread_mut.local_variables.reserve(func_info.stack_size);
-
-                            {
-                                let mut args: Vec<_> = thread_mut
+                            } else {
+                                thread_mut
                                     .data_stack
-                                    .drain(thread_mut.data_stack.len() - func_info.args..)
-                                    .map(|arg| RefOrValue::Value(arg))
-                                    .collect();
-                                thread_mut.local_variables.append(&mut args);
+                                    .drain(
+                                        thread_mut.data_stack.len() - args_num + func_info.args..,
+                                    )
+                                    .collect()
                             }
-
-                            let func_stack = FunctionStackElem {
-                                function_object: lua_internal.clone(),
-                                return_expected: expected_ret,
-                                variadic,
-                            };
-
-                            thread_mut.function_stack.push(func_stack);
-                            thread_mut.counter = func_info.address;
-                        }
+                        } else {
+                            thread_mut.data_stack.resize_with(
+                                thread_mut.data_stack.len() - args_num + func_info.args,
+                                Default::default,
+                            );
+                            Vec::new()
+                        };
+                        thread_mut.function_stack.push(FunctionStackElem {
+                            function_object: lua_internal.clone(),
+                            return_expected: expected_ret,
+                            variadic,
+                        });
                         drop(func_borrow);
+
+                        // push stack frame
+                        //  - current instruction
+                        thread_mut.usize_stack.push(thread_mut.counter);
+                        //  - current base pointer
+                        thread_mut.usize_stack.push(thread_mut.bp);
+                        //  - current stack size
+                        thread_mut
+                            .usize_stack
+                            .push(thread_mut.data_stack.len() - args_num);
+
+                        // set base pointer to new stack frame
+                        thread_mut.bp = thread_mut.local_variables.len();
+                        // reserve stack space for local variables
+                        thread_mut.local_variables.reserve(func_info.stack_size);
+
+                        // copy arguments to local variables
+                        thread_mut.local_variables.extend(
+                            thread_mut
+                                .data_stack
+                                .drain(thread_mut.data_stack.len() - func_info.args..)
+                                .map(|arg| RefOrValue::Value(arg)),
+                        );
+
+                        // move program counter to function start
+                        thread_mut.counter = func_info.address;
+                        drop(thread_mut_);
+
                         loop {
-                            if thread.borrow().usize_stack.len() == usize_len0 {
+                            if self.running_thread.borrow().usize_stack.len() == usize_len0 {
                                 break;
                             }
-                            let instruction =
-                                chunk.instructions.get(thread.borrow().counter).unwrap();
-                            self.cycle(thread, chunk, instruction)?;
+                            let instruction = chunk
+                                .instructions
+                                .get(self.running_thread.borrow().counter)
+                                .unwrap();
+                            self.cycle(chunk, instruction)?;
                         }
                         Ok(())
                     }
                     LuaFunction::RustFunc(rust_internal) => {
-                        rust_internal(self, thread, chunk, args_num, expected_ret)?;
-                        Ok(())
+                        rust_internal(self, chunk, args_num, expected_ret)
                     }
                 }
             }
@@ -792,10 +714,15 @@ impl LuaEnv {
                 let func = other.get_metavalue("__call");
                 if let Some(meta) = func {
                     {
-                        let front_arg_pos = thread.borrow().data_stack.len() - args_num;
-                        thread.borrow_mut().data_stack.insert(front_arg_pos, other);
+                        // push `self` as first argument
+                        let front_arg_pos =
+                            self.running_thread.borrow().data_stack.len() - args_num;
+                        self.running_thread
+                            .borrow_mut()
+                            .data_stack
+                            .insert(front_arg_pos, other);
                     }
-                    self.function_call(thread, chunk, args_num + 1, meta, expected_ret)
+                    self.function_call(chunk, args_num + 1, meta, expected_ret)
                 } else {
                     Err(RuntimeError::NotFunction)
                 }
@@ -803,68 +730,64 @@ impl LuaEnv {
         }
     }
     /// execute single instruction
-    pub fn cycle(
-        &mut self,
-        thread: &Rc<RefCell<LuaThread>>,
-        chunk: &Chunk,
-        instruction: &Instruction,
-    ) -> Result<(), RuntimeError> {
+    pub fn cycle(&mut self, chunk: &Chunk, instruction: &Instruction) -> Result<(), RuntimeError> {
         match instruction {
             Instruction::Clone => {
-                let top = thread.borrow().data_stack.last().unwrap().clone();
-                thread.borrow_mut().data_stack.push(top);
+                let mut thread_mut = self.running_thread.borrow_mut();
+                let top = thread_mut.data_stack.last().unwrap().clone();
+                thread_mut.data_stack.push(top);
             }
             Instruction::Sp => {
-                let len = thread.borrow().data_stack.len();
-                thread.borrow_mut().usize_stack.push(len);
+                let mut thread_mut = self.running_thread.borrow_mut();
+                let len = thread_mut.data_stack.len();
+                thread_mut.usize_stack.push(len);
             }
             Instruction::Pop => {
-                thread.borrow_mut().data_stack.pop();
+                self.pop();
             }
             Instruction::Deref => {
-                let sp = *thread.borrow().usize_stack.last().unwrap();
-                let top = thread.borrow().data_stack[sp].clone();
-                thread.borrow_mut().data_stack.push(top);
+                let mut thread_mut = self.running_thread.borrow_mut();
+                let sp = thread_mut.usize_stack.pop().unwrap();
+                let top = thread_mut.data_stack[sp].clone();
+                thread_mut.data_stack.push(top);
             }
             Instruction::Jump(label) => {
                 let pc = *chunk.label_map.get(*label).unwrap();
-                thread.borrow_mut().counter = pc;
+                self.running_thread.borrow_mut().counter = pc;
                 return Ok(());
             }
             Instruction::JumpTrue(label) => {
-                if thread.borrow_mut().data_stack.pop().unwrap().to_bool() {
+                let mut thread_mut = self.running_thread.borrow_mut();
+                let top = thread_mut.data_stack.pop().unwrap().to_bool();
+                if top {
                     let pc = *chunk.label_map.get(*label).unwrap();
-                    thread.borrow_mut().counter = pc;
+                    thread_mut.counter = pc;
                     return Ok(());
                 }
             }
             Instruction::JumpFalse(label) => {
-                if !thread.borrow_mut().data_stack.pop().unwrap().to_bool() {
+                let mut thread_mut = self.running_thread.borrow_mut();
+                let top = thread_mut.data_stack.pop().unwrap().to_bool();
+                if !top {
                     let pc = *chunk.label_map.get(*label).unwrap();
-                    thread.borrow_mut().counter = pc;
+                    thread_mut.counter = pc;
                     return Ok(());
                 }
             }
             Instruction::GetLocalVariable(local_id) => {
-                let val = {
-                    let thread = thread.borrow();
-                    let local_idx = *local_id + thread.bp;
-                    match thread.local_variables.get(local_idx).unwrap() {
-                        RefOrValue::Ref(val) => val.borrow().clone(),
-                        RefOrValue::Value(val) => val.clone(),
-                    }
+                let mut thread_mut = self.running_thread.borrow_mut();
+                let local_idx = *local_id + thread_mut.bp;
+                let val = match thread_mut.local_variables.get(local_idx).unwrap() {
+                    RefOrValue::Ref(val) => val.borrow().clone(),
+                    RefOrValue::Value(val) => val.clone(),
                 };
-                thread.borrow_mut().data_stack.push(val);
+                thread_mut.data_stack.push(val);
             }
             Instruction::SetLocalVariable(local_id) => {
-                let top = thread.borrow_mut().data_stack.pop().unwrap();
-                let local_idx = *local_id + thread.borrow().bp;
-                match thread
-                    .borrow_mut()
-                    .local_variables
-                    .get_mut(local_idx)
-                    .unwrap()
-                {
+                let mut thread_mut = self.running_thread.borrow_mut();
+                let top = thread_mut.data_stack.pop().unwrap();
+                let local_idx = *local_id + thread_mut.bp;
+                match thread_mut.local_variables.get_mut(local_idx).unwrap() {
                     RefOrValue::Ref(val) => {
                         val.replace(top);
                     }
@@ -874,73 +797,67 @@ impl LuaEnv {
                 }
             }
             Instruction::InitLocalVariable(local_id) => {
-                let top = thread.borrow_mut().data_stack.pop().unwrap();
-                let idx = *local_id + thread.borrow().bp;
+                let mut thread_mut = self.running_thread.borrow_mut();
+                let top = thread_mut.data_stack.pop().unwrap();
+                let local_idx = *local_id + thread_mut.bp;
                 {
-                    let len = thread.borrow().local_variables.len();
-                    if len <= idx {
-                        thread
-                            .borrow_mut()
+                    let len = thread_mut.local_variables.len();
+                    if len <= local_idx {
+                        thread_mut
                             .local_variables
-                            .resize_with(idx + 1, Default::default);
+                            .resize_with(local_idx + 1, Default::default);
                     }
                 }
-                *thread.borrow_mut().local_variables.get_mut(idx).unwrap() = RefOrValue::Value(top);
+                *thread_mut.local_variables.get_mut(local_idx).unwrap() = RefOrValue::Value(top);
             }
             Instruction::IsNil => {
-                let top = thread.borrow_mut().data_stack.pop().unwrap();
-                thread
-                    .borrow_mut()
-                    .data_stack
-                    .push(LuaValue::Boolean(top.is_nil()));
+                let mut thread_mut = self.running_thread.borrow_mut();
+                let top = thread_mut.data_stack.pop().unwrap();
+                thread_mut.data_stack.push(LuaValue::Boolean(top.is_nil()));
             }
 
             Instruction::Nil => {
-                thread.borrow_mut().data_stack.push(LuaValue::Nil);
+                self.push(LuaValue::Nil);
             }
             Instruction::Boolean(b) => {
-                thread.borrow_mut().data_stack.push(LuaValue::Boolean(*b));
+                self.push(LuaValue::Boolean(*b));
             }
-            Instruction::Numeric(n) => thread.borrow_mut().data_stack.push(LuaValue::Number(*n)),
+            Instruction::Numeric(n) => {
+                self.push(LuaValue::Number(*n));
+            }
             Instruction::String(s) => {
-                thread
-                    .borrow_mut()
-                    .data_stack
-                    .push(LuaValue::String(s.clone()));
+                self.push(LuaValue::String(s.clone()));
             }
             Instruction::GetEnv => {
-                thread.borrow_mut().data_stack.push(self.env.clone());
+                let env = self.env.clone();
+                self.push(env);
             }
             Instruction::TableInit(cap) => {
                 let table = LuaTable::with_capacity(*cap);
-                thread
-                    .borrow_mut()
-                    .data_stack
-                    .push(LuaValue::Table(Rc::new(RefCell::new(table))));
+                self.push(table.into());
             }
             Instruction::TableIndexInit => {
-                let value = thread.borrow_mut().data_stack.pop().unwrap();
-                let index = thread.borrow_mut().data_stack.pop().unwrap();
-                if let LuaValue::Table(table) = thread.borrow().data_stack.last().unwrap() {
+                let (table, index, value) = self.pop3();
+                if let LuaValue::Table(table) = table {
                     table.borrow_mut().insert(index, value);
+                    self.push(LuaValue::Table(table));
                 } else {
                     unreachable!("table must be on top of stack");
                 }
             }
-            Instruction::TableInitLast(i) => {
-                let sp = thread.borrow_mut().usize_stack.pop().unwrap();
-                let mut values: BTreeMap<_, _> = thread
-                    .borrow_mut()
+            Instruction::TableInitLast(start_key) => {
+                let mut thread_mut = self.running_thread.borrow_mut();
+                let sp = thread_mut.usize_stack.pop().unwrap();
+                let mut values: BTreeMap<_, _> = thread_mut
                     .data_stack
                     .drain(sp..)
                     .enumerate()
                     .map(|(idx, value)| {
-                        let index = idx as IntType + *i;
+                        let index = idx as IntType + *start_key;
                         (index.into(), value)
                     })
                     .collect();
-
-                if let LuaValue::Table(table) = thread.borrow().data_stack.last().unwrap() {
+                if let LuaValue::Table(table) = thread_mut.data_stack.last().unwrap() {
                     table.borrow_mut().arr.append(&mut values);
                 } else {
                     unreachable!("table must be on top of stack");
@@ -948,10 +865,10 @@ impl LuaEnv {
             }
 
             Instruction::TableIndex => {
-                self.index(thread, chunk)?;
+                self.index(chunk)?;
             }
             Instruction::TableIndexSet => {
-                self.newindex(thread, chunk)?;
+                self.newindex(chunk)?;
             }
 
             Instruction::FunctionInit(func_id, num_upvalues) => {
@@ -960,25 +877,22 @@ impl LuaEnv {
                     upvalues: Vec::with_capacity(*num_upvalues),
                 };
                 let func = LuaFunction::LuaFunc(func);
-                thread.borrow_mut().data_stack.push(func.into());
+                self.push(func.into());
             }
             Instruction::FunctionInitUpvalueFromLocalVar(src_local_id) => {
-                let local_var = {
-                    let local_idx = *src_local_id + thread.borrow().bp;
-                    let mut thread = thread.borrow_mut();
-                    let local_var = thread.local_variables.get_mut(local_idx).unwrap();
-                    // upvalue must be reference.
-                    match local_var {
-                        RefOrValue::Ref(r) => Rc::clone(r),
-                        RefOrValue::Value(v) => {
-                            let reffed_var = Rc::new(RefCell::new(v.clone()));
-                            *local_var = RefOrValue::Ref(Rc::clone(&reffed_var));
-                            reffed_var
-                        }
+                let mut thread_mut = self.running_thread.borrow_mut();
+                let local_idx = *src_local_id + thread_mut.bp;
+                let local_var = thread_mut.local_variables.get_mut(local_idx).unwrap();
+                // upvalue must be reference.
+                let local_var = match local_var {
+                    RefOrValue::Ref(r) => Rc::clone(r),
+                    RefOrValue::Value(v) => {
+                        let reffed_var = Rc::new(RefCell::new(v.clone()));
+                        *local_var = RefOrValue::Ref(Rc::clone(&reffed_var));
+                        reffed_var
                     }
                 };
-
-                match thread.borrow().data_stack.last().unwrap() {
+                match thread_mut.data_stack.last().unwrap() {
                     LuaValue::Function(func) => match &mut *func.borrow_mut() {
                         LuaFunction::LuaFunc(f) => {
                             f.upvalues.push(local_var);
@@ -989,19 +903,18 @@ impl LuaEnv {
                 }
             }
             Instruction::FunctionInitUpvalueFromUpvalue(src_upvalue_id) => {
-                let value = {
-                    Rc::clone(
-                        &thread
-                            .borrow()
-                            .function_stack
-                            .last()
-                            .unwrap()
-                            .function_object
-                            .upvalues[*src_upvalue_id],
-                    )
-                };
+                let value = Rc::clone(
+                    &self
+                        .running_thread
+                        .borrow()
+                        .function_stack
+                        .last()
+                        .unwrap()
+                        .function_object
+                        .upvalues[*src_upvalue_id],
+                );
 
-                match thread.borrow().data_stack.last().unwrap() {
+                match self.running_thread.borrow().data_stack.last().unwrap() {
                     LuaValue::Function(func) => match &mut *func.borrow_mut() {
                         LuaFunction::LuaFunc(f) => {
                             f.upvalues.push(value);
@@ -1013,133 +926,137 @@ impl LuaEnv {
             }
 
             Instruction::FunctionUpvalue(upvalue_id) => {
-                let value = {
-                    RefCell::borrow(
-                        &thread
-                            .borrow()
-                            .function_stack
-                            .last()
-                            .unwrap()
-                            .function_object
-                            .upvalues[*upvalue_id],
-                    )
-                    .clone()
-                };
-                thread.borrow_mut().data_stack.push(value);
+                let value = RefCell::borrow(
+                    &self
+                        .running_thread
+                        .borrow()
+                        .function_stack
+                        .last()
+                        .unwrap()
+                        .function_object
+                        .upvalues[*upvalue_id],
+                )
+                .clone();
+                self.push(value);
             }
             Instruction::FunctionUpvalueSet(upvalue_id) => {
-                let rhs = thread.borrow_mut().data_stack.pop().unwrap();
-                *thread
+                let top = self.pop();
+                *self
+                    .running_thread
                     .borrow()
                     .function_stack
                     .last()
                     .unwrap()
                     .function_object
                     .upvalues[*upvalue_id]
-                    .borrow_mut() = rhs;
+                    .borrow_mut() = top;
             }
 
             Instruction::BinaryAdd => {
-                self.add(thread, chunk)?;
+                self.add(chunk)?;
             }
             Instruction::BinarySub => {
-                self.sub(thread, chunk)?;
+                self.sub(chunk)?;
             }
             Instruction::BinaryMul => {
-                self.mul(thread, chunk)?;
+                self.mul(chunk)?;
             }
             Instruction::BinaryDiv => {
-                self.div(thread, chunk)?;
+                self.div(chunk)?;
             }
             Instruction::BinaryFloorDiv => {
-                self.idiv(thread, chunk)?;
+                self.idiv(chunk)?;
             }
             Instruction::BinaryMod => {
-                self.mod_(thread, chunk)?;
+                self.mod_(chunk)?;
             }
             Instruction::BinaryPow => {
-                self.pow(thread, chunk)?;
+                self.pow(chunk)?;
             }
             Instruction::BinaryConcat => {
-                self.concat(thread, chunk)?;
+                self.concat(chunk)?;
             }
             Instruction::BinaryBitwiseAnd => {
-                self.band(thread, chunk)?;
+                self.band(chunk)?;
             }
             Instruction::BinaryBitwiseOr => {
-                self.bor(thread, chunk)?;
+                self.bor(chunk)?;
             }
             Instruction::BinaryBitwiseXor => {
-                self.bxor(thread, chunk)?;
+                self.bxor(chunk)?;
             }
             Instruction::BinaryShiftLeft => {
-                self.shl(thread, chunk)?;
+                self.shl(chunk)?;
             }
             Instruction::BinaryShiftRight => {
-                self.shr(thread, chunk)?;
+                self.shr(chunk)?;
             }
             Instruction::BinaryEqual => {
-                self.eq(thread, chunk)?;
+                self.eq(chunk)?;
             }
             Instruction::BinaryLessThan => {
-                self.lt(thread, chunk)?;
+                self.lt(chunk)?;
             }
             Instruction::BinaryLessEqual => {
-                self.le(thread, chunk)?;
+                self.le(chunk)?;
             }
 
             Instruction::UnaryMinus => {
-                self.unm(thread, chunk)?;
+                self.unm(chunk)?;
             }
             Instruction::UnaryBitwiseNot => {
-                self.bnot(thread, chunk)?;
+                self.bnot(chunk)?;
             }
             Instruction::UnaryLength => {
-                self.len(thread, chunk)?;
+                self.len(chunk)?;
             }
             Instruction::UnaryLogicalNot => {
-                let top = thread.borrow_mut().data_stack.pop().unwrap().to_bool();
-                thread.borrow_mut().data_stack.push((!top).into());
+                let top = self.pop().to_bool();
+                self.push((!top).into());
             }
 
             Instruction::FunctionCall(expected_ret) => {
                 let (func, num_args) = {
-                    let func = thread.borrow_mut().data_stack.pop().unwrap();
-                    let sp = thread.borrow_mut().usize_stack.pop().unwrap();
-                    let num_args = thread.borrow().data_stack.len() - sp;
+                    let mut thread_mut = self.running_thread.borrow_mut();
+                    let func = thread_mut.data_stack.pop().unwrap();
+                    let sp = thread_mut.usize_stack.pop().unwrap();
+                    let num_args = thread_mut.data_stack.len() - sp;
                     (func, num_args)
                 };
-                self.function_call(thread, chunk, num_args, func, *expected_ret)?;
+                self.function_call(chunk, num_args, func, *expected_ret)?;
             }
 
             // sp -> top
             Instruction::Return => {
-                let mut thread = thread.borrow_mut();
-                if let Some(func) = thread.function_stack.pop() {
+                let mut thread_mut = self.running_thread.borrow_mut();
+                if let Some(func) = thread_mut.function_stack.pop() {
                     // return from function call
-                    let old_stacklen = thread.usize_stack.pop().unwrap();
-                    let old_bp = thread.usize_stack.pop().unwrap();
-                    let old_pc = thread.usize_stack.pop().unwrap();
-                    let old_local_len = thread.bp;
-                    thread.local_variables.truncate(old_local_len);
-                    thread.bp = old_bp;
-                    thread.counter = old_pc;
+                    let old_stacklen = thread_mut.usize_stack.pop().unwrap();
+                    let old_bp = thread_mut.usize_stack.pop().unwrap();
+                    let old_pc = thread_mut.usize_stack.pop().unwrap();
+                    let old_local_len = thread_mut.bp;
+                    thread_mut.local_variables.truncate(old_local_len);
+                    thread_mut.bp = old_bp;
+                    thread_mut.counter = old_pc;
 
                     if let Some(expected) = func.return_expected {
                         let adjusted = old_stacklen + expected;
-                        thread.data_stack.resize_with(adjusted, Default::default);
+                        thread_mut
+                            .data_stack
+                            .resize_with(adjusted, Default::default);
                     }
                     return Ok(());
                 } else {
                     // main chunk
-                    thread.counter = chunk.instructions.len();
+                    thread_mut.counter = chunk.instructions.len();
                     return Ok(());
                 }
             }
 
             Instruction::GetVariadic(expected) => {
                 if let Some(expected) = expected {
-                    let mut variadic = thread
+                    let mut variadic = self
+                        .running_thread
                         .borrow()
                         .function_stack
                         .last()
@@ -1147,32 +1064,35 @@ impl LuaEnv {
                         .variadic
                         .clone();
                     variadic.resize_with(*expected, Default::default);
-                    thread.borrow_mut().data_stack.append(&mut variadic);
+                    self.running_thread
+                        .borrow_mut()
+                        .data_stack
+                        .append(&mut variadic);
                 } else {
-                    let mut variadic = thread
+                    let mut variadic = self
+                        .running_thread
                         .borrow()
                         .function_stack
                         .last()
                         .unwrap()
                         .variadic
                         .clone();
-                    thread.borrow_mut().data_stack.append(&mut variadic);
+                    self.running_thread
+                        .borrow_mut()
+                        .data_stack
+                        .append(&mut variadic);
                 }
             }
         }
-        thread.borrow_mut().counter += 1;
+        self.running_thread.borrow_mut().counter += 1;
         Ok(())
     }
     /// run the whole chunk
-    pub fn run(
-        &mut self,
-        thread: &Rc<RefCell<LuaThread>>,
-        chunk: &Chunk,
-    ) -> Result<(), RuntimeError> {
+    pub fn run(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
         loop {
-            let counter = thread.borrow().counter;
+            let counter = self.running_thread.borrow().counter;
             if let Some(instruction) = chunk.instructions.get(counter) {
-                self.cycle(thread, chunk, instruction)?;
+                self.cycle(chunk, instruction)?;
             } else {
                 break;
             }
@@ -1274,6 +1194,13 @@ impl LuaThread {
         let v2 = it.next().unwrap();
         let v3 = it.next().unwrap();
         (v0, v1, v2, v3)
+    }
+
+    pub fn adjust(&mut self, inserted: usize, expected: Option<usize>) {
+        if let Some(expected) = expected {
+            let adjusted = self.data_stack.len() - inserted + expected;
+            self.data_stack.resize_with(adjusted, Default::default);
+        }
     }
 }
 

@@ -50,7 +50,9 @@ pub enum Instruction {
     /// table -> key -> value -> stack_top.
     /// table must not be popped.
     TableIndexInit,
-    ///
+    /// sp pushed to usize_stack, points to the start of args.
+    /// table -> args... -> stack_top
+    ///          ^ sp
     TableInitLast(IntType),
     /// table -> index -> stack_top
     TableIndex,

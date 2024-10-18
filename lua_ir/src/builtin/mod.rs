@@ -13,17 +13,17 @@ use crate::LuaValue;
 use crate::RuntimeError;
 
 // mod io;
-mod coroutine;
-mod math;
-mod string;
-mod table;
+// mod coroutine;
+// mod math;
+// mod string;
+// mod table;
 
 const VERSION: &str = "Lua 5.4 in Rust";
 
 /// generate default `_ENV` table
 pub fn init_env() -> Result<LuaTable, RuntimeError> {
     // @TODO
-    let mut env = LuaTable::new();
+    let mut env: LuaTable = LuaTable::new();
     env.insert("print".into(), LuaFunction::from_func(print).into());
     env.insert("rawequal".into(), LuaFunction::from_func(rawequal).into());
     env.insert("rawlen".into(), LuaFunction::from_func(rawlen).into());
@@ -48,10 +48,10 @@ pub fn init_env() -> Result<LuaTable, RuntimeError> {
 
     env.insert("_VERSION".into(), VERSION.into());
 
-    env.insert("string".into(), string::init()?.into());
-    env.insert("math".into(), math::init()?.into());
-    env.insert("table".into(), table::init()?.into());
-    env.insert("coroutine".into(), coroutine::init()?.into());
+    // env.insert("string".into(), string::init()?.into());
+    // env.insert("math".into(), math::init()?.into());
+    // env.insert("table".into(), table::init()?.into());
+    // env.insert("coroutine".into(), coroutine::init()?.into());
     // env.insert("io".into(), io::init()?.into());
 
     // `_G` will be added in `VM::new_stack()` or `Stack::new()`
@@ -63,37 +63,54 @@ pub fn init_env() -> Result<LuaTable, RuntimeError> {
 
 pub fn print(
     env: &mut LuaEnv,
-    thread: &Rc<RefCell<LuaThread>>,
     chunk: &Chunk,
     args: usize,
-) -> Result<usize, RuntimeError> {
-    let args: Vec<_> = thread.borrow_mut().pop_n(args).collect();
-    for (idx, arg) in args.into_iter().enumerate() {
-        if idx > 0 {
+    expected: Option<usize>,
+) -> Result<(), RuntimeError> {
+    for i in 0..args {
+        if i > 0 {
             print!("\t");
         }
-        let to_string_ed = tostring_impl(env, thread, chunk, arg)?;
-        print!("{}", String::from_utf8_lossy(&to_string_ed));
+        env.clone_stack_relative(args - i - 1);
+        env.tostring(chunk)?;
+        let s = env.pop();
+        if let LuaValue::String(s) = s {
+            print!("{}", String::from_utf8_lossy(&s));
+        } else {
+            unreachable!("string expected");
+        }
     }
     println!();
-    Ok(0)
+    env.pop_n(args);
+    if let Some(expected) = expected {
+        env.fill_nil(expected);
+    }
+    Ok(())
 }
 pub fn rawequal(
-    _env: &mut LuaEnv,
-    thread: &Rc<RefCell<LuaThread>>,
+    env: &mut LuaEnv,
     _chunk: &Chunk,
     args: usize,
-) -> Result<usize, RuntimeError> {
+    expected: Option<usize>,
+) -> Result<(), RuntimeError> {
     if args < 2 {
         return Err(RuntimeError::ValueExpected);
+    } else if args > 2 {
+        env.pop_n(args - 2);
     }
-    let (lhs, rhs) = thread.borrow_mut().pop2(args);
-    thread
-        .borrow_mut()
-        .data_stack
-        .push(LuaValue::Boolean(lhs == rhs));
-    Ok(1)
+    let (lhs, rhs) = env.pop2();
+    if expected == Some(0) {
+        return Ok(());
+    }
+    env.push(LuaValue::Boolean(lhs == rhs));
+    if let Some(expected) = expected {
+        if expected > 0 {
+            env.fill_nil(expected - 1);
+        }
+    }
+    Ok(())
 }
+/*
 pub fn rawlen(
     _env: &mut LuaEnv,
     thread: &Rc<RefCell<LuaThread>>,
@@ -531,3 +548,5 @@ pub fn pairs(
     thread.borrow_mut().data_stack.push(LuaValue::Nil);
     Ok(3)
 }
+
+*/

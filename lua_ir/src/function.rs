@@ -4,7 +4,6 @@ use std::rc::Rc;
 
 use crate::Chunk;
 use crate::LuaEnv;
-use crate::LuaThread;
 use crate::LuaValue;
 use crate::RuntimeError;
 
@@ -26,17 +25,7 @@ pub enum LuaFunction {
     /// functions written in Lua
     LuaFunc(LuaFunctionLua),
     /// built-in functions written in Rust
-    RustFunc(
-        Box<
-            dyn Fn(
-                &mut LuaEnv,
-                &Rc<RefCell<LuaThread>>,
-                &Chunk,
-                usize,
-                Option<usize>,
-            ) -> Result<(), RuntimeError>,
-        >,
-    ),
+    RustFunc(Box<dyn Fn(&mut LuaEnv, &Chunk, usize, Option<usize>) -> Result<(), RuntimeError>>),
 }
 impl std::fmt::Debug for LuaFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -51,16 +40,24 @@ impl std::fmt::Debug for LuaFunction {
 
 impl LuaFunction {
     pub fn from_func(
-        func: impl Fn(
-                &mut LuaEnv,
-                &Rc<RefCell<LuaThread>>,
-                &Chunk,
-                usize,
-                Option<usize>,
-            ) -> Result<(), RuntimeError>
-            + 'static,
+        func: impl Fn(&mut LuaEnv, &Chunk, usize, Option<usize>) -> Result<(), RuntimeError> + 'static,
     ) -> Self {
         LuaFunction::RustFunc(Box::new(func))
+    }
+    pub fn from_func2(
+        func: impl Fn(&mut LuaEnv, &Chunk, usize) -> Result<usize, RuntimeError> + 'static,
+    ) -> Self {
+        Self::from_func(move |env, chunk, stack_top, expected| {
+            let ret = func(env, chunk, stack_top)?;
+            if let Some(expected) = expected {
+                let mut thread_mut = env.borrow_running_thread_mut();
+                let adjusted = thread_mut.data_stack.len() - ret + expected;
+                thread_mut
+                    .data_stack
+                    .resize_with(adjusted, Default::default);
+            }
+            Ok(())
+        })
     }
 }
 

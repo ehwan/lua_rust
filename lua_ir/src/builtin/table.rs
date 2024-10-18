@@ -27,11 +27,11 @@ pub fn init() -> Result<LuaValue, RuntimeError> {
 
 pub fn concat(
     env: &mut LuaEnv,
-    thread: &Rc<RefCell<LuaThread>>,
     chunk: &Chunk,
     args: usize,
-) -> Result<usize, RuntimeError> {
-    let mut thread_mut = thread.borrow_mut();
+    expected: Option<usize>,
+) -> Result<(), RuntimeError> {
+    let mut thread_mut = env.running_thread.borrow_mut();
     let mut it = thread_mut.pop_n(args);
     let list = match it.next() {
         Some(LuaValue::Table(table)) => table,
@@ -59,12 +59,12 @@ pub fn concat(
         thread_mut
             .data_stack
             .push(LuaValue::String(Default::default()));
-        return Ok(1);
+        thread_mut.adjust(1, expected);
+        return Ok(());
     }
-    drop(thread_mut);
 
     let sep = match sep {
-        Some(sep) => super::tostring_impl(env, thread, chunk, sep)?,
+        Some(sep) => super::tostring_impl(env, chunk, sep)?,
         None => Vec::new(),
     };
 
@@ -86,15 +86,16 @@ pub fn concat(
         }
     }
 
-    thread.borrow_mut().data_stack.push(LuaValue::String(ret));
-    Ok(1)
+    thread_mut.data_stack.push(LuaValue::String(ret));
+    thread_mut.adjust(1, expected);
+    Ok(())
 }
 
 pub fn insert(
-    _env: &mut LuaEnv,
-    thread: &Rc<RefCell<LuaThread>>,
+    env: &mut LuaEnv,
     _chunk: &Chunk,
     args: usize,
+    expected: Option<usize>,
 ) -> Result<usize, RuntimeError> {
     match args {
         0 | 1 => {
