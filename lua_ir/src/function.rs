@@ -33,7 +33,8 @@ pub enum LuaFunction {
                 &Rc<RefCell<LuaThread>>,
                 &Chunk,
                 usize,
-            ) -> Result<usize, RuntimeError>,
+                Option<usize>,
+            ) -> Result<(), RuntimeError>,
         >,
     ),
 }
@@ -50,7 +51,13 @@ impl std::fmt::Debug for LuaFunction {
 
 impl LuaFunction {
     pub fn from_func(
-        func: impl Fn(&mut LuaEnv, &Rc<RefCell<LuaThread>>, &Chunk, usize) -> Result<usize, RuntimeError>
+        func: impl Fn(
+                &mut LuaEnv,
+                &Rc<RefCell<LuaThread>>,
+                &Chunk,
+                usize,
+                Option<usize>,
+            ) -> Result<(), RuntimeError>
             + 'static,
     ) -> Self {
         LuaFunction::RustFunc(Box::new(func))

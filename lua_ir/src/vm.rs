@@ -783,14 +783,7 @@ impl LuaEnv {
                         Ok(())
                     }
                     LuaFunction::RustFunc(rust_internal) => {
-                        let ret_num = rust_internal(self, thread, chunk, args_num)?;
-                        if let Some(expected) = expected_ret {
-                            let adjusted = thread.borrow().data_stack.len() - ret_num + expected;
-                            thread
-                                .borrow_mut()
-                                .data_stack
-                                .resize_with(adjusted, Default::default);
-                        }
+                        rust_internal(self, thread, chunk, args_num, expected_ret)?;
                         Ok(())
                     }
                 }
