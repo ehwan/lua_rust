@@ -18,6 +18,12 @@ pub enum RuntimeError {
     NotString,
     NotNumber,
     NotFunction,
+    NotThread,
+
+    /// resume, yield, close called on non-coroutine
+    NotCoroutine,
+
+    ThreadDead,
 
     NoMetaMethod,
 
@@ -33,12 +39,18 @@ pub enum RuntimeError {
     /// string.char()
     OutOfRangeChar,
 
-    /// table.concat
-    NotStringOrNumber,
-
     /// error with error handler
     Error,
 
     /// next() called with invalid key
     InvalidKey,
+
+    YieldOnMain,
+
+    ResumeOnRunning,
+    ResumeOnDead,
+    ResumeOnParent,
+
+    CloseCurrentThread,
+    CloseParentThread,
 }

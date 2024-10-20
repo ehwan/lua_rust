@@ -63,7 +63,7 @@ impl Context {
             let func_info = FunctionInfo {
                 args: func.args.len(),
                 is_variadic: func.variadic,
-                stack_size: func.stack_size,
+                local_variables: func.stack_size,
                 address: self.instructions.len(),
             };
             self.functions.push(func_info);

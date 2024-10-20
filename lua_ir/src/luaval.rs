@@ -3,6 +3,7 @@ use crate::FloatType;
 use crate::IntType;
 use crate::LuaFunction;
 use crate::LuaTable;
+use crate::LuaThread;
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -26,9 +27,9 @@ pub enum LuaValue {
     Number(LuaNumber),
     String(Vec<u8>),
     Table(Rc<RefCell<LuaTable>>),
-    Function(LuaFunction),
-    UserData(LuaUserData),
-    Thread(LuaThread),
+    Function(Rc<RefCell<LuaFunction>>),
+    UserData(Rc<RefCell<LuaUserData>>),
+    Thread(Rc<RefCell<LuaThread>>),
 }
 impl std::hash::Hash for LuaValue {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -42,13 +43,9 @@ impl std::hash::Hash for LuaValue {
             LuaValue::Number(n) => n.hash(state),
             LuaValue::String(s) => s.hash(state),
             LuaValue::Table(t) => Rc::as_ptr(t).hash(state),
-            LuaValue::Function(f) => f.hash(state),
-            LuaValue::UserData(_) => {
-                unimplemented!("hash for userdata")
-            }
-            LuaValue::Thread(_) => {
-                unimplemented!("hash for thread")
-            }
+            LuaValue::Function(f) => Rc::as_ptr(f).hash(state),
+            LuaValue::UserData(u) => Rc::as_ptr(u).hash(state),
+            LuaValue::Thread(t) => Rc::as_ptr(t).hash(state),
         }
     }
 }
@@ -60,13 +57,9 @@ impl std::cmp::PartialEq for LuaValue {
             (LuaValue::Number(a), LuaValue::Number(b)) => a == b,
             (LuaValue::String(a), LuaValue::String(b)) => a == b,
             (LuaValue::Table(a), LuaValue::Table(b)) => Rc::ptr_eq(a, b),
-            (LuaValue::Function(a), LuaValue::Function(b)) => a == b,
-            (LuaValue::UserData(_), LuaValue::UserData(_)) => {
-                unimplemented!("userdata equality")
-            }
-            (LuaValue::Thread(_), LuaValue::Thread(_)) => {
-                unimplemented!("thread equality")
-            }
+            (LuaValue::Function(a), LuaValue::Function(b)) => Rc::ptr_eq(a, b),
+            (LuaValue::UserData(a), LuaValue::UserData(b)) => Rc::ptr_eq(a, b),
+            (LuaValue::Thread(a), LuaValue::Thread(b)) => Rc::ptr_eq(a, b),
             _ => false,
         }
     }
@@ -81,11 +74,11 @@ impl std::fmt::Display for LuaValue {
             LuaValue::Number(n) => write!(f, "{}", n),
             LuaValue::String(s) => write!(f, "{}", String::from_utf8_lossy(s)),
             LuaValue::Table(t) => {
-                write!(f, "table {:p}", Rc::as_ptr(t))
+                write!(f, "table: {:p}", Rc::as_ptr(t))
             }
-            LuaValue::Function(func) => write!(f, "{}", func),
-            LuaValue::UserData(_) => write!(f, "userdata"),
-            LuaValue::Thread(_) => write!(f, "thread"),
+            LuaValue::Function(func) => write!(f, "function: {:p}", Rc::as_ptr(func)),
+            LuaValue::UserData(userdata) => write!(f, "userdata: {:p}", Rc::as_ptr(userdata)),
+            LuaValue::Thread(thread) => write!(f, "thread: {:p}", Rc::as_ptr(thread)),
         }
     }
 }
@@ -128,13 +121,6 @@ impl LuaValue {
         match self {
             LuaValue::Number(n) => n.is_nan(),
             _ => false,
-        }
-    }
-
-    pub fn get_metavalue(&self, key: &str) -> Option<LuaValue> {
-        match self {
-            LuaValue::Table(t) => t.borrow().get_metavalue(key),
-            _ => None,
         }
     }
 }
@@ -187,22 +173,19 @@ impl From<LuaTable> for LuaValue {
 }
 impl From<LuaFunction> for LuaValue {
     fn from(f: LuaFunction) -> Self {
-        LuaValue::Function(f)
+        LuaValue::Function(Rc::new(RefCell::new(f)))
     }
 }
 impl From<LuaUserData> for LuaValue {
     fn from(u: LuaUserData) -> Self {
-        LuaValue::UserData(u)
+        LuaValue::UserData(Rc::new(RefCell::new(u)))
     }
 }
 impl From<LuaThread> for LuaValue {
     fn from(t: LuaThread) -> Self {
-        LuaValue::Thread(t)
+        LuaValue::Thread(Rc::new(RefCell::new(t)))
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct LuaUserData {}
-
-#[derive(Debug, Clone)]
-pub struct LuaThread {}

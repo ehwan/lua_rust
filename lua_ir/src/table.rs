@@ -25,14 +25,6 @@ impl LuaTable {
             meta: None,
         }
     }
-    pub fn arr_from_iter(it: impl Iterator<Item = LuaValue>) -> Self {
-        let arr = BTreeMap::from_iter(it.enumerate().map(|(idx, val)| (idx as IntType + 1, val)));
-        LuaTable {
-            map: IndexMap::new(),
-            arr,
-            meta: None,
-        }
-    }
     pub fn new() -> Self {
         LuaTable {
             map: IndexMap::new(),

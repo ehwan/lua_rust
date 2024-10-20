@@ -105,21 +105,27 @@ end
 
 
 -- Coroutine example: Fibonacci generator
--- function fibonacci()
---     local a, b = 0, 1
---     return coroutine.create(function()
---         while true do
---             coroutine.yield(a)
---             a, b = b, a + b
---         end
---     end)
--- end
+function fibonacci()
+    local a, b = 0, 1
+    return coroutine.create(function()
+        while true do
+            if a > 100 then
+                return "Done"
+            end
+            coroutine.yield(a)
+            a, b = b, a + b
+        end
+    end)
+end
 
--- local fib = fibonacci()
--- for i = 1, 10 do
---     local success, value = coroutine.resume(fib)
---     print("Fibonacci number " .. i .. ": " .. value)
--- end
+local fib = fibonacci()
+while true do
+    local success, value = coroutine.resume(fib)
+    print("Fibonacci number " .. tostring(success) .. ", " .. ": " .. value)
+    -- if value == "Done" then
+        -- break
+    -- end
+end
 
 
 --[===[

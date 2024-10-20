@@ -69,6 +69,12 @@ a = { 3, 5, 1, 4, 2 }
 table.sort( a )
 print( table.unpack( a ) )
 
+print( 'coroutine.running()' )
+print( coroutine.running() )
+
+print( 'coroutine.status()' )
+print( coroutine.status( coroutine.running() ) )
+
 
 
 function func()
