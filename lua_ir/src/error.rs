@@ -1,6 +1,8 @@
+use crate::{LuaEnv, LuaValue};
+
 // @TODO
 // error should match with (real) lua error
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum RuntimeError {
     InvalidArith,
     ExpectedMultire,
@@ -53,4 +55,13 @@ pub enum RuntimeError {
 
     CloseCurrentThread,
     CloseParentThread,
+
+    Custom(LuaValue),
+}
+
+impl RuntimeError {
+    pub fn into_lua_value(self, _env: &mut LuaEnv) -> LuaValue {
+        let string = format!("{:?}", self);
+        LuaValue::String(string.into_bytes())
+    }
 }

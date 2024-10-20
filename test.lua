@@ -75,6 +75,12 @@ print( coroutine.running() )
 print( 'coroutine.status()' )
 print( coroutine.status( coroutine.running() ) )
 
+print( 'pcall success' )
+print( pcall( math.sqrt, 3.0 ) )
+
+print( 'pcall failure' )
+print( pcall( rawget, nil, 2 ) )
+
 
 
 function func()

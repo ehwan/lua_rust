@@ -666,18 +666,19 @@ impl LuaEnv {
                         drop(func_borrow);
                         self.function_call_lua(args_num, upvalues, function_id, expected_ret)?;
                         if force_wait {
+                            let cur_coroutine_idx = self.coroutines.len() - 1;
                             loop {
-                                if self.running_thread().borrow().usize_stack.len() == usize_len0 {
+                                if self.coroutines[cur_coroutine_idx]
+                                    .borrow()
+                                    .usize_stack
+                                    .len()
+                                    <= usize_len0
+                                {
                                     break;
                                 }
-                                let instruction = self
-                                    .chunk
-                                    .instructions
-                                    .get(self.running_thread().borrow().counter)
-                                    .unwrap()
-                                    .clone();
-                                self.running_thread().borrow_mut().counter += 1;
-                                self.run_instruction(instruction)?;
+                                if self.cycle()? == false {
+                                    break;
+                                }
                             }
                         }
                         Ok(())
@@ -782,6 +783,7 @@ impl LuaEnv {
 
     /// execute single instruction
     pub fn run_instruction(&mut self, instruction: Instruction) -> Result<(), RuntimeError> {
+        debug_assert!(self.coroutines.is_empty() == false);
         match instruction {
             Instruction::Clone => {
                 let mut thread_mut = self.running_thread().borrow_mut();
@@ -1182,20 +1184,62 @@ impl LuaEnv {
         }
         Ok(())
     }
+    pub fn cycle(&mut self) -> Result<bool, RuntimeError> {
+        if self.coroutines.len() == 0 {
+            return Ok(false);
+        }
+        let mut thread_mut = self.running_thread().borrow_mut();
+        if let Some(instruction) = self.chunk.instructions.get(thread_mut.counter) {
+            thread_mut.counter += 1;
+            drop(thread_mut);
+            match self.run_instruction(instruction.clone()) {
+                Ok(_) => return Ok(true),
+                Err(err) => {
+                    // if this error was occured in main chunk, just return it
+                    if self.coroutines.len() == 1 {
+                        return Err(err);
+                    } else {
+                        // if this error was occured in coroutine, propagate it to parent coroutine
+                        let error_object = err.into_lua_value(self);
+
+                        // return 'false' and 'error_object' to parent's 'resume()'
+                        self.coroutines.pop().unwrap().borrow_mut().set_dead();
+                        let status = self.running_thread().borrow().status;
+                        if let ThreadStatus::ResumePending(resume_expected) = status {
+                            match resume_expected {
+                                Some(0) => {}
+                                Some(1) => {
+                                    self.running_thread()
+                                        .borrow_mut()
+                                        .data_stack
+                                        .push(false.into());
+                                }
+                                Some(resume_expected) => {
+                                    self.push2(false.into(), error_object);
+                                    self.running_thread().borrow_mut().data_stack.extend(
+                                        std::iter::repeat(LuaValue::Nil).take(resume_expected - 2),
+                                    );
+                                }
+                                None => {
+                                    self.push2(false.into(), error_object);
+                                }
+                            }
+                        } else {
+                            unreachable!("coroutine must be in resume pending state");
+                        }
+                        self.running_thread().borrow_mut().status = ThreadStatus::Running;
+
+                        Ok(true)
+                    }
+                }
+            }
+        } else {
+            Ok(false)
+        }
+    }
     /// run the whole chunk
     pub fn run(&mut self) -> Result<(), RuntimeError> {
-        loop {
-            if self.coroutines.len() == 0 {
-                break;
-            }
-            let counter = self.running_thread().borrow().counter;
-            if counter >= self.chunk.instructions.len() {
-                break;
-            }
-            self.running_thread().borrow_mut().counter += 1;
-            let instruction = self.chunk.instructions.get(counter).unwrap().clone();
-            self.run_instruction(instruction)?;
-        }
+        while self.cycle()? {}
         Ok(())
     }
 }
@@ -1242,6 +1286,17 @@ impl ThreadStatus {
     }
 }
 
+/// for error handling, recovering state
+#[derive(Debug, Clone)]
+pub struct ThreadState {
+    pub local_variables: usize,
+    pub data_stack: usize,
+    pub usize_stack: usize,
+    pub function_stack: usize,
+    pub counter: usize,
+    pub bp: usize,
+}
+
 #[derive(Debug, Clone)]
 pub struct LuaThread {
     /// local variable stack
@@ -1279,37 +1334,37 @@ impl LuaThread {
             status: ThreadStatus::Running,
         }
     }
-    pub fn new_coroutine(env: &LuaEnv, func: Rc<RefCell<LuaFunction>>) -> LuaThread {
-        let func_borrow = func.borrow();
-        match &*func_borrow {
-            LuaFunction::LuaFunc(lua_func) => {
-                let func_info = &env.chunk.functions[lua_func.function_id];
-                drop(func_borrow);
-                LuaThread {
-                    local_variables: Vec::with_capacity(func_info.local_variables),
-                    data_stack: Vec::new(),
-                    usize_stack: Vec::new(),
-                    function_stack: Vec::new(),
-                    counter: 0,
-                    bp: 0,
-                    func: Some(func),
-                    status: ThreadStatus::NotStarted,
-                }
-            }
-            LuaFunction::RustFunc(_) => {
-                drop(func_borrow);
-                LuaThread {
-                    local_variables: Vec::new(),
-                    data_stack: Vec::new(),
-                    usize_stack: Vec::new(),
-                    function_stack: Vec::new(),
-                    counter: usize::MAX,
-                    bp: 0,
-                    func: Some(func),
-                    status: ThreadStatus::NotStarted,
-                }
-            }
+    pub fn new_coroutine(_env: &LuaEnv, func: Rc<RefCell<LuaFunction>>) -> LuaThread {
+        LuaThread {
+            local_variables: Vec::new(),
+            data_stack: Vec::new(),
+            usize_stack: Vec::new(),
+            function_stack: Vec::new(),
+            counter: usize::MAX,
+            bp: 0,
+            func: Some(func),
+            status: ThreadStatus::NotStarted,
         }
+    }
+
+    pub(crate) fn to_state(&self) -> ThreadState {
+        ThreadState {
+            local_variables: self.local_variables.len(),
+            data_stack: self.data_stack.len(),
+            usize_stack: self.usize_stack.len(),
+            function_stack: self.function_stack.len(),
+            counter: self.counter,
+            bp: self.bp,
+        }
+    }
+    pub(crate) fn from_state(&mut self, state: ThreadState) {
+        debug_assert!(self.status == ThreadStatus::Running);
+        self.local_variables.truncate(state.local_variables);
+        self.data_stack.truncate(state.data_stack);
+        self.usize_stack.truncate(state.usize_stack);
+        self.function_stack.truncate(state.function_stack);
+        self.counter = state.counter;
+        self.bp = state.bp;
     }
 
     pub fn drain_last(&mut self, n: usize) -> impl Iterator<Item = LuaValue> + '_ {

@@ -21,6 +21,11 @@ const VERSION: &str = "Lua 5.4 in Rust";
 pub fn init_env() -> Result<LuaTable, RuntimeError> {
     // @TODO
     let mut env: LuaTable = LuaTable::new();
+    env.insert(
+        "pcall".into(),
+        LuaFunction::from_func_with_expected(pcall).into(),
+    );
+    env.insert("xpcall".into(), LuaFunction::from_func(xpcall).into());
     env.insert("print".into(), LuaFunction::from_func(print).into());
     env.insert("rawequal".into(), LuaFunction::from_func(rawequal).into());
     env.insert("rawlen".into(), LuaFunction::from_func(rawlen).into());
@@ -38,10 +43,19 @@ pub fn init_env() -> Result<LuaTable, RuntimeError> {
         LuaFunction::from_func(getmetatable).into(),
     );
     env.insert("assert".into(), LuaFunction::from_func(assert).into());
+    env.insert("error".into(), LuaFunction::from_func(error).into());
 
     env.insert("ipairs".into(), LuaFunction::from_func(ipairs).into());
     env.insert("next".into(), LuaFunction::from_func(next).into());
     env.insert("pairs".into(), LuaFunction::from_func(pairs).into());
+    env.insert("tonumber".into(), LuaFunction::from_func(tonumber).into());
+    env.insert(
+        "collectgarbage".into(),
+        LuaFunction::from_func(collectgarbage).into(),
+    );
+    env.insert("load".into(), LuaFunction::from_func(load).into());
+    env.insert("loadfile".into(), LuaFunction::from_func(loadfile).into());
+    env.insert("dofile".into(), LuaFunction::from_func(dofile).into());
 
     env.insert("_VERSION".into(), VERSION.into());
 
@@ -49,15 +63,95 @@ pub fn init_env() -> Result<LuaTable, RuntimeError> {
     env.insert("math".into(), math::init()?.into());
     env.insert("table".into(), table::init()?.into());
     env.insert("coroutine".into(), coroutine::init()?.into());
+
     // env.insert("io".into(), io::init()?.into());
 
     // `_G` will be added in `VM::new_stack()` or `Stack::new()`
     Ok(env)
 }
 
-// tonumber
-// pcall
+fn load(_env: &mut LuaEnv, _args: usize) -> Result<usize, RuntimeError> {
+    unimplemented!("load");
+}
+fn loadfile(_env: &mut LuaEnv, _args: usize) -> Result<usize, RuntimeError> {
+    unimplemented!("loadfile");
+}
+fn dofile(_env: &mut LuaEnv, _args: usize) -> Result<usize, RuntimeError> {
+    unimplemented!("dofile");
+}
+fn tonumber(_env: &mut LuaEnv, _args: usize) -> Result<usize, RuntimeError> {
+    unimplemented!("tonumber");
+}
+fn collectgarbage(_env: &mut LuaEnv, _args: usize) -> Result<usize, RuntimeError> {
+    unimplemented!("collectgarbage");
+}
+fn xpcall(_env: &mut LuaEnv, _args: usize) -> Result<usize, RuntimeError> {
+    unimplemented!("xpcall");
+}
 
+pub fn pcall(
+    env: &mut LuaEnv,
+    args: usize,
+    expected_ret: Option<usize>,
+) -> Result<(), RuntimeError> {
+    if args == 0 {
+        return Err(RuntimeError::ValueExpected);
+    }
+
+    let thread_borrow = env.running_thread().borrow();
+    let mut thread_state = thread_borrow.to_state();
+    thread_state.data_stack -= args;
+    let func = thread_borrow.data_stack[thread_state.data_stack].clone();
+    drop(thread_borrow);
+
+    match expected_ret {
+        Some(0) => match env.function_call(args - 1, func, Some(0), true) {
+            Ok(_) => Ok(()),
+            Err(_e) => {
+                env.running_thread().borrow_mut().from_state(thread_state);
+                Ok(())
+            }
+        },
+        Some(expected_ret) => match env.function_call(args - 1, func, Some(expected_ret - 1), true)
+        {
+            Ok(_) => {
+                env.running_thread().borrow_mut().data_stack[thread_state.data_stack] =
+                    LuaValue::Boolean(true);
+                Ok(())
+            }
+            Err(e) => {
+                let error_obj = e.into_lua_value(env);
+                let mut thread_mut = env.running_thread().borrow_mut();
+                thread_mut.from_state(thread_state);
+                thread_mut.data_stack.push(false.into());
+                if expected_ret > 1 {
+                    thread_mut.data_stack.push(error_obj);
+                }
+                if expected_ret > 2 {
+                    thread_mut
+                        .data_stack
+                        .extend(std::iter::repeat(LuaValue::Nil).take(expected_ret - 2));
+                }
+                Ok(())
+            }
+        },
+        None => match env.function_call(args - 1, func, None, true) {
+            Ok(_) => {
+                env.running_thread().borrow_mut().data_stack[thread_state.data_stack] =
+                    LuaValue::Boolean(true);
+                Ok(())
+            }
+            Err(e) => {
+                let error_obj = e.into_lua_value(env);
+                let mut thread_mut = env.running_thread().borrow_mut();
+                thread_mut.from_state(thread_state);
+                thread_mut.data_stack.push(false.into());
+                thread_mut.data_stack.push(error_obj);
+                Ok(())
+            }
+        },
+    }
+}
 pub fn print(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     for i in 0..args {
         if i > 0 {
@@ -293,15 +387,44 @@ pub fn assert(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
             env.pop_n(args - 2);
         }
 
-        let _error = if args == 1 {
+        let error = if args == 1 {
             env.pop();
             "assertion failed!".into()
         } else {
             let (_, error) = env.pop2();
             error
         };
-        // @TODO error handling
-        Err(RuntimeError::Error)
+        Err(RuntimeError::Custom(error))
+    }
+}
+
+pub fn error(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
+    let (error, level) = match args {
+        0 => return Err(RuntimeError::ValueExpected),
+        1 => {
+            let error = env.pop();
+            (error, 1)
+        }
+        _ => {
+            env.pop_n(args - 2);
+            let (error, level) = env.pop2();
+            let level = match level.try_to_int() {
+                Some(level) => level,
+                None => return Err(RuntimeError::NotInteger),
+            };
+            (error, level)
+        }
+    };
+
+    match level {
+        // level 0, no additional info
+        0 => Err(RuntimeError::Custom(error)),
+        // otherwise, add additional info if the error is a string
+        _level =>
+        // @TODO
+        {
+            Err(RuntimeError::Custom(error))
+        }
     }
 }
 

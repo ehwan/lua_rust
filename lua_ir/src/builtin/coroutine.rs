@@ -164,15 +164,34 @@ pub fn resume(
                     };
                     match rust_func_ret {
                         Ok(_) => {
-                            let mut co_borrow_mut = env.borrow_running_thread_mut();
-                            co_borrow_mut.set_dead();
-                            drop(co_borrow_mut);
-                            env.coroutines.pop();
-                            env.borrow_running_thread_mut().status = ThreadStatus::Running;
+                            env.coroutines.pop().unwrap().borrow_mut().set_dead();
+                            env.running_thread().borrow_mut().status = ThreadStatus::Running;
                             Ok(())
                         }
-                        Err(_) => {
-                            unimplemented!("coroutine.resume: error handling");
+                        Err(err) => {
+                            let error_object = err.into_lua_value(env);
+                            env.coroutines.pop().unwrap().borrow_mut().set_dead();
+                            env.running_thread().borrow_mut().status = ThreadStatus::Running;
+
+                            match expected_resume_return {
+                                Some(0) => Ok(()),
+                                Some(1) => {
+                                    env.push(false.into());
+                                    Ok(())
+                                }
+                                Some(expected_resume_return) => {
+                                    env.push2(false.into(), error_object);
+                                    env.running_thread().borrow_mut().data_stack.extend(
+                                        std::iter::repeat(LuaValue::Nil)
+                                            .take(expected_resume_return - 2),
+                                    );
+                                    Ok(())
+                                }
+                                None => {
+                                    env.push2(false.into(), error_object);
+                                    Ok(())
+                                }
+                            }
                         }
                     }
                 }
