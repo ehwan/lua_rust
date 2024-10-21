@@ -60,7 +60,7 @@ pub fn init() -> Result<LuaValue, RuntimeError> {
 
 pub fn abs(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
-        return Err(RuntimeError::ValueExpected);
+        return Err(RuntimeError::new_empty_argument(1, "number"));
     } else if args > 1 {
         env.pop_n(args - 1);
     }
@@ -76,7 +76,7 @@ pub fn abs(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
 }
 pub fn acos(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
-        return Err(RuntimeError::ValueExpected);
+        return Err(RuntimeError::new_empty_argument(1, "number"));
     } else if args > 1 {
         env.pop_n(args - 1);
     }
@@ -92,7 +92,7 @@ pub fn acos(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
 }
 pub fn asin(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
-        return Err(RuntimeError::ValueExpected);
+        return Err(RuntimeError::new_empty_argument(1, "number"));
     } else if args > 1 {
         env.pop_n(args - 1);
     }
@@ -107,7 +107,7 @@ pub fn asin(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
 }
 pub fn atan(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     match args {
-        0 => Err(RuntimeError::ValueExpected),
+        0 => Err(RuntimeError::new_empty_argument(1, "number")),
         1 => {
             let arg = env.pop();
             match arg.try_to_number() {
@@ -136,7 +136,7 @@ pub fn atan(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
 }
 pub fn ceil(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
-        return Err(RuntimeError::ValueExpected);
+        return Err(RuntimeError::new_empty_argument(1, "number"));
     } else if args > 1 {
         env.pop_n(args - 1);
     }
@@ -152,7 +152,7 @@ pub fn ceil(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
 }
 pub fn floor(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
-        return Err(RuntimeError::ValueExpected);
+        return Err(RuntimeError::new_empty_argument(1, "number"));
     } else if args > 1 {
         env.pop_n(args - 1);
     }
@@ -167,7 +167,7 @@ pub fn floor(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
 }
 pub fn cos(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
-        return Err(RuntimeError::ValueExpected);
+        return Err(RuntimeError::new_empty_argument(1, "number"));
     } else if args > 1 {
         env.pop_n(args - 1);
     }
@@ -182,7 +182,7 @@ pub fn cos(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
 }
 pub fn sin(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
-        return Err(RuntimeError::ValueExpected);
+        return Err(RuntimeError::new_empty_argument(1, "number"));
     } else if args > 1 {
         env.pop_n(args - 1);
     }
@@ -197,7 +197,7 @@ pub fn sin(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
 }
 pub fn deg(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
-        return Err(RuntimeError::ValueExpected);
+        return Err(RuntimeError::new_empty_argument(1, "number"));
     } else if args > 1 {
         env.pop_n(args - 1);
     }
@@ -212,7 +212,7 @@ pub fn deg(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
 }
 pub fn rad(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
-        return Err(RuntimeError::ValueExpected);
+        return Err(RuntimeError::new_empty_argument(1, "number"));
     } else if args > 1 {
         env.pop_n(args - 1);
     }
@@ -227,7 +227,7 @@ pub fn rad(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
 }
 pub fn exp(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
-        return Err(RuntimeError::ValueExpected);
+        return Err(RuntimeError::new_empty_argument(1, "number"));
     } else if args > 1 {
         env.pop_n(args - 1);
     }
@@ -242,7 +242,7 @@ pub fn exp(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
 }
 pub fn log(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     match args {
-        0 => Err(RuntimeError::ValueExpected),
+        0 => Err(RuntimeError::new_empty_argument(1, "number")),
 
         1 => {
             let x = env.pop();
@@ -271,7 +271,7 @@ pub fn log(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
 
 pub fn sqrt(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
-        return Err(RuntimeError::ValueExpected);
+        return Err(RuntimeError::new_empty_argument(1, "number"));
     } else if args > 1 {
         env.pop_n(args - 1);
     }
@@ -287,7 +287,7 @@ pub fn sqrt(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
 
 pub fn type_(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
-        return Err(RuntimeError::ValueExpected);
+        return Err(RuntimeError::new_empty_argument(1, "number"));
     } else if args > 1 {
         env.pop_n(args - 1);
     }
@@ -304,7 +304,7 @@ pub fn type_(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
 }
 pub fn tointeger(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
-        return Err(RuntimeError::ValueExpected);
+        return Err(RuntimeError::new_empty_argument(1, "number"));
     } else if args > 1 {
         env.pop_n(args - 1);
     }
@@ -317,8 +317,11 @@ pub fn tointeger(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     Ok(1)
 }
 pub fn ult(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
-    if args < 2 {
-        return Err(RuntimeError::ValueExpected);
+    if args == 0 {
+        return Err(RuntimeError::new_empty_argument(1, "number"));
+    } else if args == 1 {
+        env.pop();
+        return Err(RuntimeError::new_empty_argument(2, "number"));
     } else if args > 2 {
         env.pop_n(args - 2);
     }
@@ -400,7 +403,7 @@ pub fn randomseed(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> 
 
 pub fn modf(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
-        return Err(RuntimeError::ValueExpected);
+        return Err(RuntimeError::new_empty_argument(1, "number"));
     } else if args > 1 {
         env.pop_n(args - 1);
     }
@@ -424,8 +427,11 @@ pub fn modf(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
 }
 
 pub fn fmod(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
-    if args < 2 {
-        return Err(RuntimeError::ValueExpected);
+    if args == 0 {
+        return Err(RuntimeError::new_empty_argument(1, "number"));
+    } else if args == 1 {
+        env.pop();
+        return Err(RuntimeError::new_empty_argument(2, "number"));
     } else if args > 2 {
         env.pop_n(args - 2);
     }

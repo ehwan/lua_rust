@@ -28,6 +28,9 @@ pub struct LuaEnv {
     pub(crate) main_thread: Rc<RefCell<LuaThread>>,
     /// coroutine stack
     pub(crate) coroutines: Vec<Rc<RefCell<LuaThread>>>,
+
+    /// last operation (for error message)
+    pub(crate) last_op: String,
 }
 
 impl LuaEnv {
@@ -44,6 +47,7 @@ impl LuaEnv {
 
             main_thread: Rc::clone(&main_thread),
             coroutines: vec![main_thread],
+            last_op: "last_op".to_string(),
         }
     }
 
@@ -528,7 +532,11 @@ impl LuaEnv {
                         self.push2(LuaValue::Table(meta_table), key);
                         self.index()
                     }
-                    _ => Err(RuntimeError::NotTable),
+                    _ =>
+                    // @TODO : error message
+                    {
+                        Err(RuntimeError::Custom("__index metamethod not found".into()))
+                    }
                 }
             }
         }
@@ -578,7 +586,9 @@ impl LuaEnv {
                         self.push3(value, LuaValue::Table(meta_table), key);
                         self.newindex()
                     }
-                    _ => Err(RuntimeError::NotTable),
+                    _ => Err(RuntimeError::Custom(
+                        "__newindex metamethod not found".into(),
+                    )),
                 }
             }
         }
@@ -702,7 +712,8 @@ impl LuaEnv {
                     }
                     self.function_call(args_num + 1, meta, expected_ret, force_wait)
                 } else {
-                    Err(RuntimeError::NotFunction)
+                    // @TODO : error message
+                    Err(RuntimeError::Custom("__call metamethod not found".into()))
                 }
             }
         }

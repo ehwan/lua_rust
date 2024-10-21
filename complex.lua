@@ -121,10 +121,12 @@ end
 local fib = fibonacci()
 while true do
     local success, value = coroutine.resume(fib)
-    print("Fibonacci number " .. tostring(success) .. ", " .. ": " .. value)
-    -- if value == "Done" then
-        -- break
-    -- end
+    if success == false then
+        print("Error: " .. value)
+        break
+    else
+        print("Fibonacci number " .. tostring(success) .. ", " .. ": " .. value)
+    end
 end
 
 

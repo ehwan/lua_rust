@@ -64,6 +64,9 @@ pub fn unpack(_env: &mut LuaEnv, _args: usize) -> Result<usize, RuntimeError> {
 }
 
 pub fn sub_impl(s: &[u8], mut i: IntType, mut j: IntType) -> &'_ [u8] {
+    if s.is_empty() {
+        return s;
+    }
     if i < 0 {
         i = s.len() as i64 + i + 1;
     }
@@ -90,12 +93,18 @@ pub fn sub_impl(s: &[u8], mut i: IntType, mut j: IntType) -> &'_ [u8] {
 }
 pub fn byte(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     let (s, i, j) = match args {
-        0 => return Err(RuntimeError::ValueExpected),
+        0 => return Err(RuntimeError::new_empty_argument(1, "string")),
         1 => {
-            let s = match env.pop() {
+            let s = env.pop();
+            let s = match s {
                 LuaValue::String(s) => s,
                 LuaValue::Number(n) => n.to_string().into_bytes(),
-                _ => return Err(RuntimeError::NotString),
+                _ => {
+                    return Err(RuntimeError::BadArgument(
+                        1,
+                        Box::new(RuntimeError::Expected("string", s.type_str().into())),
+                    ))
+                }
             };
             (s, 1, 1)
         }
@@ -105,7 +114,12 @@ pub fn byte(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
             let s = match s {
                 LuaValue::String(s) => s,
                 LuaValue::Number(n) => n.to_string().into_bytes(),
-                _ => return Err(RuntimeError::NotString),
+                _ => {
+                    return Err(RuntimeError::BadArgument(
+                        1,
+                        Box::new(RuntimeError::Expected("string", s.type_str().into())),
+                    ))
+                }
             };
             let i = match i.try_to_int() {
                 Some(i) => i,
@@ -119,7 +133,12 @@ pub fn byte(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
             let (s, i, j) = env.pop3();
             let s = match s {
                 LuaValue::String(s) => s,
-                _ => return Err(RuntimeError::NotString),
+                _ => {
+                    return Err(RuntimeError::BadArgument(
+                        1,
+                        Box::new(RuntimeError::Expected("string", s.type_str().into())),
+                    ))
+                }
             };
             let i = match i.try_to_int() {
                 Some(i) => i,
@@ -139,21 +158,27 @@ pub fn byte(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     Ok(sub.len())
 }
 pub fn sub(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
-    if args < 2 {
-        return Err(RuntimeError::ValueExpected);
+    if args == 0 {
+    } else if args == 1 {
+        env.pop();
     }
     let (s, i, j) = match args {
-        0 => return Err(RuntimeError::ValueExpected),
+        0 => return Err(RuntimeError::new_empty_argument(1, "string")),
         1 => {
             env.pop();
-            return Err(RuntimeError::ValueExpected);
+            return Err(RuntimeError::new_empty_argument(1, "number"));
         }
         2 => {
             let (s, i) = env.pop2();
             let s = match s {
                 LuaValue::String(s) => s,
                 LuaValue::Number(n) => n.to_string().into_bytes(),
-                _ => return Err(RuntimeError::NotString),
+                _ => {
+                    return Err(RuntimeError::BadArgument(
+                        1,
+                        Box::new(RuntimeError::Expected("string", s.type_str().into())),
+                    ))
+                }
             };
             let i = match i.try_to_int() {
                 Some(i) => i,
@@ -169,7 +194,12 @@ pub fn sub(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
             let s = match s {
                 LuaValue::String(s) => s,
                 LuaValue::Number(n) => n.to_string().into_bytes(),
-                _ => return Err(RuntimeError::NotString),
+                _ => {
+                    return Err(RuntimeError::BadArgument(
+                        1,
+                        Box::new(RuntimeError::Expected("string", s.type_str().into())),
+                    ))
+                }
             };
             let i = match i.try_to_int() {
                 Some(i) => i,
@@ -193,11 +223,14 @@ pub fn char_(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     let mut s = Vec::with_capacity(args);
     let mut thread_mut = env.borrow_running_thread_mut();
     let len = thread_mut.data_stack.len();
-    for ch in thread_mut.data_stack.drain(len - args..) {
+    for (idx, ch) in thread_mut.data_stack.drain(len - args..).enumerate() {
         match ch.try_to_int() {
             Some(i) => {
                 if i < 0 || i > 255 {
-                    return Err(RuntimeError::OutOfRangeChar);
+                    return Err(RuntimeError::BadArgument(
+                        idx + 1,
+                        Box::new(RuntimeError::ValueOutOfRange),
+                    ));
                 }
                 s.push(i as u8);
             }
@@ -210,7 +243,7 @@ pub fn char_(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
 
 pub fn len(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
-        return Err(RuntimeError::ValueExpected);
+        return Err(RuntimeError::new_empty_argument(1, "string"));
     } else if args > 1 {
         env.pop_n(args - 1);
     }
@@ -225,13 +258,18 @@ pub fn len(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
             env.push((s.len() as IntType).into());
             Ok(1)
         }
-        _ => Err(RuntimeError::NotString),
+        _ => {
+            return Err(RuntimeError::BadArgument(
+                1,
+                Box::new(RuntimeError::Expected("string", arg.type_str().into())),
+            ))
+        }
     }
 }
 
 pub fn lower(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
-        return Err(RuntimeError::ValueExpected);
+        return Err(RuntimeError::new_empty_argument(1, "string"));
     } else if args > 1 {
         env.pop_n(args - 1);
     }
@@ -247,12 +285,17 @@ pub fn lower(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
             env.push(ret);
             Ok(1)
         }
-        _ => return Err(RuntimeError::NotString),
+        _ => {
+            return Err(RuntimeError::BadArgument(
+                1,
+                Box::new(RuntimeError::Expected("string", arg.type_str().into())),
+            ))
+        }
     }
 }
 pub fn upper(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
-        return Err(RuntimeError::ValueExpected);
+        return Err(RuntimeError::new_empty_argument(1, "string"));
     } else if args > 1 {
         env.pop_n(args - 1);
     }
@@ -268,22 +311,32 @@ pub fn upper(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
             env.push(ret);
             Ok(1)
         }
-        _ => return Err(RuntimeError::NotString),
+        _ => {
+            return Err(RuntimeError::BadArgument(
+                1,
+                Box::new(RuntimeError::Expected("string", arg.type_str().into())),
+            ))
+        }
     }
 }
 pub fn rep(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     match args {
-        0 => Err(RuntimeError::ValueExpected),
+        0 => Err(RuntimeError::new_empty_argument(1, "string")),
         1 => {
             env.pop();
-            Err(RuntimeError::ValueExpected)
+            Err(RuntimeError::new_empty_argument(2, "number"))
         }
         2 => {
             let (s, n) = env.pop2();
             let s = match s {
                 LuaValue::String(s) => s,
                 LuaValue::Number(n) => n.to_string().into_bytes(),
-                _ => return Err(RuntimeError::NotString),
+                _ => {
+                    return Err(RuntimeError::BadArgument(
+                        1,
+                        Box::new(RuntimeError::Expected("string", s.type_str().into())),
+                    ))
+                }
             };
             let n = match n.try_to_int() {
                 Some(n) => n,
@@ -303,16 +356,27 @@ pub fn rep(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
             let s = match s {
                 LuaValue::String(s) => s,
                 LuaValue::Number(n) => n.to_string().into_bytes(),
-                _ => return Err(RuntimeError::NotString),
+                _ => {
+                    return Err(RuntimeError::BadArgument(
+                        1,
+                        Box::new(RuntimeError::Expected("string", s.type_str().into())),
+                    ))
+                }
             };
             let n = match n.try_to_int() {
                 Some(n) => n,
                 None => return Err(RuntimeError::NotInteger),
             };
             let sep = match sep {
+                LuaValue::Nil => Vec::new(),
                 LuaValue::String(s) => s,
                 LuaValue::Number(n) => n.to_string().into_bytes(),
-                _ => return Err(RuntimeError::NotString),
+                _ => {
+                    return Err(RuntimeError::BadArgument(
+                        3,
+                        Box::new(RuntimeError::Expected("string", sep.type_str().into())),
+                    ))
+                }
             };
 
             if n <= 0 {
@@ -337,7 +401,7 @@ pub fn rep(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
 
 pub fn reverse(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
-        return Err(RuntimeError::ValueExpected);
+        return Err(RuntimeError::new_empty_argument(1, "string"));
     } else if args > 1 {
         env.pop_n(args - 1);
     }
@@ -345,7 +409,12 @@ pub fn reverse(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     let mut s = match arg {
         LuaValue::String(s) => s,
         LuaValue::Number(n) => n.to_string().into_bytes(),
-        _ => return Err(RuntimeError::NotString),
+        _ => {
+            return Err(RuntimeError::BadArgument(
+                1,
+                Box::new(RuntimeError::Expected("string", arg.type_str().into())),
+            ))
+        }
     };
     s.reverse();
     env.push(LuaValue::String(s));

@@ -43,18 +43,24 @@ pub fn init() -> Result<LuaValue, RuntimeError> {
 
 pub fn close(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
-        return Err(RuntimeError::ValueExpected);
+        return Err(RuntimeError::new_empty_argument(1, "thread"));
     }
     env.pop_n(args - 1);
-    let co = match env.pop() {
+    let co = env.pop();
+    let co = match co {
         LuaValue::Thread(thread) => thread,
-        _ => return Err(RuntimeError::NotThread),
+        _ => {
+            return Err(RuntimeError::BadArgument(
+                1,
+                Box::new(RuntimeError::Expected("thread", co.type_str().into())),
+            ))
+        }
     };
 
     let status = co.borrow().status;
     match status {
-        ThreadStatus::Running => Err(RuntimeError::CloseCurrentThread),
-        ThreadStatus::ResumePending(_) => Err(RuntimeError::CloseParentThread),
+        ThreadStatus::Running => Err(RuntimeError::CloseRunningThread),
+        ThreadStatus::ResumePending(_) => Err(RuntimeError::CloseNormalThread),
 
         ThreadStatus::NotStarted => {
             env.push(true.into());
@@ -71,7 +77,7 @@ pub fn close(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
 }
 pub fn create(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
-        return Err(RuntimeError::ValueExpected);
+        return Err(RuntimeError::new_empty_argument(1, "thread"));
     }
     env.pop_n(args - 1);
     let func = env.pop();
@@ -80,7 +86,10 @@ pub fn create(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
             env.push(LuaThread::new_coroutine(env, func).into());
             Ok(1)
         }
-        _ => Err(RuntimeError::NotFunction),
+        _ => Err(RuntimeError::BadArgument(
+            1,
+            Box::new(RuntimeError::Expected("function", func.type_str().into())),
+        )),
     }
 }
 pub fn isyieldable(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
@@ -92,7 +101,12 @@ pub fn isyieldable(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError>
             let thread = env.pop();
             match thread {
                 LuaValue::Thread(thread) => !Rc::ptr_eq(env.main_thread(), &thread),
-                _ => return Err(RuntimeError::NotThread),
+                _ => {
+                    return Err(RuntimeError::BadArgument(
+                        1,
+                        Box::new(RuntimeError::Expected("thread", thread.type_str().into())),
+                    ))
+                }
             }
         }
     };
@@ -106,16 +120,20 @@ pub fn resume(
     expected_resume_return: Option<usize>,
 ) -> Result<(), RuntimeError> {
     if args_num == 0 {
-        return Err(RuntimeError::ValueExpected);
+        return Err(RuntimeError::new_empty_argument(1, "thread"));
     }
 
     debug_assert!(env.running_thread().borrow().status == ThreadStatus::Running);
 
-    let co = match env.top_i(args_num - 1) {
+    let co = env.top_i(args_num - 1);
+    let co = match co {
         LuaValue::Thread(thread) => thread,
         _ => {
             env.pop_n(args_num);
-            return Err(RuntimeError::NotThread);
+            return Err(RuntimeError::BadArgument(
+                1,
+                Box::new(RuntimeError::Expected("thread", co.type_str().into())),
+            ));
         }
     };
     let mut co_borrow_mut = co.borrow_mut();
@@ -123,15 +141,73 @@ pub fn resume(
     match co_borrow_mut.status {
         ThreadStatus::Running => {
             env.pop_n(args_num);
-            Err(RuntimeError::ResumeOnRunning)
+            // error resume() into current thread
+            match expected_resume_return {
+                Some(0) => Ok(()),
+                Some(1) => {
+                    env.push(false.into());
+                    Ok(())
+                }
+                Some(expected_resume_return) => {
+                    env.push2(false.into(), "cannot resume running coroutine".into());
+                    env.running_thread()
+                        .borrow_mut()
+                        .data_stack
+                        .extend(std::iter::repeat(LuaValue::Nil).take(expected_resume_return - 2));
+                    Ok(())
+                }
+                None => {
+                    env.push2(false.into(), "cannot resume running coroutine".into());
+                    Ok(())
+                }
+            }
         }
         ThreadStatus::Dead => {
             env.pop_n(args_num);
-            Err(RuntimeError::ResumeOnDead)
+            // error resume() into dead thread
+            match expected_resume_return {
+                Some(0) => Ok(()),
+                Some(1) => {
+                    env.push(false.into());
+                    Ok(())
+                }
+                Some(expected_resume_return) => {
+                    env.push2(false.into(), "cannot resume dead coroutine".into());
+                    env.running_thread()
+                        .borrow_mut()
+                        .data_stack
+                        .extend(std::iter::repeat(LuaValue::Nil).take(expected_resume_return - 2));
+                    Ok(())
+                }
+                None => {
+                    env.push2(false.into(), "cannot resume dead coroutine".into());
+                    Ok(())
+                }
+            }
         }
         ThreadStatus::ResumePending(_) => {
             env.pop_n(args_num);
-            Err(RuntimeError::ResumeOnParent)
+
+            // error resume() into parent thread
+            match expected_resume_return {
+                Some(0) => Ok(()),
+                Some(1) => {
+                    env.push(false.into());
+                    Ok(())
+                }
+                Some(expected_resume_return) => {
+                    env.push2(false.into(), "cannot resume non-suspended coroutine".into());
+                    env.running_thread()
+                        .borrow_mut()
+                        .data_stack
+                        .extend(std::iter::repeat(LuaValue::Nil).take(expected_resume_return - 2));
+                    Ok(())
+                }
+                None => {
+                    env.push2(false.into(), "cannot resume non-suspended coroutine".into());
+                    Ok(())
+                }
+            }
         }
         ThreadStatus::NotStarted => {
             let func = co_borrow_mut.func.clone().unwrap();
@@ -227,7 +303,7 @@ pub fn yield_(
 ) -> Result<(), RuntimeError> {
     if env.coroutines.len() == 1 {
         env.pop_n(args);
-        return Err(RuntimeError::YieldOnMain);
+        return Err(RuntimeError::YieldOutsideCoroutine);
     }
 
     let yield_thread = env.coroutines.pop().unwrap();
@@ -274,13 +350,18 @@ pub fn running(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
 }
 pub fn status(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
-        return Err(RuntimeError::ValueExpected);
+        return Err(RuntimeError::new_empty_argument(1, "thread"));
     }
     env.pop_n(args - 1);
     let co = env.pop();
     let co = match co {
         LuaValue::Thread(thread) => thread,
-        _ => return Err(RuntimeError::NotThread),
+        _ => {
+            return Err(RuntimeError::BadArgument(
+                1,
+                Box::new(RuntimeError::Expected("thread", co.type_str().into())),
+            ))
+        }
     };
     let status: &'static str = match co.borrow().status {
         ThreadStatus::NotStarted => "suspended",
@@ -305,7 +386,12 @@ pub fn wrap(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     let co = env.pop();
     let _co = match co {
         LuaValue::Thread(thread) => thread,
-        _ => return Err(RuntimeError::NotThread),
+        _ => {
+            return Err(RuntimeError::BadArgument(
+                1,
+                Box::new(RuntimeError::Expected("thread", co.type_str().into())),
+            ))
+        }
     };
 
     unimplemented!("coroutine.wrap")

@@ -96,7 +96,7 @@ pub fn pcall(
     expected_ret: Option<usize>,
 ) -> Result<(), RuntimeError> {
     if args == 0 {
-        return Err(RuntimeError::ValueExpected);
+        return Err(RuntimeError::new_empty_argument(1, "value"));
     }
 
     let thread_borrow = env.running_thread().borrow();
@@ -173,9 +173,11 @@ pub fn print(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     Ok(0)
 }
 pub fn rawequal(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
-    if args < 2 {
-        env.pop_n(args);
-        return Err(RuntimeError::ValueExpected);
+    if args == 0 {
+        return Err(RuntimeError::new_empty_argument(1, "value"));
+    } else if args == 1 {
+        env.pop();
+        return Err(RuntimeError::new_empty_argument(2, "value"));
     } else if args > 2 {
         env.pop_n(args - 2);
     }
@@ -185,7 +187,7 @@ pub fn rawequal(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
 }
 pub fn rawlen(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
-        return Err(RuntimeError::ValueExpected);
+        return Err(RuntimeError::new_empty_argument(1, "table or string"));
     } else if args > 1 {
         env.pop_n(args - 1);
     }
@@ -193,15 +195,25 @@ pub fn rawlen(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     let len = match arg {
         LuaValue::String(s) => s.len() as IntType,
         LuaValue::Table(t) => t.borrow().len(),
-        _ => return Err(RuntimeError::NotTableOrString),
+        _ => {
+            return Err(RuntimeError::BadArgument(
+                1,
+                Box::new(RuntimeError::Expected(
+                    "table or string",
+                    arg.type_str().into(),
+                )),
+            ))
+        }
     };
     env.push(len.into());
     Ok(1)
 }
 pub fn rawget(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
-    if args < 2 {
-        env.pop_n(args);
-        return Err(RuntimeError::ValueExpected);
+    if args == 0 {
+        return Err(RuntimeError::new_empty_argument(1, "table"));
+    } else if args == 1 {
+        env.pop();
+        return Err(RuntimeError::new_empty_argument(2, "value"));
     } else if args > 2 {
         env.pop_n(args - 2);
     }
@@ -209,25 +221,39 @@ pub fn rawget(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     let table = match table {
         LuaValue::Table(table) => table,
         _ => {
-            return Err(RuntimeError::NotTable);
+            return Err(RuntimeError::BadArgument(
+                1,
+                Box::new(RuntimeError::Expected("table", table.type_str().into())),
+            ));
         }
     };
     env.push(table.borrow().get(&key).cloned().unwrap_or_default());
     Ok(1)
 }
 pub fn rawset(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
-    if args < 3 {
-        env.pop_n(args);
-        return Err(RuntimeError::ValueExpected);
-    } else if args > 3 {
-        env.pop_n(args - 3);
+    match args {
+        0 => return Err(RuntimeError::new_empty_argument(1, "table")),
+        1 => {
+            env.pop();
+            return Err(RuntimeError::new_empty_argument(2, "value"));
+        }
+        2 => {
+            env.pop2();
+            return Err(RuntimeError::new_empty_argument(3, "value"));
+        }
+        args => {
+            env.pop_n(args - 3);
+        }
     }
     let (table, key, value) = env.pop3();
 
     let table = match table {
         LuaValue::Table(table) => table,
         _ => {
-            return Err(RuntimeError::NotTable);
+            return Err(RuntimeError::BadArgument(
+                1,
+                Box::new(RuntimeError::Expected("table", table.type_str().into())),
+            ));
         }
     };
     if key.is_nil() {
@@ -241,7 +267,7 @@ pub fn rawset(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
 }
 pub fn select(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
-        return Err(RuntimeError::ValueExpected);
+        return Err(RuntimeError::new_empty_argument(1, "number"));
     }
 
     let index = env.top_i(args - 1);
@@ -255,11 +281,17 @@ pub fn select(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if let Some(index) = index.try_to_int() {
         let index = if index == 0 {
             env.pop_n(args);
-            return Err(RuntimeError::OutOfRange);
+            return Err(RuntimeError::BadArgument(
+                1,
+                Box::new(RuntimeError::IndexOutOfRange),
+            ));
         } else if index < 0 {
             if (-index) as usize > args - 1 {
                 env.pop_n(args);
-                return Err(RuntimeError::OutOfRange);
+                return Err(RuntimeError::BadArgument(
+                    1,
+                    Box::new(RuntimeError::IndexOutOfRange),
+                ));
             } else {
                 (args as IntType + index - 1) as usize
             }
@@ -283,8 +315,11 @@ pub fn select(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
 }
 
 pub fn setmetatable(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
-    if args < 2 {
-        return Err(RuntimeError::ValueExpected);
+    if args == 0 {
+        return Err(RuntimeError::new_empty_argument(1, "table"));
+    } else if args == 1 {
+        env.pop();
+        return Err(RuntimeError::new_empty_argument(2, "nil or table"));
     } else if args > 2 {
         env.pop_n(args - 2);
     }
@@ -298,7 +333,10 @@ pub fn setmetatable(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError
                 .map
                 .contains_key(&LuaValue::from("__metatable"))
             {
-                return Err(RuntimeError::ProtectedMetatable);
+                // try to modify protected metatable (__metatable defined)
+                return Err(RuntimeError::Custom(
+                    "cannot change a protected metatable".into(),
+                ));
             }
         }
         match meta {
@@ -312,15 +350,24 @@ pub fn setmetatable(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError
                 env.push(LuaValue::Table(table));
                 Ok(1)
             }
-            _ => Err(RuntimeError::NotTable),
+            _ => Err(RuntimeError::BadArgument(
+                2,
+                Box::new(RuntimeError::Expected(
+                    "nil or table",
+                    meta.type_str().into(),
+                )),
+            )),
         }
     } else {
-        Err(RuntimeError::NotTable)
+        Err(RuntimeError::BadArgument(
+            1,
+            Box::new(RuntimeError::Expected("table", table.type_str().into())),
+        ))
     }
 }
 pub fn getmetatable(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
-        return Err(RuntimeError::ValueExpected);
+        return Err(RuntimeError::new_empty_argument(1, "value"));
     } else if args > 1 {
         env.pop_n(args - 1);
     }
@@ -339,13 +386,16 @@ pub fn getmetatable(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError
             }
             Ok(1)
         }
-        _ => Err(RuntimeError::NotTable),
+        _ => Err(RuntimeError::BadArgument(
+            1,
+            Box::new(RuntimeError::Expected("table", table.type_str().into())),
+        )),
     }
 }
 
 pub fn tostring(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
-        return Err(RuntimeError::ValueExpected);
+        return Err(RuntimeError::new_empty_argument(1, "value"));
     } else if args > 1 {
         env.pop_n(args - 1);
     }
@@ -355,28 +405,18 @@ pub fn tostring(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
 
 pub fn type_(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
-        return Err(RuntimeError::ValueExpected);
+        return Err(RuntimeError::new_empty_argument(1, "value"));
     } else if args > 1 {
         env.pop_n(args - 1);
     }
     let arg = env.pop();
-    let type_str = match arg {
-        LuaValue::Nil => "nil",
-        LuaValue::Boolean(_) => "boolean",
-        LuaValue::Number(_) => "number",
-        LuaValue::String(_) => "string",
-        LuaValue::Table(_) => "table",
-        LuaValue::Function(_) => "function",
-        LuaValue::Thread(_) => "thread",
-        LuaValue::UserData(_) => "userdata",
-    };
-    env.push(type_str.into());
+    env.push(arg.type_str().into());
     Ok(1)
 }
 
 pub fn assert(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
-        return Err(RuntimeError::ValueExpected);
+        return Err(RuntimeError::new_empty_argument(1, "value"));
     }
     let thread = env.borrow_running_thread();
     if thread.data_stack[thread.data_stack.len() - args].to_bool() {
@@ -401,7 +441,7 @@ pub fn assert(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
 
 pub fn error(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     let (error, level) = match args {
-        0 => return Err(RuntimeError::ValueExpected),
+        0 => (LuaValue::Nil, 1),
         1 => {
             let error = env.pop();
             (error, 1)
@@ -432,58 +472,51 @@ pub fn error(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
 /// iterator function for `ipairs`
 fn ipair_next(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args < 2 {
-        return Err(RuntimeError::ValueExpected);
+        return Err(RuntimeError::Error);
     } else if args > 2 {
         env.pop_n(args - 2);
     }
 
     let (table, key) = env.pop2();
-    match table {
-        LuaValue::Table(table) => match key {
-            LuaValue::Number(LuaNumber::Int(mut n)) => {
-                n += 1;
-                if let Some(value) = table.borrow().get_arr(n) {
-                    env.push2(n.into(), value.clone());
-                    Ok(2)
-                } else {
-                    env.push(LuaValue::Nil);
-                    Ok(1)
-                }
+    // check key has integer representation
+    match key {
+        LuaValue::Number(LuaNumber::Int(mut n)) => {
+            n += 1;
+            env.push2(table, n.into());
+            env.index()?;
+            let ret = env.pop();
+            if ret == LuaValue::Nil {
+                env.push(LuaValue::Nil);
+                Ok(1)
+            } else {
+                env.push2(n.into(), ret);
+                Ok(2)
             }
-            // this should not happen; since this function is only called from `ipairs`, privately
-            _ => Err(RuntimeError::NotInteger),
-        },
-        _ => Err(RuntimeError::NotTable),
+        }
+        // this should not happen; since this function is only called from `ipairs`, privately
+        _ => Err(RuntimeError::NotInteger),
     }
 }
 pub fn ipairs(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
-        return Err(RuntimeError::ValueExpected);
+        return Err(RuntimeError::new_empty_argument(1, "value"));
     } else if args > 1 {
         env.pop_n(args - 1);
     }
 
-    let table = if let LuaValue::Table(table) = env.pop() {
-        table
-    } else {
-        return Err(RuntimeError::NotTable);
-    };
-
+    // no check for table here
+    let table = env.pop();
     env.push3(
         LuaFunction::from_func(ipair_next).into(),
-        LuaValue::Table(table),
+        table,
         (0 as IntType).into(),
     );
     Ok(3)
 }
 
 pub fn next(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
-    if args == 0 {
-        return Err(RuntimeError::ValueExpected);
-    }
-
     let (table, index) = match args {
-        0 => return Err(RuntimeError::ValueExpected),
+        0 => return Err(RuntimeError::Error),
         1 => (env.pop(), LuaValue::Nil),
         _ => {
             env.pop_n(args - 2);
@@ -535,7 +568,7 @@ pub fn next(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
                             }
                         }
                     } else {
-                        Err(RuntimeError::InvalidKey)
+                        Err(RuntimeError::Error)
                     }
                 }
 
@@ -551,27 +584,36 @@ pub fn next(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
                             Ok(1)
                         }
                     } else {
-                        Err(RuntimeError::InvalidKey)
+                        Err(RuntimeError::Error)
                     }
                 }
             }
         }
-        _ => Err(RuntimeError::NotTable),
+        // @TODO next() with non-table was possible...
+        _ => Err(RuntimeError::BadArgument(
+            1,
+            Box::new(RuntimeError::Expected("table", table.type_str().into())),
+        )),
     }
 }
 
 // @TODO __pair metamethod
 pub fn pairs(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
-        return Err(RuntimeError::ValueExpected);
+        return Err(RuntimeError::new_empty_argument(1, "value"));
     } else if args > 1 {
         env.pop_n(args - 1);
     }
 
-    let table = if let LuaValue::Table(table) = env.pop() {
+    let table = env.pop();
+    let table = if let LuaValue::Table(table) = table {
         table
     } else {
-        return Err(RuntimeError::NotTable);
+        // @TODO pair() with non-table was possible...
+        return Err(RuntimeError::BadArgument(
+            1,
+            Box::new(RuntimeError::Expected("table", table.type_str().into())),
+        ));
     };
 
     env.push3(

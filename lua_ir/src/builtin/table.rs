@@ -26,12 +26,17 @@ pub fn init() -> Result<LuaValue, RuntimeError> {
 
 pub fn concat(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     let (list, sep, i, j) = match args {
-        0 => return Err(RuntimeError::ValueExpected),
+        0 => return Err(RuntimeError::new_empty_argument(1, "table")),
         1 => {
             let list = env.pop();
             let list = match list {
                 LuaValue::Table(table) => table,
-                _ => return Err(RuntimeError::NotTable),
+                _ => {
+                    return Err(RuntimeError::BadArgument(
+                        1,
+                        Box::new(RuntimeError::Expected("table", list.type_str().into())),
+                    ))
+                }
             };
             let i = 1 as IntType;
             let j = list.borrow().len();
@@ -41,12 +46,23 @@ pub fn concat(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
             let (list, sep) = env.pop2();
             let list = match list {
                 LuaValue::Table(table) => table,
-                _ => return Err(RuntimeError::NotTable),
+                _ => {
+                    return Err(RuntimeError::BadArgument(
+                        1,
+                        Box::new(RuntimeError::Expected("table", list.type_str().into())),
+                    ))
+                }
             };
             let sep = match sep {
+                LuaValue::Nil => Vec::new(),
                 LuaValue::String(s) => s,
                 LuaValue::Number(n) => n.to_string().into_bytes(),
-                _ => return Err(RuntimeError::NotString),
+                _ => {
+                    return Err(RuntimeError::BadArgument(
+                        2,
+                        Box::new(RuntimeError::Expected("string", sep.type_str().into())),
+                    ))
+                }
             };
             let i = 1 as IntType;
             let j = list.borrow().len();
@@ -57,12 +73,23 @@ pub fn concat(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
 
             let list = match list {
                 LuaValue::Table(table) => table,
-                _ => return Err(RuntimeError::NotTable),
+                _ => {
+                    return Err(RuntimeError::BadArgument(
+                        1,
+                        Box::new(RuntimeError::Expected("table", list.type_str().into())),
+                    ))
+                }
             };
             let sep = match sep {
+                LuaValue::Nil => Vec::new(),
                 LuaValue::String(s) => s,
                 LuaValue::Number(n) => n.to_string().into_bytes(),
-                _ => return Err(RuntimeError::NotString),
+                _ => {
+                    return Err(RuntimeError::BadArgument(
+                        2,
+                        Box::new(RuntimeError::Expected("string", sep.type_str().into())),
+                    ))
+                }
             };
             let i = match i.try_to_int() {
                 Some(i) => i,
@@ -77,12 +104,23 @@ pub fn concat(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
             let (list, sep, i, j) = env.pop4();
             let list = match list {
                 LuaValue::Table(table) => table,
-                _ => return Err(RuntimeError::NotTable),
+                _ => {
+                    return Err(RuntimeError::BadArgument(
+                        1,
+                        Box::new(RuntimeError::Expected("table", list.type_str().into())),
+                    ))
+                }
             };
             let sep = match sep {
+                LuaValue::Nil => Vec::new(),
                 LuaValue::String(s) => s,
                 LuaValue::Number(n) => n.to_string().into_bytes(),
-                _ => return Err(RuntimeError::NotString),
+                _ => {
+                    return Err(RuntimeError::BadArgument(
+                        2,
+                        Box::new(RuntimeError::Expected("string", sep.type_str().into())),
+                    ))
+                }
             };
             let i = match i.try_to_int() {
                 Some(i) => i,
@@ -112,8 +150,16 @@ pub fn concat(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
             Some(LuaValue::Number(n)) => {
                 ret.extend(n.to_string().into_bytes());
             }
-            _ => {
-                return Err(RuntimeError::NotString);
+            elem => {
+                // @TODO  invalid value (nil) at index 2 in table for 'concat'
+                return Err(RuntimeError::Custom(
+                    format!(
+                        "invalid value ({}) at index {} in table for 'concat'",
+                        elem.map(|val| val.type_str()).unwrap_or("nil"),
+                        k
+                    )
+                    .into(),
+                ));
             }
         }
     }
@@ -123,10 +169,12 @@ pub fn concat(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
 
 pub fn insert(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     match args {
-        0 => Err(RuntimeError::ValueExpected),
+        0 => return Err(RuntimeError::new_empty_argument(1, "table")),
         1 => {
             env.pop();
-            Err(RuntimeError::ValueExpected)
+            Err(RuntimeError::Custom(
+                "wrong number of arguments to 'insert'".into(),
+            ))
         }
         2 => {
             let (table, value) = env.pop2();
@@ -136,7 +184,10 @@ pub fn insert(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
                     table.borrow_mut().arr.insert(len + 1, value);
                 }
                 _ => {
-                    return Err(RuntimeError::NotTable);
+                    return Err(RuntimeError::BadArgument(
+                        1,
+                        Box::new(RuntimeError::Expected("table", table.type_str().into())),
+                    ));
                 }
             };
             Ok(0)
@@ -147,7 +198,10 @@ pub fn insert(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
             let table = match table {
                 LuaValue::Table(table) => table,
                 _ => {
-                    return Err(RuntimeError::NotTable);
+                    return Err(RuntimeError::BadArgument(
+                        1,
+                        Box::new(RuntimeError::Expected("table", table.type_str().into())),
+                    ));
                 }
             };
             let pos = match pos.try_to_int() {
@@ -158,7 +212,10 @@ pub fn insert(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
             };
             let len = table.borrow().len();
             if pos <= 0 || pos > len + 1 {
-                return Err(RuntimeError::OutOfRange);
+                return Err(RuntimeError::BadArgument(
+                    2,
+                    Box::new(RuntimeError::PositionOutOfBounds),
+                ));
             }
 
             if pos == len + 1 {
@@ -176,9 +233,21 @@ pub fn insert(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     }
 }
 pub fn move_(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
-    if args < 4 {
-        env.pop_n(args);
-        return Err(RuntimeError::ValueExpected);
+    match args {
+        0 => return Err(RuntimeError::new_empty_argument(1, "table")),
+        1 => {
+            env.pop();
+            return Err(RuntimeError::new_empty_argument(2, "number"));
+        }
+        2 => {
+            env.pop2();
+            return Err(RuntimeError::new_empty_argument(3, "number"));
+        }
+        3 => {
+            env.pop3();
+            return Err(RuntimeError::new_empty_argument(4, "number"));
+        }
+        _ => {}
     }
 
     let (a1, f, e, t, a2) = match args {
@@ -186,7 +255,12 @@ pub fn move_(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
             let (a1, f, e, t) = env.pop4();
             let a1 = match a1 {
                 LuaValue::Table(table) => table,
-                _ => return Err(RuntimeError::NotTable),
+                _ => {
+                    return Err(RuntimeError::BadArgument(
+                        1,
+                        Box::new(RuntimeError::Expected("table", a1.type_str().into())),
+                    ))
+                }
             };
             let a2 = Rc::clone(&a1);
             (a1, f, e, t, a2)
@@ -198,11 +272,21 @@ pub fn move_(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
             let (a1, f, e, t) = env.pop4();
             let a1 = match a1 {
                 LuaValue::Table(table) => table,
-                _ => return Err(RuntimeError::NotTable),
+                _ => {
+                    return Err(RuntimeError::BadArgument(
+                        1,
+                        Box::new(RuntimeError::Expected("table", a1.type_str().into())),
+                    ))
+                }
             };
             let a2 = match a2 {
                 LuaValue::Table(table) => table,
-                _ => Rc::clone(&a1),
+                _ => {
+                    return Err(RuntimeError::BadArgument(
+                        5,
+                        Box::new(RuntimeError::Expected("table", a2.type_str().into())),
+                    ))
+                }
             };
 
             (a1, f, e, t, a2)
@@ -249,7 +333,7 @@ pub fn pack(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
 pub fn remove(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     match args {
         0 => {
-            return Err(RuntimeError::ValueExpected);
+            return Err(RuntimeError::new_empty_argument(1, "table"));
         }
         1 => {
             let list = env.pop();
@@ -264,7 +348,10 @@ pub fn remove(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
                     env.push(removed);
                     Ok(1)
                 }
-                _ => Err(RuntimeError::NotTable),
+                _ => Err(RuntimeError::BadArgument(
+                    1,
+                    Box::new(RuntimeError::Expected("table", list.type_str().into())),
+                )),
             }
         }
         _ => {
@@ -278,12 +365,18 @@ pub fn remove(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
                         None => return Err(RuntimeError::NotNumber),
                     };
                     if pos < 0 || pos > len + 1 {
-                        return Err(RuntimeError::OutOfRange);
+                        return Err(RuntimeError::BadArgument(
+                            2,
+                            Box::new(RuntimeError::PositionOutOfBounds),
+                        ));
                     }
 
                     if pos == 0 {
                         if len != 0 {
-                            return Err(RuntimeError::OutOfRange);
+                            return Err(RuntimeError::BadArgument(
+                                2,
+                                Box::new(RuntimeError::PositionOutOfBounds),
+                            ));
                         } else {
                             env.push(LuaValue::Nil);
                             return Ok(1);
@@ -305,19 +398,29 @@ pub fn remove(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
                         .extend(split_right.into_iter().map(|(idx, val)| (idx - 1, val)));
                     Ok(1)
                 }
-                _ => Err(RuntimeError::NotTable),
+                _ => {
+                    return Err(RuntimeError::BadArgument(
+                        1,
+                        Box::new(RuntimeError::Expected("table", list.type_str().into())),
+                    ))
+                }
             }
         }
     }
 }
 pub fn sort(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     match args {
-        0 => return Err(RuntimeError::ValueExpected),
+        0 => return Err(RuntimeError::new_empty_argument(1, "table")),
         1 => {
             let list = env.pop();
             let list = match list {
                 LuaValue::Table(table) => table,
-                _ => return Err(RuntimeError::NotTable),
+                _ => {
+                    return Err(RuntimeError::BadArgument(
+                        1,
+                        Box::new(RuntimeError::Expected("table", list.type_str().into())),
+                    ))
+                }
             };
             if list.borrow().len() < 2 {
                 return Ok(0);
@@ -366,7 +469,12 @@ pub fn sort(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
 
             let list = match list {
                 LuaValue::Table(table) => table,
-                _ => return Err(RuntimeError::NotTable),
+                _ => {
+                    return Err(RuntimeError::BadArgument(
+                        1,
+                        Box::new(RuntimeError::Expected("table", list.type_str().into())),
+                    ))
+                }
             };
             if list.borrow().len() < 2 {
                 return Ok(0);
@@ -443,12 +551,21 @@ fn unpack_impl(
 }
 pub fn unpack(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     let (list, i, j) = match args {
-        0 => return Err(RuntimeError::ValueExpected),
+        0 => {
+            return Err(RuntimeError::Custom(
+                "attempt to get length of a nil value".into(),
+            ))
+        }
         1 => {
             let list = env.pop();
             let list = match list {
                 LuaValue::Table(table) => table,
-                _ => return Err(RuntimeError::NotTable),
+                _ => {
+                    return Err(RuntimeError::BadArgument(
+                        1,
+                        Box::new(RuntimeError::Expected("table", list.type_str().into())),
+                    ))
+                }
             };
             let i = 1;
             let j = list.borrow().len() as IntType;
@@ -458,7 +575,12 @@ pub fn unpack(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
             let (list, i) = env.pop2();
             let list = match list {
                 LuaValue::Table(table) => table,
-                _ => return Err(RuntimeError::NotTable),
+                _ => {
+                    return Err(RuntimeError::BadArgument(
+                        1,
+                        Box::new(RuntimeError::Expected("table", list.type_str().into())),
+                    ))
+                }
             };
             let i = match i.try_to_int() {
                 Some(i) => i,
@@ -472,7 +594,12 @@ pub fn unpack(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
             let (list, i, j) = env.pop3();
             let list = match list {
                 LuaValue::Table(table) => table,
-                _ => return Err(RuntimeError::NotTable),
+                _ => {
+                    return Err(RuntimeError::BadArgument(
+                        1,
+                        Box::new(RuntimeError::Expected("table", list.type_str().into())),
+                    ))
+                }
             };
             let i = match i.try_to_int() {
                 Some(i) => i,

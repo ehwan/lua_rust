@@ -84,6 +84,18 @@ impl std::fmt::Display for LuaValue {
 }
 
 impl LuaValue {
+    pub fn type_str(&self) -> &'static str {
+        match self {
+            LuaValue::Nil => "nil",
+            LuaValue::Boolean(_) => "boolean",
+            LuaValue::Number(_) => "number",
+            LuaValue::String(_) => "string",
+            LuaValue::Table(_) => "table",
+            LuaValue::Function(_) => "function",
+            LuaValue::Thread(_) => "thread",
+            LuaValue::UserData(_) => "userdata",
+        }
+    }
     pub fn to_bool(&self) -> bool {
         match self {
             LuaValue::Nil | LuaValue::Boolean(false) => false,
