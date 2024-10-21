@@ -12,6 +12,7 @@ use crate::RuntimeError;
 // mod io;
 mod coroutine;
 mod math;
+mod os;
 mod string;
 mod table;
 
@@ -63,6 +64,7 @@ pub fn init_env() -> Result<LuaTable, RuntimeError> {
     env.insert("math".into(), math::init()?.into());
     env.insert("table".into(), table::init()?.into());
     env.insert("coroutine".into(), coroutine::init()?.into());
+    env.insert("os".into(), os::init()?.into());
 
     // env.insert("io".into(), io::init()?.into());
 
