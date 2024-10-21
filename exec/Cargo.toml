@@ -1,14 +1,14 @@
 [package]
 name = "exec"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 
 [dependencies]
-lua_parser = { version = "0.6.0", path = "../parser", features = ["diag"] }
-lua_semantics = { version = "0.4.0", path = "../semantics", features = [
+lua_parser = { version = "0.7.0", path = "../parser", features = ["diag"] }
+lua_semantics = { version = "0.5.0", path = "../semantics", features = [
   "diag",
 ] }
-lua_ir = { version = "0.4.0", path = "../lua_ir" }
+lua_ir = { version = "0.5.0", path = "../lua_ir" }
 codespan-reporting = { version = "0.11" }
 
 [features]
