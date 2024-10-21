@@ -153,6 +153,7 @@ impl LuaEnv {
         rhs: LuaValue,
         meta_name: &str,
         force_wait: bool,
+        error_wrapper: impl FnOnce(&'static str) -> RuntimeError,
     ) -> Result<(), RuntimeError> {
         match self.get_metavalue(&lhs, meta_name) {
             Some(meta) => {
@@ -164,7 +165,7 @@ impl LuaEnv {
                     self.push2(lhs, rhs);
                     self.function_call(2, meta, Some(1), force_wait)
                 }
-                None => Err(RuntimeError::NoMetaMethod),
+                None => Err(error_wrapper(lhs.type_str())),
             },
         }
     }
@@ -206,7 +207,13 @@ impl LuaEnv {
                 Ok(())
             }
             // else, try to call metamethod, search on left first
-            (lhs, rhs) => self.try_call_metamethod(lhs, rhs, "__add", false),
+            (lhs, rhs) => self.try_call_metamethod(
+                lhs,
+                rhs,
+                "__add",
+                false,
+                RuntimeError::AttemptToArithmeticOn,
+            ),
         }
     }
 
@@ -219,7 +226,13 @@ impl LuaEnv {
                 Ok(())
             }
             // else, try to call metamethod, search on left first
-            (lhs, rhs) => self.try_call_metamethod(lhs, rhs, "__sub", false),
+            (lhs, rhs) => self.try_call_metamethod(
+                lhs,
+                rhs,
+                "__sub",
+                false,
+                RuntimeError::AttemptToArithmeticOn,
+            ),
         }
     }
     /// mul operation with __mul metamethod
@@ -231,7 +244,13 @@ impl LuaEnv {
                 Ok(())
             }
             // else, try to call metamethod, search on left first
-            (lhs, rhs) => self.try_call_metamethod(lhs, rhs, "__mul", false),
+            (lhs, rhs) => self.try_call_metamethod(
+                lhs,
+                rhs,
+                "__mul",
+                false,
+                RuntimeError::AttemptToArithmeticOn,
+            ),
         }
     }
     /// div operation with __div metamethod
@@ -243,7 +262,13 @@ impl LuaEnv {
                 Ok(())
             }
             // else, try to call metamethod, search on left first
-            (lhs, rhs) => self.try_call_metamethod(lhs, rhs, "__div", false),
+            (lhs, rhs) => self.try_call_metamethod(
+                lhs,
+                rhs,
+                "__div",
+                false,
+                RuntimeError::AttemptToArithmeticOn,
+            ),
         }
     }
     /// mod operation with __mod metamethod
@@ -255,7 +280,13 @@ impl LuaEnv {
                 Ok(())
             }
             // else, try to call metamethod, search on left first
-            (lhs, rhs) => self.try_call_metamethod(lhs, rhs, "__mod", false),
+            (lhs, rhs) => self.try_call_metamethod(
+                lhs,
+                rhs,
+                "__mod",
+                false,
+                RuntimeError::AttemptToArithmeticOn,
+            ),
         }
     }
     /// pow operation with __pow metamethod
@@ -267,7 +298,13 @@ impl LuaEnv {
                 Ok(())
             }
             // else, try to call metamethod, search on left first
-            (lhs, rhs) => self.try_call_metamethod(lhs, rhs, "__pow", false),
+            (lhs, rhs) => self.try_call_metamethod(
+                lhs,
+                rhs,
+                "__pow",
+                false,
+                RuntimeError::AttemptToArithmeticOn,
+            ),
         }
     }
     /// unary minus operation with __unm metamethod
@@ -286,7 +323,7 @@ impl LuaEnv {
                     self.push2(lhs.clone(), lhs);
                     self.function_call(2, meta, Some(1), false)
                 }
-                _ => Err(RuntimeError::NoMetaMethod),
+                _ => Err(RuntimeError::AttemptToArithmeticOn(lhs.type_str())),
             },
         }
     }
@@ -299,7 +336,13 @@ impl LuaEnv {
                 Ok(())
             }
             // else, try to call metamethod, search on left first
-            (lhs, rhs) => self.try_call_metamethod(lhs, rhs, "__idiv", false),
+            (lhs, rhs) => self.try_call_metamethod(
+                lhs,
+                rhs,
+                "__idiv",
+                false,
+                RuntimeError::AttemptToArithmeticOn,
+            ),
         }
     }
     /// bitwise and operation with __band metamethod
@@ -312,11 +355,23 @@ impl LuaEnv {
                         self.push((lhs & rhs).into());
                         Ok(())
                     }
-                    _ => self.try_call_metamethod(lhs, rhs, "__band", false),
+                    _ => self.try_call_metamethod(
+                        lhs,
+                        rhs,
+                        "__band",
+                        false,
+                        RuntimeError::AttemptToBitwiseOn,
+                    ),
                 }
             }
             // else, try to call metamethod, search on left first
-            _ => self.try_call_metamethod(lhs, rhs, "__band", false),
+            _ => self.try_call_metamethod(
+                lhs,
+                rhs,
+                "__band",
+                false,
+                RuntimeError::AttemptToBitwiseOn,
+            ),
         }
     }
     /// bitwise or operation with __bor metamethod
@@ -329,11 +384,19 @@ impl LuaEnv {
                         self.push((lhs | rhs).into());
                         Ok(())
                     }
-                    _ => self.try_call_metamethod(lhs, rhs, "__bor", false),
+                    _ => self.try_call_metamethod(
+                        lhs,
+                        rhs,
+                        "__bor",
+                        false,
+                        RuntimeError::AttemptToBitwiseOn,
+                    ),
                 }
             }
             // else, try to call metamethod, search on left first
-            _ => self.try_call_metamethod(lhs, rhs, "__bor", false),
+            _ => {
+                self.try_call_metamethod(lhs, rhs, "__bor", false, RuntimeError::AttemptToBitwiseOn)
+            }
         }
     }
     /// bitwise xor operation with __bxor metamethod
@@ -346,11 +409,23 @@ impl LuaEnv {
                         self.push((lhs ^ rhs).into());
                         Ok(())
                     }
-                    _ => self.try_call_metamethod(lhs, rhs, "__bxor", false),
+                    _ => self.try_call_metamethod(
+                        lhs,
+                        rhs,
+                        "__bxor",
+                        false,
+                        RuntimeError::AttemptToBitwiseOn,
+                    ),
                 }
             }
             // else, try to call metamethod, search on left first
-            _ => self.try_call_metamethod(lhs, rhs, "__bxor", false),
+            _ => self.try_call_metamethod(
+                lhs,
+                rhs,
+                "__bxor",
+                false,
+                RuntimeError::AttemptToBitwiseOn,
+            ),
         }
     }
     /// bitwise shift left operation with __shl metamethod
@@ -363,11 +438,19 @@ impl LuaEnv {
                         self.push((lhs << rhs).into());
                         Ok(())
                     }
-                    _ => self.try_call_metamethod(lhs, rhs, "__shl", false),
+                    _ => self.try_call_metamethod(
+                        lhs,
+                        rhs,
+                        "__shl",
+                        false,
+                        RuntimeError::AttemptToBitwiseOn,
+                    ),
                 }
             }
             // else, try to call metamethod, search on left first
-            _ => self.try_call_metamethod(lhs, rhs, "__shl", false),
+            _ => {
+                self.try_call_metamethod(lhs, rhs, "__shl", false, RuntimeError::AttemptToBitwiseOn)
+            }
         }
     }
     /// bitwise shift right operation with __shr metamethod
@@ -380,11 +463,19 @@ impl LuaEnv {
                         self.push((lhs >> rhs).into());
                         Ok(())
                     }
-                    _ => self.try_call_metamethod(lhs, rhs, "__shr", false),
+                    _ => self.try_call_metamethod(
+                        lhs,
+                        rhs,
+                        "__shr",
+                        false,
+                        RuntimeError::AttemptToBitwiseOn,
+                    ),
                 }
             }
             // else, try to call metamethod, search on left first
-            _ => self.try_call_metamethod(lhs, rhs, "__shr", false),
+            _ => {
+                self.try_call_metamethod(lhs, rhs, "__shr", false, RuntimeError::AttemptToBitwiseOn)
+            }
         }
     }
     /// bitwise not operation with __bnot metamethod
@@ -404,7 +495,7 @@ impl LuaEnv {
                         self.push2(lhs.clone(), lhs);
                         self.function_call(2, meta, Some(1), false)
                     }
-                    _ => Err(RuntimeError::NoMetaMethod),
+                    _ => Err(RuntimeError::AttemptToBitwiseOn(lhs.type_str())),
                 },
             },
             _ => match self.get_metavalue(&lhs, "__bnot") {
@@ -415,7 +506,7 @@ impl LuaEnv {
                     self.push2(lhs.clone(), lhs);
                     self.function_call(2, meta, Some(1), false)
                 }
-                _ => Err(RuntimeError::NoMetaMethod),
+                _ => Err(RuntimeError::AttemptToBitwiseOn(lhs.type_str())),
             },
         }
     }
@@ -436,7 +527,13 @@ impl LuaEnv {
                     self.push(LuaValue::String(lhs));
                     Ok(())
                 }
-                _ => self.try_call_metamethod(lhs, rhs, "__concat", false),
+                _ => self.try_call_metamethod(
+                    lhs,
+                    rhs,
+                    "__concat",
+                    false,
+                    RuntimeError::AttemptToConcatenate,
+                ),
             },
 
             LuaValue::String(lhs_str) => match rhs {
@@ -452,10 +549,22 @@ impl LuaEnv {
                     self.push(LuaValue::String(lhs));
                     Ok(())
                 }
-                _ => self.try_call_metamethod(LuaValue::String(lhs_str), rhs, "__concat", false),
+                _ => self.try_call_metamethod(
+                    LuaValue::String(lhs_str),
+                    rhs,
+                    "__concat",
+                    false,
+                    RuntimeError::AttemptToConcatenate,
+                ),
             },
 
-            _ => self.try_call_metamethod(lhs, rhs, "__concat", false),
+            _ => self.try_call_metamethod(
+                lhs,
+                rhs,
+                "__concat",
+                false,
+                RuntimeError::AttemptToConcatenate,
+            ),
         }
     }
     /// `#` length operation with __len metamethod
@@ -490,7 +599,7 @@ impl LuaEnv {
                     self.push2(lhs.clone(), lhs);
                     self.function_call(2, meta, Some(1), false)
                 }
-                _ => Err(RuntimeError::NoMetaMethod),
+                _ => Err(RuntimeError::AttemptToGetLengthOf(lhs.type_str())),
             },
         }
     }
@@ -603,11 +712,13 @@ impl LuaEnv {
                     self.push(LuaValue::Boolean(true));
                     return Ok(());
                 } else {
+                    // @TODO
                     self.try_call_metamethod(
                         LuaValue::Table(lhs),
                         LuaValue::Table(rhs),
                         "__eq",
                         false,
+                        RuntimeError::AttemptToArithmeticOn,
                     )
                 }
             }
@@ -630,7 +741,14 @@ impl LuaEnv {
                 self.push(LuaValue::Boolean(lhs < rhs));
                 Ok(())
             }
-            (lhs, rhs) => self.try_call_metamethod(lhs, rhs, "__lt", false),
+            // @TODO error type
+            (lhs, rhs) => self.try_call_metamethod(
+                lhs,
+                rhs,
+                "__lt",
+                false,
+                RuntimeError::AttemptToArithmeticOn,
+            ),
         }
     }
 
@@ -647,7 +765,14 @@ impl LuaEnv {
                 self.push(LuaValue::Boolean(lhs <= rhs));
                 Ok(())
             }
-            (lhs, rhs) => self.try_call_metamethod(lhs, rhs, "__le", false),
+            // @TODO error type
+            (lhs, rhs) => self.try_call_metamethod(
+                lhs,
+                rhs,
+                "__le",
+                false,
+                RuntimeError::AttemptToArithmeticOn,
+            ),
         }
     }
 

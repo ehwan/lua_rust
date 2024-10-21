@@ -552,9 +552,7 @@ fn unpack_impl(
 pub fn unpack(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     let (list, i, j) = match args {
         0 => {
-            return Err(RuntimeError::Custom(
-                "attempt to get length of a nil value".into(),
-            ))
+            return Err(RuntimeError::AttemptToGetLengthOf("nil"));
         }
         1 => {
             let list = env.pop();

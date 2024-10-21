@@ -34,14 +34,18 @@ pub enum RuntimeError {
 
     YieldOutsideCoroutine,
 
+    AttemptToGetLengthOf(&'static str),
+    AttemptToArithmeticOn(&'static str),
+    AttemptToBitwiseOn(&'static str),
+    AttemptToConcatenate(&'static str),
+
     // ========================
     /// float has no integer representation
     FloatToInt,
     NotInteger,
     NotNumber,
 
-    NoMetaMethod,
-
+    // NoMetaMethod,
     /// not implemented yet (dummy error for some functions)
     Error,
 }
@@ -91,6 +95,22 @@ impl<'a> std::fmt::Display for RuntimeErrorEnvPair<'a> {
             RuntimeError::CloseNormalThread => "cannot close a normal coroutine".fmt(f),
             RuntimeError::YieldOutsideCoroutine => {
                 "attempt to yield from outside a coroutine".fmt(f)
+            }
+            RuntimeError::AttemptToGetLengthOf(type_str) => {
+                write!(f, "attempt to get length of a {} value", type_str)
+            }
+            RuntimeError::AttemptToArithmeticOn(type_str) => {
+                write!(f, "attempt to perform arithmetic on a {} value", type_str)
+            }
+            RuntimeError::AttemptToBitwiseOn(type_str) => {
+                write!(
+                    f,
+                    "attempt to perform bitwise operation on a {} value",
+                    type_str
+                )
+            }
+            RuntimeError::AttemptToConcatenate(type_str) => {
+                write!(f, "attempt to concatenate a {} value", type_str)
             }
             _ => write!(f, "{:?}", self.0),
         }
