@@ -278,40 +278,38 @@ pub fn select(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
             return Ok(1);
         }
     }
-    if let Some(index) = index.try_to_int() {
-        let index = if index == 0 {
+    let index = index
+        .try_to_int()
+        .map_err(|e| RuntimeError::BadArgument(1, Box::new(e)))?;
+    let index = if index == 0 {
+        env.pop_n(args);
+        return Err(RuntimeError::BadArgument(
+            1,
+            Box::new(RuntimeError::IndexOutOfRange),
+        ));
+    } else if index < 0 {
+        if (-index) as usize > args - 1 {
             env.pop_n(args);
             return Err(RuntimeError::BadArgument(
                 1,
                 Box::new(RuntimeError::IndexOutOfRange),
             ));
-        } else if index < 0 {
-            if (-index) as usize > args - 1 {
-                env.pop_n(args);
-                return Err(RuntimeError::BadArgument(
-                    1,
-                    Box::new(RuntimeError::IndexOutOfRange),
-                ));
-            } else {
-                (args as IntType + index - 1) as usize
-            }
         } else {
-            if index as usize > args - 1 {
-                env.pop_n(args);
-                return Ok(0);
-            } else {
-                index as usize - 1
-            }
-        };
-
-        let mut thread_mut = env.borrow_running_thread_mut();
-        let len = thread_mut.data_stack.len();
-        drop(thread_mut.data_stack.drain(len - args..=len - args + index));
-        Ok(args - 1 - index)
+            (args as IntType + index - 1) as usize
+        }
     } else {
-        env.pop_n(args);
-        Err(RuntimeError::NotInteger)
-    }
+        if index as usize > args - 1 {
+            env.pop_n(args);
+            return Ok(0);
+        } else {
+            index as usize - 1
+        }
+    };
+
+    let mut thread_mut = env.borrow_running_thread_mut();
+    let len = thread_mut.data_stack.len();
+    drop(thread_mut.data_stack.drain(len - args..=len - args + index));
+    Ok(args - 1 - index)
 }
 
 pub fn setmetatable(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
@@ -449,10 +447,9 @@ pub fn error(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
         _ => {
             env.pop_n(args - 2);
             let (error, level) = env.pop2();
-            let level = match level.try_to_int() {
-                Some(level) => level,
-                None => return Err(RuntimeError::NotInteger),
-            };
+            let level = level
+                .try_to_int()
+                .map_err(|e| RuntimeError::BadArgument(2, Box::new(e)))?;
             (error, level)
         }
     };
@@ -494,7 +491,7 @@ fn ipair_next(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
             }
         }
         // this should not happen; since this function is only called from `ipairs`, privately
-        _ => Err(RuntimeError::NotInteger),
+        _ => Err(RuntimeError::Error),
     }
 }
 pub fn ipairs(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {

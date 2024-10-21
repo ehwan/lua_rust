@@ -54,7 +54,8 @@ fn main() {
     match env.run() {
         Ok(_) => {}
         Err(e) => {
-            eprintln!("Error: {:?}", e);
+            let message = e.to_error_message(&env);
+            eprintln!("{}", message);
         }
     }
 }

@@ -351,7 +351,7 @@ impl LuaEnv {
         match (&lhs, &rhs) {
             (LuaValue::Number(lhs_num), LuaValue::Number(rhs_num)) => {
                 match (lhs_num.try_to_int(), rhs_num.try_to_int()) {
-                    (Some(lhs), Some(rhs)) => {
+                    (Ok(lhs), Ok(rhs)) => {
                         self.push((lhs & rhs).into());
                         Ok(())
                     }
@@ -380,7 +380,7 @@ impl LuaEnv {
         match (&lhs, &rhs) {
             (LuaValue::Number(lhs_num), LuaValue::Number(rhs_num)) => {
                 match (lhs_num.try_to_int(), rhs_num.try_to_int()) {
-                    (Some(lhs), Some(rhs)) => {
+                    (Ok(lhs), Ok(rhs)) => {
                         self.push((lhs | rhs).into());
                         Ok(())
                     }
@@ -405,7 +405,7 @@ impl LuaEnv {
         match (&lhs, &rhs) {
             (LuaValue::Number(lhs_num), LuaValue::Number(rhs_num)) => {
                 match (lhs_num.try_to_int(), rhs_num.try_to_int()) {
-                    (Some(lhs), Some(rhs)) => {
+                    (Ok(lhs), Ok(rhs)) => {
                         self.push((lhs ^ rhs).into());
                         Ok(())
                     }
@@ -434,7 +434,7 @@ impl LuaEnv {
         match (&lhs, &rhs) {
             (LuaValue::Number(lhs_num), LuaValue::Number(rhs_num)) => {
                 match (lhs_num.try_to_int(), rhs_num.try_to_int()) {
-                    (Some(lhs), Some(rhs)) => {
+                    (Ok(lhs), Ok(rhs)) => {
                         self.push((lhs << rhs).into());
                         Ok(())
                     }
@@ -459,7 +459,7 @@ impl LuaEnv {
         match (&lhs, &rhs) {
             (LuaValue::Number(lhs_num), LuaValue::Number(rhs_num)) => {
                 match (lhs_num.try_to_int(), rhs_num.try_to_int()) {
-                    (Some(lhs), Some(rhs)) => {
+                    (Ok(lhs), Ok(rhs)) => {
                         self.push((lhs >> rhs).into());
                         Ok(())
                     }
@@ -483,7 +483,7 @@ impl LuaEnv {
         let lhs = self.pop();
         match &lhs {
             LuaValue::Number(lhs_num) => match lhs_num.try_to_int() {
-                Some(i) => {
+                Ok(i) => {
                     self.push((!i).into());
                     Ok(())
                 }

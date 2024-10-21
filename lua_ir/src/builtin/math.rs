@@ -65,14 +65,12 @@ pub fn abs(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
         env.pop_n(args - 1);
     }
     let arg = env.pop();
-    match arg.try_to_number() {
-        Some(num) => {
-            let abs = num.abs();
-            env.push(abs.into());
-            Ok(1)
-        }
-        None => Err(RuntimeError::NotNumber),
-    }
+    let arg = arg
+        .try_to_number()
+        .map_err(|e| RuntimeError::BadArgument(1, Box::new(e)))?;
+    let abs = arg.abs();
+    env.push(abs.into());
+    Ok(1)
 }
 pub fn acos(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
@@ -82,13 +80,11 @@ pub fn acos(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     }
 
     let arg = env.pop();
-    match arg.try_to_number() {
-        Some(num) => {
-            env.push(num.to_float().acos().into());
-            Ok(1)
-        }
-        None => Err(RuntimeError::NotNumber),
-    }
+    let arg = arg
+        .try_to_number()
+        .map_err(|e| RuntimeError::BadArgument(1, Box::new(e)))?;
+    env.push(arg.to_float().acos().into());
+    Ok(1)
 }
 pub fn asin(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
@@ -97,38 +93,35 @@ pub fn asin(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
         env.pop_n(args - 1);
     }
     let arg = env.pop();
-    match arg.try_to_number() {
-        Some(num) => {
-            env.push(num.to_float().asin().into());
-            Ok(1)
-        }
-        None => Err(RuntimeError::NotNumber),
-    }
+    let arg = arg
+        .try_to_number()
+        .map_err(|e| RuntimeError::BadArgument(1, Box::new(e)))?;
+    env.push(arg.to_float().asin().into());
+    Ok(1)
 }
 pub fn atan(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     match args {
         0 => Err(RuntimeError::new_empty_argument(1, "number")),
         1 => {
             let arg = env.pop();
-            match arg.try_to_number() {
-                Some(num) => {
-                    env.push(num.to_float().atan2(1.0 as FloatType).into());
-                    Ok(1)
-                }
-                None => Err(RuntimeError::NotNumber),
-            }
+            let arg = arg
+                .try_to_number()
+                .map_err(|e| RuntimeError::BadArgument(1, Box::new(e)))?;
+            env.push(arg.to_float().atan2(1.0 as FloatType).into());
+            Ok(1)
         }
         _ => {
             env.pop_n(args - 2);
             let (y, x) = env.pop2();
-            let y = match y.try_to_number() {
-                Some(num) => num.to_float(),
-                None => return Err(RuntimeError::NotNumber),
-            };
-            let x = match x.try_to_number() {
-                Some(num) => num.to_float(),
-                None => return Err(RuntimeError::NotNumber),
-            };
+            let y = y
+                .try_to_number()
+                .map_err(|e| RuntimeError::BadArgument(1, Box::new(e)))?
+                .to_float();
+            let x = x
+                .try_to_number()
+                .map_err(|e| RuntimeError::BadArgument(2, Box::new(e)))?
+                .to_float();
+
             env.push(y.atan2(x).into());
             Ok(1)
         }
@@ -142,13 +135,11 @@ pub fn ceil(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     }
 
     let arg = env.pop();
-    match arg.try_to_number() {
-        Some(num) => {
-            env.push(num.ceil().into());
-            Ok(1)
-        }
-        _ => Err(RuntimeError::NotNumber),
-    }
+    let arg = arg
+        .try_to_number()
+        .map_err(|e| RuntimeError::BadArgument(1, Box::new(e)))?;
+    env.push(arg.ceil().into());
+    Ok(1)
 }
 pub fn floor(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
@@ -157,13 +148,11 @@ pub fn floor(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
         env.pop_n(args - 1);
     }
     let arg = env.pop();
-    match arg.try_to_number() {
-        Some(num) => {
-            env.push(num.floor().into());
-            Ok(1)
-        }
-        _ => Err(RuntimeError::NotNumber),
-    }
+    let arg = arg
+        .try_to_number()
+        .map_err(|e| RuntimeError::BadArgument(1, Box::new(e)))?;
+    env.push(arg.floor().into());
+    Ok(1)
 }
 pub fn cos(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
@@ -172,13 +161,11 @@ pub fn cos(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
         env.pop_n(args - 1);
     }
     let arg = env.pop();
-    match arg.try_to_number() {
-        Some(num) => {
-            env.push(num.cos().into());
-            Ok(1)
-        }
-        _ => Err(RuntimeError::NotNumber),
-    }
+    let arg = arg
+        .try_to_number()
+        .map_err(|e| RuntimeError::BadArgument(1, Box::new(e)))?;
+    env.push(arg.cos().into());
+    Ok(1)
 }
 pub fn sin(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
@@ -187,13 +174,11 @@ pub fn sin(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
         env.pop_n(args - 1);
     }
     let arg = env.pop();
-    match arg.try_to_number() {
-        Some(num) => {
-            env.push(num.sin().into());
-            Ok(1)
-        }
-        _ => Err(RuntimeError::NotNumber),
-    }
+    let arg = arg
+        .try_to_number()
+        .map_err(|e| RuntimeError::BadArgument(1, Box::new(e)))?;
+    env.push(arg.sin().into());
+    Ok(1)
 }
 pub fn deg(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
@@ -202,13 +187,11 @@ pub fn deg(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
         env.pop_n(args - 1);
     }
     let arg = env.pop();
-    match arg.try_to_number() {
-        Some(num) => {
-            env.push(num.deg().into());
-            Ok(1)
-        }
-        _ => Err(RuntimeError::NotNumber),
-    }
+    let arg = arg
+        .try_to_number()
+        .map_err(|e| RuntimeError::BadArgument(1, Box::new(e)))?;
+    env.push(arg.deg().into());
+    Ok(1)
 }
 pub fn rad(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
@@ -217,13 +200,11 @@ pub fn rad(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
         env.pop_n(args - 1);
     }
     let arg = env.pop();
-    match arg.try_to_number() {
-        Some(num) => {
-            env.push(num.rad().into());
-            Ok(1)
-        }
-        _ => Err(RuntimeError::NotNumber),
-    }
+    let arg = arg
+        .try_to_number()
+        .map_err(|e| RuntimeError::BadArgument(1, Box::new(e)))?;
+    env.push(arg.rad().into());
+    Ok(1)
 }
 pub fn exp(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     if args == 0 {
@@ -232,13 +213,11 @@ pub fn exp(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
         env.pop_n(args - 1);
     }
     let arg = env.pop();
-    match arg.try_to_number() {
-        Some(num) => {
-            env.push(num.exp().into());
-            Ok(1)
-        }
-        _ => Err(RuntimeError::NotNumber),
-    }
+    let arg = arg
+        .try_to_number()
+        .map_err(|e| RuntimeError::BadArgument(1, Box::new(e)))?;
+    env.push(arg.exp().into());
+    Ok(1)
 }
 pub fn log(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     match args {
@@ -246,25 +225,25 @@ pub fn log(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
 
         1 => {
             let x = env.pop();
-            match x.try_to_number() {
-                Some(num) => {
-                    env.push(num.ln().into());
-                    Ok(1)
-                }
-                _ => Err(RuntimeError::NotNumber),
-            }
+            let x = x
+                .try_to_number()
+                .map_err(|e| RuntimeError::BadArgument(1, Box::new(e)))?;
+            env.push(x.ln().into());
+            Ok(1)
         }
 
         _ => {
             env.pop_n(args - 2);
             let (x, base) = env.pop2();
-            match (x.try_to_number(), base.try_to_number()) {
-                (Some(x), Some(base)) => {
-                    env.push(x.log(base).into());
-                    Ok(1)
-                }
-                _ => Err(RuntimeError::NotNumber),
-            }
+            let x = x
+                .try_to_number()
+                .map_err(|e| RuntimeError::BadArgument(1, Box::new(e)))?;
+            let base = base
+                .try_to_number()
+                .map_err(|e| RuntimeError::BadArgument(2, Box::new(e)))?;
+
+            env.push(x.log(base).into());
+            Ok(1)
         }
     }
 }
@@ -276,13 +255,11 @@ pub fn sqrt(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
         env.pop_n(args - 1);
     }
     let arg = env.pop();
-    match arg.try_to_number() {
-        Some(num) => {
-            env.push(num.sqrt().into());
-            Ok(1)
-        }
-        _ => Err(RuntimeError::NotNumber),
-    }
+    let arg = arg
+        .try_to_number()
+        .map_err(|e| RuntimeError::BadArgument(1, Box::new(e)))?;
+    env.push(arg.sqrt().into());
+    Ok(1)
 }
 
 pub fn type_(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
@@ -309,11 +286,10 @@ pub fn tointeger(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
         env.pop_n(args - 1);
     }
     let arg = env.pop();
-    let ret = match arg.try_to_int() {
-        Some(num) => num.into(),
-        _ => LuaValue::Nil,
-    };
-    env.push(ret);
+    let arg = arg
+        .try_to_int()
+        .map_err(|e| RuntimeError::BadArgument(1, Box::new(e)))?;
+    env.push(arg.into());
     Ok(1)
 }
 pub fn ult(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
@@ -326,14 +302,12 @@ pub fn ult(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
         env.pop_n(args - 2);
     }
     let (a, b) = env.pop2();
-    let a = match a.try_to_int() {
-        Some(num) => num,
-        None => return Err(RuntimeError::NotInteger),
-    };
-    let b = match b.try_to_int() {
-        Some(num) => num,
-        None => return Err(RuntimeError::NotInteger),
-    };
+    let a = a
+        .try_to_int()
+        .map_err(|e| RuntimeError::BadArgument(1, Box::new(e)))?;
+    let b = b
+        .try_to_int()
+        .map_err(|e| RuntimeError::BadArgument(2, Box::new(e)))?;
 
     #[cfg(feature = "32bit")]
     let res = (a as u32) < (b as u32);
@@ -353,20 +327,24 @@ pub fn random(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
         1 => {
             // [1,num]
             let arg = env.pop();
-            match arg.try_to_int() {
-                Some(num) => env.rng.gen_range(1..=num).into(),
-                None => return Err(RuntimeError::NotInteger),
-            }
+            let arg = arg
+                .try_to_int()
+                .map_err(|e| RuntimeError::BadArgument(1, Box::new(e)))?;
+            env.rng.gen_range(1..=arg).into()
         }
         _ => {
             // [m, n]
             env.pop_n(args - 2);
             let (m, n) = env.pop2();
 
-            match (m.try_to_int(), n.try_to_int()) {
-                (Some(m), Some(n)) => env.rng.gen_range(m..=n).into(),
-                _ => return Err(RuntimeError::NotInteger),
-            }
+            let m = m
+                .try_to_int()
+                .map_err(|e| RuntimeError::BadArgument(1, Box::new(e)))?;
+            let n = n
+                .try_to_int()
+                .map_err(|e| RuntimeError::BadArgument(2, Box::new(e)))?;
+
+            env.rng.gen_range(m..=n).into()
         }
     };
     env.push(rand);
@@ -379,23 +357,24 @@ pub fn randomseed(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> 
             env.rng = StdRng::from_entropy();
         }
         1 => {
-            let seed = match env.pop().try_to_int() {
-                Some(num) => num,
-                None => return Err(RuntimeError::NotInteger),
-            };
+            let seed = env.pop();
+            let seed = seed
+                .try_to_int()
+                .map_err(|e| RuntimeError::BadArgument(1, Box::new(e)))?;
             env.rng = StdRng::seed_from_u64(seed as u64);
         }
         _ => {
             env.pop_n(args - 2);
             let (seed1, seed2) = env.pop2();
-            match (seed1.try_to_int(), seed2.try_to_int()) {
-                (Some(seed1), Some(seed2)) => {
-                    // @TODO this should be 128bit seed
-                    let seed = (seed1.rotate_left(32) ^ seed2) as u64;
-                    env.rng = StdRng::seed_from_u64(seed as u64);
-                }
-                _ => return Err(RuntimeError::NotInteger),
-            }
+            let seed1 = seed1
+                .try_to_int()
+                .map_err(|e| RuntimeError::BadArgument(1, Box::new(e)))?;
+            let seed2 = seed2
+                .try_to_int()
+                .map_err(|e| RuntimeError::BadArgument(2, Box::new(e)))?;
+            // @TODO this should be 128bit seed
+            let seed = (seed1.rotate_left(32) ^ seed2) as u64;
+            env.rng = StdRng::seed_from_u64(seed as u64);
         }
     }
     Ok(0)
@@ -409,20 +388,20 @@ pub fn modf(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     }
 
     let arg = env.pop();
+    let arg = arg
+        .try_to_number()
+        .map_err(|e| RuntimeError::BadArgument(1, Box::new(e)))?;
     match arg {
-        LuaValue::Number(num) => match num {
-            LuaNumber::Int(i) => {
-                env.push2(i.into(), 0.0.into());
-                Ok(2)
-            }
-            LuaNumber::Float(f) => {
-                let fract = f.fract();
-                let int = f - fract;
-                env.push2(int.into(), fract.into());
-                Ok(2)
-            }
-        },
-        _ => Err(RuntimeError::NotNumber),
+        LuaNumber::Int(i) => {
+            env.push2(i.into(), 0.0.into());
+            Ok(2)
+        }
+        LuaNumber::Float(f) => {
+            let fract = f.fract();
+            let int = f - fract;
+            env.push2(int.into(), fract.into());
+            Ok(2)
+        }
     }
 }
 
@@ -436,14 +415,12 @@ pub fn fmod(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
         env.pop_n(args - 2);
     }
     let (x, y) = env.pop2();
-    let x = match x.try_to_number() {
-        Some(num) => num,
-        None => return Err(RuntimeError::NotNumber),
-    };
-    let y = match y.try_to_number() {
-        Some(num) => num,
-        None => return Err(RuntimeError::NotNumber),
-    };
+    let x = x
+        .try_to_number()
+        .map_err(|e| RuntimeError::BadArgument(1, Box::new(e)))?;
+    let y = y
+        .try_to_number()
+        .map_err(|e| RuntimeError::BadArgument(2, Box::new(e)))?;
     env.push((x % y).into());
     Ok(1)
 }

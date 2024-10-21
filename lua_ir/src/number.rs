@@ -1,5 +1,6 @@
 use crate::FloatType;
 use crate::IntType;
+use crate::RuntimeError;
 
 #[derive(Debug, Clone, Copy)]
 pub enum LuaNumber {
@@ -14,14 +15,14 @@ impl LuaNumber {
             LuaNumber::Float(f) => *f,
         }
     }
-    pub fn try_to_int(&self) -> Option<IntType> {
+    pub fn try_to_int(&self) -> Result<IntType, RuntimeError> {
         match self {
-            LuaNumber::Int(i) => Some(*i),
+            LuaNumber::Int(i) => Ok(*i),
             LuaNumber::Float(f) => {
                 if f.fract() == 0.0 {
-                    Some(*f as IntType)
+                    Ok(*f as IntType)
                 } else {
-                    None
+                    Err(RuntimeError::NoIntegerRepresentation)
                 }
             }
         }
@@ -153,12 +154,12 @@ impl std::cmp::PartialEq for LuaNumber {
         match (self, other) {
             (LuaNumber::Int(a), LuaNumber::Int(b)) => a == b,
             (LuaNumber::Int(a), LuaNumber::Float(_)) => match other.try_to_int() {
-                Some(b) => *a == b,
-                None => false,
+                Ok(b) => *a == b,
+                Err(_) => false,
             },
             (LuaNumber::Float(_), LuaNumber::Int(b)) => match self.try_to_int() {
-                Some(a) => a == *b,
-                None => false,
+                Ok(a) => a == *b,
+                Err(_) => false,
             },
             (LuaNumber::Float(a), LuaNumber::Float(b)) => a == b,
         }
@@ -191,12 +192,13 @@ impl std::cmp::Ord for LuaNumber {
 
 impl std::hash::Hash for LuaNumber {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        if let Some(i) = self.try_to_int() {
+        if let Ok(i) = self.try_to_int() {
             i.hash(state);
             return;
         } else {
             match self {
                 LuaNumber::Int(i) => i.hash(state),
+                // @TODO this is not a good way to hash a float
                 LuaNumber::Float(f) => f.to_bits().hash(state),
             }
         }

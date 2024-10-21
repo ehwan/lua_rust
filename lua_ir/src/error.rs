@@ -1,5 +1,7 @@
 use crate::{LuaEnv, LuaValue};
 
+use lua_tokenizer::TokenizeError;
+
 // @TODO
 // error should match with (real) lua error
 #[derive(Debug, Clone)]
@@ -39,13 +41,12 @@ pub enum RuntimeError {
     AttemptToBitwiseOn(&'static str),
     AttemptToConcatenate(&'static str),
 
-    // ========================
-    /// float has no integer representation
-    FloatToInt,
-    NotInteger,
-    NotNumber,
+    /// when converting a float to int, the float has a fractional part
+    NoIntegerRepresentation,
 
-    // NoMetaMethod,
+    TokenizeError(TokenizeError),
+
+    // ========================
     /// not implemented yet (dummy error for some functions)
     Error,
 }
@@ -65,6 +66,9 @@ impl RuntimeError {
                 LuaValue::String(string.into_bytes())
             }
         }
+    }
+    pub fn to_error_message(&self, env: &LuaEnv) -> String {
+        RuntimeErrorEnvPair(&self, env).to_string()
     }
 }
 
@@ -112,6 +116,8 @@ impl<'a> std::fmt::Display for RuntimeErrorEnvPair<'a> {
             RuntimeError::AttemptToConcatenate(type_str) => {
                 write!(f, "attempt to concatenate a {} value", type_str)
             }
+            RuntimeError::NoIntegerRepresentation => "number has no integer representation".fmt(f),
+            RuntimeError::TokenizeError(err) => write!(f, "{}", err),
             _ => write!(f, "{:?}", self.0),
         }
     }

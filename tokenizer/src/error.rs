@@ -2,7 +2,7 @@ use std::fmt::Display;
 use std::string::FromUtf8Error;
 
 #[non_exhaustive]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum TokenizeError {
     ShortStringNewline {
         /// The starting position of the string

@@ -4,6 +4,7 @@ use crate::IntType;
 use crate::LuaFunction;
 use crate::LuaTable;
 use crate::LuaThread;
+use crate::RuntimeError;
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -102,24 +103,62 @@ impl LuaValue {
             _ => true,
         }
     }
-    pub fn try_to_int(&self) -> Option<IntType> {
-        match self {
-            LuaValue::Number(n) => n.try_to_int(),
-            LuaValue::String(s) => {
-                let s = String::from_utf8_lossy(s);
-                s.parse().ok()
-            }
-            _ => None,
-        }
+    pub fn try_to_int(&self) -> Result<IntType, RuntimeError> {
+        self.try_to_number()?.try_to_int()
     }
-    pub fn try_to_number(&self) -> Option<LuaNumber> {
+    pub fn try_to_number(&self) -> Result<LuaNumber, RuntimeError> {
         match self {
-            LuaValue::Number(n) => Some(*n),
+            LuaValue::Number(n) => Ok(*n),
             LuaValue::String(s) => {
-                let s = String::from_utf8_lossy(s);
-                s.parse().ok().map(LuaNumber::Float)
+                // use `lua_tokenizer` to parse the string into a number
+                let mut tokenizer = lua_tokenizer::Tokenizer::from_bytes(s);
+                tokenizer.ignore_whitespace();
+                // sign
+                let neg = match tokenizer.peek() {
+                    Some(b'-') => {
+                        tokenizer.next();
+                        true
+                    }
+                    Some(b'+') => {
+                        tokenizer.next();
+                        false
+                    }
+                    _ => false,
+                };
+                // number
+                let tokenize_res = tokenizer.tokenize_numeric();
+                match tokenize_res {
+                    Ok(Some(res)) => {
+                        tokenizer.ignore_whitespace();
+                        if tokenizer.is_end() {
+                            match res.token_type {
+                                lua_tokenizer::TokenType::Numeric(numeric) => match numeric {
+                                    lua_tokenizer::IntOrFloat::Int(i) => {
+                                        if neg {
+                                            Ok((-i).into())
+                                        } else {
+                                            Ok(i.into())
+                                        }
+                                    }
+                                    lua_tokenizer::IntOrFloat::Float(f) => {
+                                        if neg {
+                                            Ok((-f).into())
+                                        } else {
+                                            Ok(f.into())
+                                        }
+                                    }
+                                },
+                                _ => Err(RuntimeError::Expected("number", Some("string"))),
+                            }
+                        } else {
+                            Err(RuntimeError::Expected("number", Some("string")))
+                        }
+                    }
+                    Ok(None) => Err(RuntimeError::Expected("number", Some("string"))),
+                    Err(tokenize_error) => Err(RuntimeError::TokenizeError(tokenize_error)),
+                }
             }
-            _ => None,
+            _ => Err(RuntimeError::Expected("number", Some(self.type_str()))),
         }
     }
 

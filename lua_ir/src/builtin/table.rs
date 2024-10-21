@@ -91,10 +91,9 @@ pub fn concat(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
                     ))
                 }
             };
-            let i = match i.try_to_int() {
-                Some(i) => i,
-                None => return Err(RuntimeError::NotNumber),
-            };
+            let i = i
+                .try_to_int()
+                .map_err(|e| RuntimeError::BadArgument(3, Box::new(e)))?;
             let j = list.borrow().len();
 
             (list, sep, i, j)
@@ -122,14 +121,12 @@ pub fn concat(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
                     ))
                 }
             };
-            let i = match i.try_to_int() {
-                Some(i) => i,
-                None => return Err(RuntimeError::NotNumber),
-            };
-            let j = match j.try_to_int() {
-                Some(j) => j,
-                None => return Err(RuntimeError::NotNumber),
-            };
+            let i = i
+                .try_to_int()
+                .map_err(|e| RuntimeError::BadArgument(3, Box::new(e)))?;
+            let j = j
+                .try_to_int()
+                .map_err(|e| RuntimeError::BadArgument(4, Box::new(e)))?;
             (list, sep, i, j)
         }
     };
@@ -204,12 +201,9 @@ pub fn insert(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
                     ));
                 }
             };
-            let pos = match pos.try_to_int() {
-                Some(pos) => pos,
-                _ => {
-                    return Err(RuntimeError::NotNumber);
-                }
-            };
+            let pos = pos
+                .try_to_int()
+                .map_err(|e| RuntimeError::BadArgument(2, Box::new(e)))?;
             let len = table.borrow().len();
             if pos <= 0 || pos > len + 1 {
                 return Err(RuntimeError::BadArgument(
@@ -293,18 +287,15 @@ pub fn move_(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
         }
     };
 
-    let f = match f.try_to_int() {
-        Some(i) => i,
-        None => return Err(RuntimeError::NotNumber),
-    };
-    let e = match e.try_to_int() {
-        Some(i) => i,
-        None => return Err(RuntimeError::NotNumber),
-    };
-    let t = match t.try_to_int() {
-        Some(i) => i,
-        None => return Err(RuntimeError::NotNumber),
-    };
+    let f = f
+        .try_to_int()
+        .map_err(|e| RuntimeError::BadArgument(2, Box::new(e)))?;
+    let e = e
+        .try_to_int()
+        .map_err(|e| RuntimeError::BadArgument(3, Box::new(e)))?;
+    let t = t
+        .try_to_int()
+        .map_err(|e| RuntimeError::BadArgument(4, Box::new(e)))?;
 
     if f <= e {
         for i in f..=e {
@@ -360,10 +351,9 @@ pub fn remove(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
             match list {
                 LuaValue::Table(table) => {
                     let len = table.borrow().len();
-                    let pos = match pos.try_to_int() {
-                        Some(pos) => pos,
-                        None => return Err(RuntimeError::NotNumber),
-                    };
+                    let pos = pos
+                        .try_to_int()
+                        .map_err(|e| RuntimeError::BadArgument(2, Box::new(e)))?;
                     if pos < 0 || pos > len + 1 {
                         return Err(RuntimeError::BadArgument(
                             2,
@@ -580,10 +570,9 @@ pub fn unpack(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
                     ))
                 }
             };
-            let i = match i.try_to_int() {
-                Some(i) => i,
-                None => return Err(RuntimeError::NotNumber),
-            };
+            let i = i
+                .try_to_int()
+                .map_err(|e| RuntimeError::BadArgument(2, Box::new(e)))?;
             let j = list.borrow().len() as IntType;
             (list, i, j)
         }
@@ -599,14 +588,12 @@ pub fn unpack(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
                     ))
                 }
             };
-            let i = match i.try_to_int() {
-                Some(i) => i,
-                None => return Err(RuntimeError::NotNumber),
-            };
-            let j = match j.try_to_int() {
-                Some(j) => j,
-                None => return Err(RuntimeError::NotNumber),
-            };
+            let i = i
+                .try_to_int()
+                .map_err(|e| RuntimeError::BadArgument(2, Box::new(e)))?;
+            let j = j
+                .try_to_int()
+                .map_err(|e| RuntimeError::BadArgument(3, Box::new(e)))?;
             (list, i, j)
         }
     };

@@ -121,10 +121,9 @@ pub fn byte(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
                     ))
                 }
             };
-            let i = match i.try_to_int() {
-                Some(i) => i,
-                None => return Err(RuntimeError::NotInteger),
-            };
+            let i = i
+                .try_to_int()
+                .map_err(|e| RuntimeError::BadArgument(2, Box::new(e)))?;
 
             (s, i, i)
         }
@@ -140,14 +139,12 @@ pub fn byte(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
                     ))
                 }
             };
-            let i = match i.try_to_int() {
-                Some(i) => i,
-                None => return Err(RuntimeError::NotInteger),
-            };
-            let j = match j.try_to_int() {
-                Some(j) => j,
-                None => return Err(RuntimeError::NotInteger),
-            };
+            let i = i
+                .try_to_int()
+                .map_err(|e| RuntimeError::BadArgument(2, Box::new(e)))?;
+            let j = j
+                .try_to_int()
+                .map_err(|e| RuntimeError::BadArgument(3, Box::new(e)))?;
             (s, i, j)
         }
     };
@@ -180,10 +177,9 @@ pub fn sub(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
                     ))
                 }
             };
-            let i = match i.try_to_int() {
-                Some(i) => i,
-                None => return Err(RuntimeError::NotInteger),
-            };
+            let i = i
+                .try_to_int()
+                .map_err(|e| RuntimeError::BadArgument(2, Box::new(e)))?;
             let j = s.len() as IntType;
             (s, i, j)
         }
@@ -201,14 +197,12 @@ pub fn sub(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
                     ))
                 }
             };
-            let i = match i.try_to_int() {
-                Some(i) => i,
-                None => return Err(RuntimeError::NotInteger),
-            };
-            let j = match j.try_to_int() {
-                Some(j) => j,
-                None => return Err(RuntimeError::NotInteger),
-            };
+            let i = i
+                .try_to_int()
+                .map_err(|e| RuntimeError::BadArgument(2, Box::new(e)))?;
+            let j = j
+                .try_to_int()
+                .map_err(|e| RuntimeError::BadArgument(3, Box::new(e)))?;
 
             (s, i, j)
         }
@@ -224,18 +218,16 @@ pub fn char_(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     let mut thread_mut = env.borrow_running_thread_mut();
     let len = thread_mut.data_stack.len();
     for (idx, ch) in thread_mut.data_stack.drain(len - args..).enumerate() {
-        match ch.try_to_int() {
-            Some(i) => {
-                if i < 0 || i > 255 {
-                    return Err(RuntimeError::BadArgument(
-                        idx + 1,
-                        Box::new(RuntimeError::ValueOutOfRange),
-                    ));
-                }
-                s.push(i as u8);
-            }
-            None => return Err(RuntimeError::NotInteger),
+        let ch = ch
+            .try_to_int()
+            .map_err(|e| RuntimeError::BadArgument(idx + 1, Box::new(e)))?;
+        if ch < 0 || ch > 255 {
+            return Err(RuntimeError::BadArgument(
+                idx + 1,
+                Box::new(RuntimeError::ValueOutOfRange),
+            ));
         }
+        s.push(ch as u8);
     }
     thread_mut.data_stack.push(LuaValue::String(s));
     Ok(1)
@@ -338,10 +330,9 @@ pub fn rep(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
                     ))
                 }
             };
-            let n = match n.try_to_int() {
-                Some(n) => n,
-                None => return Err(RuntimeError::NotInteger),
-            };
+            let n = n
+                .try_to_int()
+                .map_err(|e| RuntimeError::BadArgument(2, Box::new(e)))?;
             if n <= 0 {
                 env.push(LuaValue::String(Vec::new()));
             } else {
@@ -363,10 +354,9 @@ pub fn rep(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
                     ))
                 }
             };
-            let n = match n.try_to_int() {
-                Some(n) => n,
-                None => return Err(RuntimeError::NotInteger),
-            };
+            let n = n
+                .try_to_int()
+                .map_err(|e| RuntimeError::BadArgument(2, Box::new(e)))?;
             let sep = match sep {
                 LuaValue::Nil => Vec::new(),
                 LuaValue::String(s) => s,

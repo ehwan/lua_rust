@@ -63,6 +63,9 @@ pub struct Tokenizer<'a> {
 impl<'a> Tokenizer<'a> {
     /// create new tokenizer iterator from source code.
     pub fn new(source: &'a str) -> Self {
+        Self::from_bytes(source.as_bytes())
+    }
+    pub fn from_bytes(source: &'a [u8]) -> Self {
         let mut keyword_map = HashMap::with_capacity(25);
         keyword_map.insert("and", TokenType::And);
         keyword_map.insert("break", TokenType::Break);
@@ -88,7 +91,7 @@ impl<'a> Tokenizer<'a> {
         keyword_map.insert("while", TokenType::While);
 
         Self {
-            source: source.as_bytes(),
+            source,
             byte_offset: 0,
             keyword_map,
         }
@@ -107,10 +110,14 @@ impl<'a> Tokenizer<'a> {
         self.byte_offset += bytes;
     }
 
-    fn peek(&self) -> Option<u8> {
+    pub fn peek(&self) -> Option<u8> {
         self.source.get(self.byte_offset).copied()
     }
-    pub(crate) fn ignore_whitespace(&mut self) {
+    pub fn is_end(&self) -> bool {
+        self.byte_offset >= self.source.len()
+    }
+
+    pub fn ignore_whitespace(&mut self) {
         while let Some(ch) = self.peek() {
             match ch {
                 b' ' | b'\t' | b'\r' | b'\n' => {
@@ -123,7 +130,7 @@ impl<'a> Tokenizer<'a> {
 
     /// parse identifier.
     /// returns `Some` if identifier is successfully parsed.
-    pub(crate) fn tokenize_ident(&mut self) -> Option<Token> {
+    pub fn tokenize_ident(&mut self) -> Option<Token> {
         let i0 = self.byte_offset;
         if let Some(ch) = self.peek() {
             match ch {
@@ -166,7 +173,7 @@ impl<'a> Tokenizer<'a> {
     /// parse literal.
     /// returns error if it is definitely literal but it contains invalid characters.
     /// otherwise, Ok(true) if it is literal, Ok(false) if it is not literal.
-    pub(crate) fn tokenize_literal(&mut self) -> Result<Option<Token>, TokenizeError> {
+    pub fn tokenize_literal(&mut self) -> Result<Option<Token>, TokenizeError> {
         if let Some(token) = self.tokenize_numeric()? {
             Ok(Some(token))
         } else if let Some(token) = self.tokenize_string()? {
@@ -186,7 +193,7 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
-    pub(crate) fn tokenize_numeric(&mut self) -> Result<Option<Token>, TokenizeError> {
+    pub fn tokenize_numeric(&mut self) -> Result<Option<Token>, TokenizeError> {
         let i0 = self.byte_offset;
         // check if it is hex
         if self.starts_with_and_advance(b"0x") || self.starts_with_and_advance(b"0X") {
@@ -414,7 +421,7 @@ impl<'a> Tokenizer<'a> {
             Ok(Some(token))
         }
     }
-    pub(crate) fn short_string_literal(
+    pub fn short_string_literal(
         &mut self,
         delim: u8,
         start: usize,
@@ -772,7 +779,7 @@ impl<'a> Tokenizer<'a> {
             end: self.byte_offset,
         })
     }
-    pub(crate) fn long_string_literal(
+    pub fn long_string_literal(
         &mut self,
         equal_count: usize,
         start: usize,
@@ -810,7 +817,7 @@ impl<'a> Tokenizer<'a> {
             equal_count,
         })
     }
-    pub(crate) fn tokenize_string(&mut self) -> Result<Option<Token>, TokenizeError> {
+    pub fn tokenize_string(&mut self) -> Result<Option<Token>, TokenizeError> {
         match self.peek() {
             Some(b'\'') | Some(b'"') => {
                 // since ' or " is consumed, it is definitely short string literal.
@@ -888,7 +895,7 @@ impl<'a> Tokenizer<'a> {
     }
 
     /// try tokenize single token.
-    pub(crate) fn try_tokenize(&mut self) -> Result<Option<Token>, TokenizeError> {
+    pub fn try_tokenize(&mut self) -> Result<Option<Token>, TokenizeError> {
         self.ignore_whitespace();
         // check eof
         if self.byte_offset >= self.source.len() {

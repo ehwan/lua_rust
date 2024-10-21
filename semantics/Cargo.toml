@@ -1,6 +1,6 @@
 [package]
 name = "lua_semantics"
-version = "0.4.1"
+version = "0.5.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "semantic analysis and enhanced AST converter for lua_parser crate"
@@ -10,7 +10,7 @@ keywords = ["parser", "lua", "glr"]
 categories = ["parsing"]
 
 [dependencies]
-lua_parser = { version = "0.6.0", path = "../parser" }
+lua_parser = { version = "0.7.0", path = "../parser" }
 codespan-reporting = { version = "0.11", optional = true }
 
 [features]
