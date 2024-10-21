@@ -9,8 +9,8 @@ use crate::LuaTable;
 use crate::LuaValue;
 use crate::RuntimeError;
 
-// mod io;
 mod coroutine;
+mod io;
 mod math;
 mod os;
 mod string;
@@ -65,8 +65,7 @@ pub fn init_env() -> Result<LuaTable, RuntimeError> {
     env.insert("table".into(), table::init()?.into());
     env.insert("coroutine".into(), coroutine::init()?.into());
     env.insert("os".into(), os::init()?.into());
-
-    // env.insert("io".into(), io::init()?.into());
+    env.insert("io".into(), io::init()?.into());
 
     // `_G` will be added in `VM::new_stack()` or `Stack::new()`
     Ok(env)
