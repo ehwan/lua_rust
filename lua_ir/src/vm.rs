@@ -24,8 +24,6 @@ pub struct LuaEnv {
 
     pub(crate) chunk: Chunk,
 
-    /// main thread
-    pub(crate) main_thread: Rc<RefCell<LuaThread>>,
     /// coroutine stack
     pub(crate) coroutines: Vec<Rc<RefCell<LuaThread>>>,
 
@@ -38,21 +36,20 @@ impl LuaEnv {
         let env = Rc::new(RefCell::new(builtin::init_env().unwrap()));
         env.borrow_mut()
             .insert("_G".into(), LuaValue::Table(Rc::clone(&env)));
-        let main_thread = Rc::new(RefCell::new(LuaThread::new_main()));
+        let main_thread = Rc::new(RefCell::new(LuaThread::new_main(&chunk)));
         LuaEnv {
             env: LuaValue::Table(env),
             rng: rand::rngs::StdRng::from_entropy(),
 
             chunk,
 
-            main_thread: Rc::clone(&main_thread),
             coroutines: vec![main_thread],
             last_op: "last_op".to_string(),
         }
     }
 
     pub fn main_thread(&self) -> &Rc<RefCell<LuaThread>> {
-        &self.main_thread
+        self.coroutines.first().unwrap()
     }
     pub fn running_thread(&self) -> &Rc<RefCell<LuaThread>> {
         self.coroutines.last().unwrap()
@@ -795,19 +792,17 @@ impl LuaEnv {
                 let func_borrow = func.borrow();
                 match &*func_borrow {
                     LuaFunction::LuaFunc(lua_internal) => {
-                        let usize_len0 = self.running_thread().borrow().usize_stack.len();
                         let upvalues = lua_internal.upvalues.clone();
                         let function_id = lua_internal.function_id;
                         drop(func_borrow);
                         self.function_call_lua(args_num, upvalues, function_id, expected_ret)?;
                         if force_wait {
-                            let cur_coroutine_idx = self.coroutines.len() - 1;
+                            let coroutine_len = self.coroutines.len();
+                            let call_stack_len = self.running_thread().borrow().call_stack.len();
                             loop {
-                                if self.coroutines[cur_coroutine_idx]
-                                    .borrow()
-                                    .usize_stack
-                                    .len()
-                                    <= usize_len0
+                                if coroutine_len == self.coroutines.len()
+                                    && self.coroutines[coroutine_len - 1].borrow().call_stack.len()
+                                        == call_stack_len - 1
                                 {
                                     break;
                                 }
@@ -859,57 +854,75 @@ impl LuaEnv {
 
         // adjust function arguments
         // extract variadic arguments if needed
-        // push function call stack
-        let variadic = if func_info.is_variadic {
-            if args_num <= func_info.args {
-                thread_mut.data_stack.resize_with(
-                    thread_mut.data_stack.len() - args_num + func_info.args,
-                    Default::default,
-                );
-                Vec::new()
+        if func_info.is_variadic {
+            let (variadic, rest_args_num) = if args_num <= func_info.args {
+                (Vec::new(), args_num)
             } else {
-                thread_mut
-                    .data_stack
-                    .drain(thread_mut.data_stack.len() - args_num + func_info.args..)
-                    .collect()
-            }
-        } else {
-            thread_mut.data_stack.resize_with(
-                thread_mut.data_stack.len() - args_num + func_info.args,
+                (
+                    thread_mut
+                        .data_stack
+                        .drain(thread_mut.data_stack.len() - args_num + func_info.args..)
+                        .collect(),
+                    func_info.args,
+                )
+            };
+            // push call stack frame
+            thread_mut.call_stack.push(CallStackFrame {
+                upvalues,
+                return_expected: expected_ret,
+                variadic: variadic,
+                bp: thread_mut.bp,
+                counter: thread_mut.counter,
+                data_stack: thread_mut.data_stack.len() - args_num,
+                local_variables: thread_mut.local_variables.len(),
+            });
+
+            // set base pointer to new stack frame
+            thread_mut.bp = thread_mut.local_variables.len();
+            // reserve stack space for local variables
+            thread_mut.local_variables.resize_with(
+                thread_mut.local_variables.len() + func_info.local_variables,
                 Default::default,
             );
-            Vec::new()
-        };
-        thread_mut.function_stack.push(FunctionStackElem {
-            upvalues,
-            return_expected: expected_ret,
-            variadic,
-        });
 
-        // push stack frame
-        //  - current instruction
-        thread_mut.usize_stack.push(thread_mut.counter);
-        //  - current base pointer
-        thread_mut.usize_stack.push(thread_mut.bp);
-        //  - current stack size
-        thread_mut
-            .usize_stack
-            .push(thread_mut.data_stack.len() - args_num);
-
-        // set base pointer to new stack frame
-        thread_mut.bp = thread_mut.local_variables.len();
-        // reserve stack space for local variables
-        thread_mut
-            .local_variables
-            .reserve(func_info.local_variables);
-
-        // copy arguments to local variables
-        thread_mut.local_variables.extend(
-            thread_mut
+            // copy arguments to local variables
+            for (idx, arg) in thread_mut
                 .data_stack
-                .drain(thread_mut.data_stack.len() - func_info.args..)
-                .map(|arg| RefOrValue::Value(arg)),
-        );
+                .drain(thread_mut.data_stack.len() - rest_args_num..)
+                .enumerate()
+            {
+                thread_mut.local_variables[thread_mut.bp + idx] = RefOrValue::Value(arg);
+            }
+        } else {
+            // push call stack frame
+            thread_mut.call_stack.push(CallStackFrame {
+                upvalues,
+                return_expected: expected_ret,
+                variadic: Vec::new(),
+                bp: thread_mut.bp,
+                counter: thread_mut.counter,
+                data_stack: thread_mut.data_stack.len() - args_num,
+                local_variables: thread_mut.local_variables.len(),
+            });
+
+            // set base pointer to new stack frame
+            thread_mut.bp = thread_mut.local_variables.len();
+            // reserve stack space for local variables
+            thread_mut.local_variables.resize_with(
+                thread_mut.local_variables.len() + func_info.local_variables,
+                Default::default,
+            );
+
+            // copy arguments to local variables
+            for (idx, arg) in thread_mut
+                .data_stack
+                .drain(thread_mut.data_stack.len() - args_num..)
+                .take(func_info.args)
+                .enumerate()
+            {
+                thread_mut.local_variables[thread_mut.bp + idx] = RefOrValue::Value(arg);
+            }
+        };
 
         // move program counter to function start
         thread_mut.counter = func_info.address;
@@ -986,14 +999,6 @@ impl LuaEnv {
                 let mut thread_mut = self.running_thread().borrow_mut();
                 let top = thread_mut.data_stack.pop().unwrap();
                 let local_idx = local_id + thread_mut.bp;
-                {
-                    let len = thread_mut.local_variables.len();
-                    if len <= local_idx {
-                        thread_mut
-                            .local_variables
-                            .resize_with(local_idx + 1, Default::default);
-                    }
-                }
                 *thread_mut.local_variables.get_mut(local_idx).unwrap() = RefOrValue::Value(top);
             }
             Instruction::IsNil => {
@@ -1093,7 +1098,7 @@ impl LuaEnv {
                     &self
                         .running_thread()
                         .borrow()
-                        .function_stack
+                        .call_stack
                         .last()
                         .unwrap()
                         .upvalues[src_upvalue_id],
@@ -1115,7 +1120,7 @@ impl LuaEnv {
                     &self
                         .running_thread()
                         .borrow()
-                        .function_stack
+                        .call_stack
                         .last()
                         .unwrap()
                         .upvalues[upvalue_id],
@@ -1128,7 +1133,7 @@ impl LuaEnv {
                 *self
                     .running_thread()
                     .borrow()
-                    .function_stack
+                    .call_stack
                     .last()
                     .unwrap()
                     .upvalues[upvalue_id]
@@ -1212,7 +1217,7 @@ impl LuaEnv {
             Instruction::Return => {
                 if self.coroutines.len() > 1 {
                     let mut thread_mut = self.running_thread().borrow_mut();
-                    if thread_mut.function_stack.len() == 1 {
+                    if thread_mut.call_stack.len() == 1 {
                         thread_mut.set_dead();
                         drop(thread_mut);
                         let co = self.coroutines.pop().unwrap();
@@ -1240,18 +1245,14 @@ impl LuaEnv {
                                 .resize_with(adjusted, Default::default);
                         }
                     } else {
-                        if let Some(func) = thread_mut.function_stack.pop() {
+                        if let Some(func) = thread_mut.call_stack.pop() {
                             // return from function call
-                            let old_stacklen = thread_mut.usize_stack.pop().unwrap();
-                            let old_bp = thread_mut.usize_stack.pop().unwrap();
-                            let old_pc = thread_mut.usize_stack.pop().unwrap();
-                            let old_local_len = thread_mut.bp;
-                            thread_mut.local_variables.truncate(old_local_len);
-                            thread_mut.bp = old_bp;
-                            thread_mut.counter = old_pc;
+                            thread_mut.local_variables.truncate(func.local_variables);
+                            thread_mut.bp = func.bp;
+                            thread_mut.counter = func.counter;
 
                             if let Some(expected) = func.return_expected {
-                                let adjusted = old_stacklen + expected;
+                                let adjusted = func.data_stack + expected;
                                 thread_mut
                                     .data_stack
                                     .resize_with(adjusted, Default::default);
@@ -1262,18 +1263,14 @@ impl LuaEnv {
                     }
                 } else {
                     let mut thread_mut = self.running_thread().borrow_mut();
-                    if let Some(func) = thread_mut.function_stack.pop() {
+                    if let Some(func) = thread_mut.call_stack.pop() {
                         // return from function call
-                        let old_stacklen = thread_mut.usize_stack.pop().unwrap();
-                        let old_bp = thread_mut.usize_stack.pop().unwrap();
-                        let old_pc = thread_mut.usize_stack.pop().unwrap();
-                        let old_local_len = thread_mut.bp;
-                        thread_mut.local_variables.truncate(old_local_len);
-                        thread_mut.bp = old_bp;
-                        thread_mut.counter = old_pc;
+                        thread_mut.local_variables.truncate(func.local_variables);
+                        thread_mut.bp = func.bp;
+                        thread_mut.counter = func.counter;
 
                         if let Some(expected) = func.return_expected {
-                            let adjusted = old_stacklen + expected;
+                            let adjusted = func.data_stack + expected;
                             thread_mut
                                 .data_stack
                                 .resize_with(adjusted, Default::default);
@@ -1292,7 +1289,7 @@ impl LuaEnv {
                     let mut variadic = self
                         .running_thread()
                         .borrow()
-                        .function_stack
+                        .call_stack
                         .last()
                         .unwrap()
                         .variadic
@@ -1306,7 +1303,7 @@ impl LuaEnv {
                     let mut variadic = self
                         .running_thread()
                         .borrow()
-                        .function_stack
+                        .call_stack
                         .last()
                         .unwrap()
                         .variadic
@@ -1381,13 +1378,22 @@ impl LuaEnv {
 }
 
 #[derive(Debug, Clone)]
-pub struct FunctionStackElem {
+pub struct CallStackFrame {
     /// upvalues
     pub upvalues: Vec<Rc<RefCell<LuaValue>>>,
     /// number of return values expected.
     pub return_expected: Option<usize>,
     /// variadic arguments
     pub variadic: Vec<LuaValue>,
+
+    /// data_stack.len() to restore when return
+    pub data_stack: usize,
+    /// bp to restore when return
+    pub bp: usize,
+    /// program counter to restore when return
+    pub counter: usize,
+    /// local_variables.len() to restore when return
+    pub local_variables: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -1428,7 +1434,7 @@ pub struct ThreadState {
     pub local_variables: usize,
     pub data_stack: usize,
     pub usize_stack: usize,
-    pub function_stack: usize,
+    pub call_stack: usize,
     pub counter: usize,
     pub bp: usize,
 }
@@ -1447,7 +1453,7 @@ pub struct LuaThread {
     pub usize_stack: Vec<usize>,
 
     // function object, variadic, return values multire expected count
-    pub function_stack: Vec<FunctionStackElem>,
+    pub call_stack: Vec<CallStackFrame>,
 
     /// current instruction counter
     pub counter: usize,
@@ -1458,24 +1464,38 @@ pub struct LuaThread {
     pub status: ThreadStatus,
 }
 impl LuaThread {
-    pub fn new_main() -> LuaThread {
+    pub fn new_main(chunk: &Chunk) -> LuaThread {
+        let mut local_variables = Vec::new();
+        local_variables.resize_with(chunk.stack_size, Default::default);
         LuaThread {
-            local_variables: Vec::new(),
+            local_variables,
             data_stack: Vec::new(),
             usize_stack: Vec::new(),
-            function_stack: Vec::new(),
+            call_stack: Vec::new(),
             counter: 0,
             bp: 0,
             func: None,
             status: ThreadStatus::Running,
         }
     }
-    pub fn new_coroutine(_env: &LuaEnv, func: Rc<RefCell<LuaFunction>>) -> LuaThread {
+    pub fn new_coroutine(env: &LuaEnv, func: Rc<RefCell<LuaFunction>>) -> LuaThread {
+        let mut local_variables = Vec::new();
+        let func_borrow = func.borrow();
+        match &*func_borrow {
+            LuaFunction::LuaFunc(func) => {
+                local_variables.resize_with(
+                    env.chunk.functions[func.function_id].local_variables,
+                    Default::default,
+                );
+            }
+            _ => {}
+        }
+        drop(func_borrow);
         LuaThread {
-            local_variables: Vec::new(),
+            local_variables,
             data_stack: Vec::new(),
             usize_stack: Vec::new(),
-            function_stack: Vec::new(),
+            call_stack: Vec::new(),
             counter: usize::MAX,
             bp: 0,
             func: Some(func),
@@ -1488,7 +1508,7 @@ impl LuaThread {
             local_variables: self.local_variables.len(),
             data_stack: self.data_stack.len(),
             usize_stack: self.usize_stack.len(),
-            function_stack: self.function_stack.len(),
+            call_stack: self.call_stack.len(),
             counter: self.counter,
             bp: self.bp,
         }
@@ -1498,7 +1518,7 @@ impl LuaThread {
         self.local_variables.truncate(state.local_variables);
         self.data_stack.truncate(state.data_stack);
         self.usize_stack.truncate(state.usize_stack);
-        self.function_stack.truncate(state.function_stack);
+        self.call_stack.truncate(state.call_stack);
         self.counter = state.counter;
         self.bp = state.bp;
     }
