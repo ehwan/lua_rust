@@ -84,6 +84,47 @@ impl Context {
         };
         program
     }
+    /// return address of newly added instruction to be executed
+    pub fn emit_add(
+        &mut self,
+        mut block: Block,
+        ctx: &mut lua_semantics::Context,
+        chunk: &mut Chunk,
+    ) -> usize {
+        if block.return_statement.is_none() {
+            block.return_statement = Some(lua_semantics::ReturnStatement::new(Vec::new()));
+        }
+        // any function definition will not be emitted, but stored in the context
+        self.emit_block(block);
+
+        // emit function definitions
+        for func in ctx.functions.iter().skip(self.functions.len()) {
+            let func_info = FunctionInfo {
+                args: func.args.len(),
+                is_variadic: func.variadic,
+                local_variables: func.stack_size,
+                address: self.instructions.len(),
+            };
+            self.functions.push(func_info);
+            self.emit_function_definition(func.clone());
+        }
+
+        let l = chunk.instructions.len();
+        chunk
+            .instructions
+            .extend(self.instructions.iter().skip(l).cloned());
+        chunk
+            .functions
+            .extend(self.functions.iter().skip(chunk.functions.len()).cloned());
+        chunk.label_map.extend(
+            self.label_map
+                .iter()
+                .skip(chunk.label_map.len())
+                .map(|x| x.unwrap()),
+        );
+
+        l
+    }
 
     fn emit_function_definition(&mut self, mut func: FunctionDefinition) {
         if func.body.return_statement.is_none() {

@@ -58,7 +58,7 @@ pub struct InvalidToken {
     /// expected tokens
     pub expected: Vec<Token>,
     /// expected nonterminal tokens
-    pub expected_nonterm: Vec<parser_expanded::ChunkNonTerminals>,
+    pub expected_nonterm: Vec<parser_expanded::ChunkOrExpressionsNonTerminals>,
 }
 impl std::fmt::Display for InvalidToken {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

@@ -29,22 +29,34 @@ pub struct LuaEnv {
 
     /// last operation (for error message)
     pub(crate) last_op: String,
+
+    pub(crate) parser: lua_parser::Parser,
+    pub(crate) parser_context: Option<lua_parser::Context>,
+    pub(crate) semantic_context: lua_semantics::Context,
+    pub(crate) ir_context: crate::Context,
 }
 
 impl LuaEnv {
-    pub fn new(chunk: Chunk) -> LuaEnv {
+    pub fn new() -> LuaEnv {
         let env = Rc::new(RefCell::new(builtin::init_env().unwrap()));
         env.borrow_mut()
             .insert("_G".into(), LuaValue::Table(Rc::clone(&env)));
-        let main_thread = Rc::new(RefCell::new(LuaThread::new_main(&chunk)));
+        // let main_thread = Rc::new(RefCell::new(LuaThread::new_main(&chunk)));
+        let mut semantic_context = lua_semantics::Context::new();
+        semantic_context.begin_scope(false);
         LuaEnv {
             env: LuaValue::Table(env),
             rng: rand::rngs::StdRng::from_entropy(),
 
-            chunk,
+            chunk: Chunk::new(),
 
-            coroutines: vec![main_thread],
+            coroutines: vec![],
             last_op: "last_op".to_string(),
+
+            parser: lua_parser::Parser::new(),
+            parser_context: None,
+            semantic_context,
+            ir_context: crate::Context::new(),
         }
     }
 
@@ -53,6 +65,145 @@ impl LuaEnv {
     }
     pub fn running_thread(&self) -> &Rc<RefCell<LuaThread>> {
         self.coroutines.last().unwrap()
+    }
+
+    /// Returns if there is uncompleted interpreter line, waiting for more input
+    pub fn is_feed_pending(&self) -> bool {
+        self.parser_context.is_some()
+    }
+    /// Clears uncompleted line
+    pub fn clear_feed_pending(&mut self) {
+        self.parser_context = None;
+    }
+    /// Feed lua source code for interpreter.
+    /// If there was uncompleted line, this will be appended to it.
+    pub fn feed_line(&mut self, source: &[u8]) -> Result<(), RuntimeError> {
+        if self.parser_context.is_none() {
+            self.parser_context = Some(lua_parser::Context::new());
+        }
+        for token in lua_tokenizer::Tokenizer::from_bytes(source) {
+            match token {
+                Ok(token) => {
+                    match self
+                        .parser_context
+                        .as_mut()
+                        .unwrap()
+                        .feed(&self.parser, token, &mut ())
+                    {
+                        Ok(_) => {}
+                        Err(err) => {
+                            self.clear_feed_pending();
+                            return Err(RuntimeError::Custom(LuaValue::String(
+                                err.to_string().into(),
+                            )));
+                        }
+                    }
+                }
+                Err(err) => {
+                    self.clear_feed_pending();
+                    return Err(RuntimeError::TokenizeError(err));
+                }
+            }
+        }
+
+        if !self.parser_context.as_ref().unwrap().can_feed(
+            &self.parser,
+            &lua_tokenizer::Token::new_type(lua_tokenizer::TokenType::Eof),
+        ) {
+            return Ok(());
+        }
+
+        self.parser_context
+            .as_mut()
+            .unwrap()
+            .feed(
+                &self.parser,
+                lua_tokenizer::Token::new_type(lua_tokenizer::TokenType::Eof),
+                &mut (),
+            )
+            .ok();
+
+        let mut matched_stmt = None;
+        let mut matched_expr = None;
+        for m in std::mem::take(&mut self.parser_context)
+            .unwrap()
+            .accept_all()
+        {
+            match m {
+                lua_parser::ChunkOrExpressions::Chunk(chunk) => {
+                    if matched_stmt.is_some() {
+                        return Err(RuntimeError::Custom(LuaValue::String(
+                            "ambiguous statement".into(),
+                        )));
+                    }
+                    matched_stmt = Some(chunk);
+                }
+                lua_parser::ChunkOrExpressions::Expressions(exprs) => {
+                    if matched_expr.is_some() {
+                        return Err(RuntimeError::Custom(LuaValue::String(
+                            "ambiguous expression".into(),
+                        )));
+                    }
+                    matched_expr = Some(exprs);
+                }
+            }
+        }
+        // prefer expression to statement, if both are matched.
+        // if expression matched, pass it to print() builtin function
+        if let Some(matched_expr) = matched_expr {
+            let args = lua_parser::FunctionCallArguments {
+                args: matched_expr,
+                span: lua_parser::Span::new_none(),
+            };
+            let print_name = lua_parser::ExprIdent::new(lua_parser::SpannedString::new(
+                "print".to_string(),
+                lua_parser::Span::new_none(),
+            ));
+            let function_call = lua_parser::StmtFunctionCall::new(
+                lua_parser::Expression::Ident(print_name),
+                None,
+                args,
+                lua_parser::Span::new_none(),
+            );
+            let function_call = lua_parser::Statement::FunctionCall(function_call);
+            let blk =
+                lua_parser::Block::new(vec![function_call], None, lua_parser::Span::new_none());
+            matched_stmt = Some(blk);
+        }
+        if let Some(matched_stmt) = matched_stmt {
+            let processed_block =
+                match self
+                    .semantic_context
+                    .process_block(matched_stmt, true, false)
+                {
+                    Ok(res) => res,
+                    Err(err) => {
+                        return Err(RuntimeError::Custom(LuaValue::String(
+                            err.to_string().into(),
+                        )));
+                    }
+                };
+            let address = self.ir_context.emit_add(
+                processed_block,
+                &mut self.semantic_context,
+                &mut self.chunk,
+            );
+
+            let mut thread = LuaThread::new();
+            thread.counter = address;
+            thread.status = ThreadStatus::Running;
+            self.coroutines.push(Rc::new(RefCell::new(thread)));
+            match self.run() {
+                Ok(_) => {}
+                Err(err) => {
+                    // restore call stack
+                    self.coroutines.clear();
+                    return Err(err);
+                }
+            }
+        }
+
+        Ok(())
     }
 
     // pub fn error(&self, error_obj: LuaValue) -> RuntimeError {}
@@ -833,7 +984,8 @@ impl LuaEnv {
                     self.function_call(args_num + 1, meta, expected_ret, force_wait)
                 } else {
                     // @TODO : error message
-                    Err(RuntimeError::Custom("__call metamethod not found".into()))
+                    let msg = format!("__call metamethod not found for {}", other);
+                    Err(RuntimeError::Custom(msg.into()))
                 }
             }
         }
@@ -999,6 +1151,13 @@ impl LuaEnv {
                 let mut thread_mut = self.running_thread().borrow_mut();
                 let top = thread_mut.data_stack.pop().unwrap();
                 let local_idx = local_id + thread_mut.bp;
+                if thread_mut.local_variables.len() <= local_idx {
+                    let gap = local_idx - thread_mut.local_variables.len() + 1;
+                    let new_len = thread_mut.local_variables.len() + 2 * gap;
+                    thread_mut
+                        .local_variables
+                        .resize_with(new_len, Default::default);
+                }
                 *thread_mut.local_variables.get_mut(local_idx).unwrap() = RefOrValue::Value(top);
             }
             Instruction::IsNil => {
@@ -1464,6 +1623,18 @@ pub struct LuaThread {
     pub status: ThreadStatus,
 }
 impl LuaThread {
+    pub fn new() -> LuaThread {
+        LuaThread {
+            local_variables: Vec::new(),
+            data_stack: Vec::new(),
+            usize_stack: Vec::new(),
+            call_stack: Vec::new(),
+            counter: 0,
+            bp: 0,
+            func: None,
+            status: ThreadStatus::NotStarted,
+        }
+    }
     pub fn new_main(chunk: &Chunk) -> LuaThread {
         let mut local_variables = Vec::new();
         local_variables.resize_with(chunk.stack_size, Default::default);
@@ -1543,4 +1714,13 @@ pub struct Chunk {
     pub functions: Vec<FunctionInfo>,
     pub stack_size: usize,
 }
-impl Chunk {}
+impl Chunk {
+    pub fn new() -> Chunk {
+        Chunk {
+            instructions: Vec::new(),
+            label_map: Vec::new(),
+            functions: Vec::new(),
+            stack_size: 0,
+        }
+    }
+}

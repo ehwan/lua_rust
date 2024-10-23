@@ -12,7 +12,7 @@ lua syntax parser & interpreter in Rust
       - stack offset of local variables
       - scope checking for `return`, `break`, `goto`, `label`, ...
       - split function definition into separated Chunks
- - `lua_ir` : generate IRs from enhanced AST, and run on virtual machine (WIP)
+ - `lua_ir` : generate IRs from enhanced AST, provide VM interface for running IRs (WIP)
 
 ## Cargo Features
  - `32bit`: use 32bit integer and float for `lua numeric` type
@@ -20,8 +20,14 @@ lua syntax parser & interpreter in Rust
 
 
 ## how to run
+Simply running
 ```
 $ cargo run <source_file.lua>
 ```
+or
+```
+$ cargo run
+```
+will start lua interpreter.
 
-will print the pretty-formatted `Debug` output of the AST ( `"{:#?}"` )
+No command line arguments are supported yet, some(many) of std functions are not implemented yet.

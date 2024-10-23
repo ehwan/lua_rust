@@ -11,6 +11,7 @@ use crate::Statement;
 use crate::Span;
 use crate::SpannedString;
 use crate::ParseError;
+use crate::ChunkOrExpressions;
 
 // @TODO Block span
 
@@ -85,7 +86,12 @@ use crate::ParseError;
 %token while_ Token::new_type(TokenType::While);
 %eof Token::new_type(TokenType::Eof);
 
-%start Chunk;
+%start ChunkOrExpressions;
+
+ChunkOrExpressions(ChunkOrExpressions)
+    : Chunk { ChunkOrExpressions::Chunk(Chunk) }
+    | ExpList1 { ChunkOrExpressions::Expressions(ExpList1) }
+    ;
 
 Chunk(statement::Block)
     : Block

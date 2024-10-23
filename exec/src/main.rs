@@ -1,61 +1,41 @@
-use codespan_reporting::term;
-use codespan_reporting::{
-    files::SimpleFiles,
-    term::termcolor::{ColorChoice, StandardStream},
-};
+use std::io::Write;
+
 use lua_ir::LuaEnv;
 
 fn main() {
-    let filename = std::env::args().nth(1).expect("no filename given");
-    let source = std::fs::read_to_string(&filename).expect("failed to read file");
+    let mut env = LuaEnv::new();
 
-    let block = match lua_parser::parse_str(&source) {
-        Ok(block) => block,
-        Err(err) => {
-            let mut files = SimpleFiles::new();
-            let file_id = files.add(&filename, &source);
-
-            let diag = err.to_diag(file_id);
-            let writer = StandardStream::stderr(ColorChoice::Auto);
-            let config = term::Config::default();
-            term::emit(&mut writer.lock(), &config, &files, &diag)
-                .expect("Failed to write to stderr");
-
-            return;
+    let mut arg = std::env::args();
+    arg.next();
+    if let Some(filename) = arg.next() {
+        let source = std::fs::read_to_string(&filename).expect("failed to read file");
+        match env.feed_line(source.as_bytes()) {
+            Ok(_) => {}
+            Err(e) => {
+                let message = e.to_error_message(&env);
+                eprintln!("{}", message);
+            }
         }
-    };
-
-    let mut semantics = lua_semantics::Context::new();
-    let enhanced = match semantics.process(block) {
-        Ok(block) => block,
-        Err(err) => {
-            let mut files = SimpleFiles::new();
-            let file_id = files.add(&filename, &source);
-
-            let diag = err.to_diag(file_id);
-            let writer = StandardStream::stderr(ColorChoice::Auto);
-            let config = term::Config::default();
-            term::emit(&mut writer.lock(), &config, &files, &diag)
-                .expect("Failed to write to stderr");
-
-            return;
-        }
-    };
-    println!("{:#?}", enhanced);
-
-    let context = lua_ir::Context::new();
-    let chunk = context.emit(enhanced, semantics);
-
-    for (i, instr) in chunk.instructions.iter().enumerate() {
-        println!("{:04}: {:?}", i, instr);
+        env.clear_feed_pending();
     }
 
-    let mut env = LuaEnv::new(chunk);
-    match env.run() {
-        Ok(_) => {}
-        Err(e) => {
-            let message = e.to_error_message(&env);
-            eprintln!("{}", message);
+    loop {
+        let mut input = String::new();
+
+        if env.is_feed_pending() {
+            print!(">> ");
+        } else {
+            print!("> ");
+        }
+        std::io::stdout().flush().unwrap();
+        std::io::stdin().read_line(&mut input).unwrap();
+
+        match env.feed_line(input.as_bytes()) {
+            Ok(_) => {}
+            Err(e) => {
+                let message = e.to_error_message(&env);
+                eprintln!("{}", message);
+            }
         }
     }
 }

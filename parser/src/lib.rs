@@ -81,11 +81,27 @@ pub use statement::StmtWhile;
 
 pub use lua_tokenizer::Tokenizer;
 
+pub use parser::ChunkOrExpressionsContext as Context;
+pub use parser::ChunkOrExpressionsInvalidTerminalError as InvalidTerminalError;
+pub use parser::ChunkOrExpressionsParser as Parser;
+
+/// for interpreter to handle both chunk and expression
+#[derive(Debug, Clone)]
+pub enum ChunkOrExpressions {
+    Chunk(Block),
+    Expressions(Vec<Expression>),
+}
+
 /// parse lua source code to AST
 pub fn parse_str(source: &str) -> Result<Block, ParseError> {
-    let tokenizer = Tokenizer::new(source);
-    let parser = parser::ChunkParser::new();
-    let mut context = parser::ChunkContext::new();
+    parse_bytes(source.as_bytes())
+}
+
+/// parse lua source code to AST
+pub fn parse_bytes(source: &[u8]) -> Result<Block, ParseError> {
+    let tokenizer = Tokenizer::from_bytes(source);
+    let parser = parser::ChunkOrExpressionsParser::new();
+    let mut context = parser::ChunkOrExpressionsContext::new();
 
     for token in tokenizer {
         let token = match token {
@@ -139,10 +155,23 @@ pub fn parse_str(source: &str) -> Result<Block, ParseError> {
         }
     }
 
-    match context.accept() {
-        Ok(block) => Ok(block),
-        Err(_) => {
-            return Err(ParseError::Ambiguous);
+    let mut block = None;
+
+    for matched in context.accept_all() {
+        match matched {
+            ChunkOrExpressions::Chunk(block_) => {
+                if block.is_some() {
+                    return Err(ParseError::Ambiguous);
+                }
+                block = Some(block_);
+            }
+            _ => {}
         }
+    }
+
+    if let Some(block) = block {
+        Ok(block)
+    } else {
+        Err(ParseError::Ambiguous)
     }
 }

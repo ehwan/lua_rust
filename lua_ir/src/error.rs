@@ -118,6 +118,8 @@ impl<'a> std::fmt::Display for RuntimeErrorEnvPair<'a> {
             }
             RuntimeError::NoIntegerRepresentation => "number has no integer representation".fmt(f),
             RuntimeError::TokenizeError(err) => write!(f, "{}", err),
+
+            RuntimeError::Custom(val) => write!(f, "{}", val),
             _ => write!(f, "{:?}", self.0),
         }
     }

@@ -39,7 +39,7 @@ impl Context {
         }
         0
     }
-    fn begin_scope(&mut self, is_loop: bool) {
+    pub fn begin_scope(&mut self, is_loop: bool) {
         let offset = self.new_offset();
         self.scope_counter += 1;
         self.scopes.push(Scope::Block(ScopeBlock {
@@ -169,7 +169,7 @@ impl Context {
         self.process_block(block, false, false)
     }
 
-    fn process_block(
+    pub fn process_block(
         &mut self,
         block: lua_parser::Block,
         make_scope: bool,
