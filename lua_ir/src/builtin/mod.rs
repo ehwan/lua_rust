@@ -99,6 +99,7 @@ pub fn pcall(
         return Err(RuntimeError::new_empty_argument(1, "value"));
     }
 
+    let coroutine_count = env.coroutines.len();
     let thread_borrow = env.running_thread().borrow();
     let mut thread_state = thread_borrow.to_state();
     thread_state.data_stack -= args;
@@ -109,6 +110,7 @@ pub fn pcall(
         Some(0) => match env.function_call(args - 1, func, Some(0), true) {
             Ok(_) => Ok(()),
             Err(_e) => {
+                env.coroutines.truncate(coroutine_count);
                 env.running_thread().borrow_mut().from_state(thread_state);
                 Ok(())
             }
@@ -121,6 +123,7 @@ pub fn pcall(
                 Ok(())
             }
             Err(e) => {
+                env.coroutines.truncate(coroutine_count);
                 let error_obj = e.into_lua_value(env);
                 let mut thread_mut = env.running_thread().borrow_mut();
                 thread_mut.from_state(thread_state);
@@ -143,6 +146,7 @@ pub fn pcall(
                 Ok(())
             }
             Err(e) => {
+                env.coroutines.truncate(coroutine_count);
                 let error_obj = e.into_lua_value(env);
                 let mut thread_mut = env.running_thread().borrow_mut();
                 thread_mut.from_state(thread_state);
