@@ -39,15 +39,15 @@ pub struct ExprFunctionObject {
     /// when constructing function object, copy upvalues from these sources
     pub upvalues_source: Vec<ExprLocalVariable>,
 
-    /// unique id of the function what this object points to
-    pub function_id: usize,
+    /// function definition
+    pub definition: FunctionDefinition,
 }
 
 impl ExprFunctionObject {
-    pub fn new(upvalues_source: Vec<ExprLocalVariable>, function_id: usize) -> Self {
+    pub fn new(upvalues_source: Vec<ExprLocalVariable>, definition: FunctionDefinition) -> Self {
         Self {
             upvalues_source,
-            function_id,
+            definition,
         }
     }
 }

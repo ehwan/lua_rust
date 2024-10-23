@@ -16,7 +16,6 @@ pub struct Context {
     pub scope_counter: usize,
 
     pub labels: HashMap<String, Rc<RefCell<LabelInfo>>>,
-    pub functions: Vec<crate::FunctionDefinition>,
 }
 
 impl Context {
@@ -25,7 +24,6 @@ impl Context {
             scopes: Vec::new(),
             scope_counter: 0,
             labels: Default::default(),
-            functions: Vec::new(),
         }
     }
 
@@ -905,13 +903,12 @@ impl Context {
         // end function scope
 
         // add function definition
-        let function_id = self.functions.len();
-        self.functions.push(crate::FunctionDefinition::new(
+        let definition = crate::FunctionDefinition::new(
             param_offsets,
             expr.parameters.variadic,
             block,
             function_scope.max_variables,
-        ));
+        );
 
         let upvalues_source = function_scope
             .upvalues
@@ -921,7 +918,7 @@ impl Context {
 
         // emit function object
         Ok(crate::Expression::FunctionObject(
-            crate::ExprFunctionObject::new(upvalues_source, function_id),
+            crate::ExprFunctionObject::new(upvalues_source, definition),
         ))
     }
 }

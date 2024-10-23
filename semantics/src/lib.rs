@@ -54,13 +54,8 @@ pub use scope::VariableInfo;
 
 pub use error::ProcessError;
 
-#[derive(Debug, Clone)]
-pub struct Chunk {
-    pub block: Block,
-    pub functions: Vec<FunctionDefinition>,
-}
 /// perform semantic analysis on the given block and generate enhanced AST.
-pub fn process(block: lua_parser::Block) -> Result<Chunk, ProcessError> {
+pub fn process(block: lua_parser::Block) -> Result<Block, ProcessError> {
     let mut context = Context::new();
     let block = context.process(block)?;
 
@@ -72,8 +67,5 @@ pub fn process(block: lua_parser::Block) -> Result<Chunk, ProcessError> {
         }
     }
 
-    Ok(Chunk {
-        block,
-        functions: context.functions,
-    })
+    Ok(block)
 }
