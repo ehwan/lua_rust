@@ -4,13 +4,12 @@ use lua_semantics::Block;
 use lua_semantics::ExprLocalVariable;
 use lua_semantics::Expression;
 use lua_semantics::FunctionDefinition;
-use lua_semantics::Scope;
 use lua_semantics::Statement;
 
 use crate::vm::Chunk;
-use crate::FunctionInfo;
 use crate::Instruction;
 use crate::LabelType;
+use crate::LuaFunctionLua;
 
 #[derive(Debug)]
 pub struct Context {
@@ -23,8 +22,6 @@ pub struct Context {
     pub label_map: Vec<Option<usize>>,
     /// user defined label -> label_type map
     pub user_defined_label: HashMap<String, LabelType>,
-
-    pub functions: Vec<FunctionInfo>,
 }
 
 impl Context {
@@ -33,7 +30,6 @@ impl Context {
             instructions: Vec::new(),
             label_map: Default::default(),
             loop_stack: Vec::new(),
-            functions: Vec::new(),
             user_defined_label: HashMap::new(),
         }
     }
@@ -51,6 +47,7 @@ impl Context {
         self.label_map[label] = Some(index);
     }
 
+    /*
     pub fn emit(mut self, mut block: Block, ctx: lua_semantics::Context) -> Chunk {
         if block.return_statement.is_none() {
             block.return_statement = Some(lua_semantics::ReturnStatement::new(Vec::new()));
@@ -84,46 +81,20 @@ impl Context {
         };
         program
     }
+    */
     /// return address of newly added instruction to be executed
-    pub fn emit_add(
-        &mut self,
-        mut block: Block,
-        ctx: &mut lua_semantics::Context,
-        chunk: &mut Chunk,
-    ) -> usize {
+    pub fn emit(mut self, mut block: Block) -> Chunk {
         if block.return_statement.is_none() {
             block.return_statement = Some(lua_semantics::ReturnStatement::new(Vec::new()));
         }
-        // any function definition will not be emitted, but stored in the context
+        let stack_size = block.stack_size.unwrap();
         self.emit_block(block);
 
-        // emit function definitions
-        for func in ctx.functions.iter().skip(self.functions.len()) {
-            let func_info = FunctionInfo {
-                args: func.args.len(),
-                is_variadic: func.variadic,
-                local_variables: func.stack_size,
-                address: self.instructions.len(),
-            };
-            self.functions.push(func_info);
-            self.emit_function_definition(func.clone());
+        Chunk {
+            instructions: self.instructions,
+            label_map: self.label_map.into_iter().map(|x| x.unwrap()).collect(),
+            stack_size,
         }
-
-        let l = chunk.instructions.len();
-        chunk
-            .instructions
-            .extend(self.instructions.iter().skip(l).cloned());
-        chunk
-            .functions
-            .extend(self.functions.iter().skip(chunk.functions.len()).cloned());
-        chunk.label_map.extend(
-            self.label_map
-                .iter()
-                .skip(chunk.label_map.len())
-                .map(|x| x.unwrap()),
-        );
-
-        l
     }
 
     fn emit_function_definition(&mut self, mut func: FunctionDefinition) {
@@ -643,9 +614,18 @@ impl Context {
         expr: lua_semantics::ExprFunctionObject,
         expected: Option<usize>,
     ) {
-        let upvalues_len = expr.upvalues_source.len();
+        let function_context = Self::new();
+        let lua_function = LuaFunctionLua {
+            upvalues: Vec::with_capacity(expr.upvalues_source.len()),
+            args: expr.definition.args.len(),
+            is_variadic: expr.definition.variadic,
+            chunk: function_context.emit(expr.definition.body),
+        };
+
         self.instructions
-            .push(Instruction::FunctionInit(expr.function_id, upvalues_len));
+            .push(Instruction::FunctionInit(lua_function));
+
+        // initialize upvalues
         for upvalue in expr.upvalues_source {
             match upvalue {
                 ExprLocalVariable::Stack(local_id) => {

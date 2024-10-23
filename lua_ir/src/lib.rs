@@ -17,7 +17,6 @@ type LabelType = usize;
 pub use lua_semantics::FloatType;
 pub use lua_semantics::IntType;
 
-pub use function::FunctionInfo;
 pub use function::LuaFunction;
 pub use function::LuaFunctionLua;
 pub use luaval::LuaValue;
