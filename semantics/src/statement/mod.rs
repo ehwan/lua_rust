@@ -6,12 +6,14 @@ use crate::Expression;
 pub struct Block {
     pub statements: Vec<Statement>,
     pub return_statement: Option<ReturnStatement>,
+    pub stack_size: Option<usize>,
 }
 impl Block {
     pub fn new(statements: Vec<Statement>, return_statement: Option<ReturnStatement>) -> Self {
         Self {
             statements,
             return_statement,
+            stack_size: None,
         }
     }
 }

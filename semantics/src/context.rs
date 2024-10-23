@@ -186,7 +186,15 @@ impl Context {
         }
 
         if make_scope {
-            self.end_scope();
+            let scope = self.end_scope();
+            match scope {
+                Scope::Block(scope) => {
+                    blk.stack_size = Some(scope.max_variables);
+                }
+                Scope::Function(_) => {
+                    unreachable!("process_block - function scope not closed?");
+                }
+            }
         }
         Ok(blk)
     }
