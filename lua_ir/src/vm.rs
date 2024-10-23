@@ -21,8 +21,6 @@ pub struct LuaEnv {
     /// random number generator
     pub(crate) rng: rand::rngs::StdRng,
 
-    pub(crate) chunk: Chunk,
-
     /// coroutine stack
     pub(crate) coroutines: Vec<Rc<RefCell<LuaThread>>>,
 
@@ -46,8 +44,6 @@ impl LuaEnv {
             env: LuaValue::Table(env),
             rng: rand::rngs::StdRng::from_entropy(),
 
-            chunk: Chunk::new(),
-
             coroutines: vec![],
             last_op: "last_op".to_string(),
 
@@ -57,10 +53,10 @@ impl LuaEnv {
         }
     }
 
-    pub fn main_thread(&self) -> &Rc<RefCell<LuaThread>> {
+    pub(crate) fn main_thread(&self) -> &Rc<RefCell<LuaThread>> {
         self.coroutines.first().unwrap()
     }
-    pub fn running_thread(&self) -> &Rc<RefCell<LuaThread>> {
+    pub(crate) fn running_thread(&self) -> &Rc<RefCell<LuaThread>> {
         self.coroutines.last().unwrap()
     }
 
@@ -73,7 +69,9 @@ impl LuaEnv {
         self.parser_context = None;
     }
     /// Feed lua source code for interpreter.
-    /// If there was uncompleted line, this will be appended to it.
+    ///
+    /// If `source` is not a complete line, nothing will be evaluated, and waiting for next `feed_line`.
+    /// If `source` can be evaluated as a `Expression`, it will be evaluated and `print`ed.
     pub fn feed_line(&mut self, source: &[u8]) -> Result<(), RuntimeError> {
         if self.parser_context.is_none() {
             self.parser_context = Some(lua_parser::Context::new());
@@ -185,14 +183,101 @@ impl LuaEnv {
             let chunk = ir_context.emit(processed_block);
             let thread = LuaThread::new_main(chunk);
             self.coroutines.push(Rc::new(RefCell::new(thread)));
-            match self.run() {
-                Ok(_) => {}
-                Err(err) => {
-                    // restore call stack
-                    self.coroutines.clear();
-                    return Err(err);
+
+            while !self.coroutines.is_empty() {
+                match self.cycle() {
+                    Ok(_) => {}
+                    Err(err) => {
+                        self.coroutines.clear();
+                        return Err(err);
+                    }
                 }
             }
+        }
+
+        Ok(())
+    }
+
+    /// parse lua chunk from `source` and evaluate it.
+    pub fn eval_chunk(&mut self, source: &[u8]) -> Result<(), RuntimeError> {
+        self.parser_context = Some(lua_parser::Context::new());
+
+        for token in lua_tokenizer::Tokenizer::from_bytes(source).chain(std::iter::once(Ok(
+            lua_tokenizer::Token::new_type(lua_tokenizer::TokenType::Eof),
+        ))) {
+            match token {
+                Ok(token) => {
+                    match self
+                        .parser_context
+                        .as_mut()
+                        .unwrap()
+                        .feed(&self.parser, token, &mut ())
+                    {
+                        Ok(_) => {}
+                        Err(err) => {
+                            self.clear_feed_pending();
+                            return Err(RuntimeError::Custom(LuaValue::String(
+                                err.to_string().into(),
+                            )));
+                        }
+                    }
+                }
+                Err(err) => {
+                    self.clear_feed_pending();
+                    return Err(RuntimeError::TokenizeError(err));
+                }
+            }
+        }
+
+        let mut matched_stmt = None;
+        for m in std::mem::take(&mut self.parser_context)
+            .unwrap()
+            .accept_all()
+        {
+            match m {
+                lua_parser::ChunkOrExpressions::Chunk(chunk) => {
+                    if matched_stmt.is_some() {
+                        return Err(RuntimeError::Custom(LuaValue::String(
+                            "ambiguous statement".into(),
+                        )));
+                    }
+                    matched_stmt = Some(chunk);
+                }
+                lua_parser::ChunkOrExpressions::Expressions(_) => {}
+            }
+        }
+        if let Some(matched_stmt) = matched_stmt {
+            let processed_block =
+                match self
+                    .semantic_context
+                    .process_block(matched_stmt, true, false)
+                {
+                    Ok(res) => res,
+                    Err(err) => {
+                        return Err(RuntimeError::Custom(LuaValue::String(
+                            err.to_string().into(),
+                        )));
+                    }
+                };
+
+            let ir_context = crate::Context::new();
+            let chunk = ir_context.emit(processed_block);
+            let thread = LuaThread::new_main(chunk);
+            self.coroutines.push(Rc::new(RefCell::new(thread)));
+
+            while !self.coroutines.is_empty() {
+                match self.cycle() {
+                    Ok(_) => {}
+                    Err(err) => {
+                        self.coroutines.clear();
+                        return Err(err);
+                    }
+                }
+            }
+        } else {
+            return Err(RuntimeError::Custom(LuaValue::String(
+                "no statement found".into(),
+            )));
         }
 
         Ok(())
@@ -203,12 +288,12 @@ impl LuaEnv {
     pub fn push(&self, value: LuaValue) {
         self.running_thread().borrow_mut().data_stack.push(value);
     }
-    pub fn push2(&self, value1: LuaValue, value2: LuaValue) {
+    pub(crate) fn push2(&self, value1: LuaValue, value2: LuaValue) {
         let mut thread = self.running_thread().borrow_mut();
         thread.data_stack.push(value1);
         thread.data_stack.push(value2);
     }
-    pub fn push3(&self, value1: LuaValue, value2: LuaValue, value3: LuaValue) {
+    pub(crate) fn push3(&self, value1: LuaValue, value2: LuaValue, value3: LuaValue) {
         let mut thread = self.running_thread().borrow_mut();
         thread.data_stack.push(value1);
         thread.data_stack.push(value2);
@@ -217,20 +302,20 @@ impl LuaEnv {
     pub fn pop(&self) -> LuaValue {
         self.running_thread().borrow_mut().data_stack.pop().unwrap()
     }
-    pub fn pop2(&self) -> (LuaValue, LuaValue) {
+    pub(crate) fn pop2(&self) -> (LuaValue, LuaValue) {
         let mut thread = self.running_thread().borrow_mut();
         let value2 = thread.data_stack.pop().unwrap();
         let value1 = thread.data_stack.pop().unwrap();
         (value1, value2)
     }
-    pub fn pop3(&self) -> (LuaValue, LuaValue, LuaValue) {
+    pub(crate) fn pop3(&self) -> (LuaValue, LuaValue, LuaValue) {
         let mut thread = self.running_thread().borrow_mut();
         let value3 = thread.data_stack.pop().unwrap();
         let value2 = thread.data_stack.pop().unwrap();
         let value1 = thread.data_stack.pop().unwrap();
         (value1, value2, value3)
     }
-    pub fn pop4(&self) -> (LuaValue, LuaValue, LuaValue, LuaValue) {
+    pub(crate) fn pop4(&self) -> (LuaValue, LuaValue, LuaValue, LuaValue) {
         let mut thread = self.running_thread().borrow_mut();
         let value4 = thread.data_stack.pop().unwrap();
         let value3 = thread.data_stack.pop().unwrap();
@@ -238,37 +323,23 @@ impl LuaEnv {
         let value1 = thread.data_stack.pop().unwrap();
         (value1, value2, value3, value4)
     }
-    pub fn pop_n(&self, n: usize) {
+    pub(crate) fn pop_n(&self, n: usize) {
         let mut thread_mut = self.running_thread().borrow_mut();
         let len = thread_mut.data_stack.len();
         thread_mut.data_stack.truncate(len - n);
     }
-    pub fn top(&self) -> LuaValue {
-        self.running_thread()
-            .borrow()
-            .data_stack
-            .last()
-            .unwrap()
-            .clone()
-    }
     /// get i'th value from top of the stack
-    pub fn top_i(&self, i: usize) -> LuaValue {
+    pub(crate) fn top_i(&self, i: usize) -> LuaValue {
         let thread = self.running_thread().borrow();
         let idx = thread.data_stack.len() - i - 1;
         thread.data_stack.get(idx).unwrap().clone()
     }
-    pub fn borrow_running_thread(&self) -> std::cell::Ref<LuaThread> {
+    pub(crate) fn borrow_running_thread(&self) -> std::cell::Ref<LuaThread> {
         self.running_thread().borrow()
     }
-    pub fn borrow_running_thread_mut(&self) -> std::cell::RefMut<LuaThread> {
+    pub(crate) fn borrow_running_thread_mut(&self) -> std::cell::RefMut<LuaThread> {
         self.running_thread().borrow_mut()
     }
-    // pub fn fill_nil(&self, n: usize) {
-    //     let mut thread = self.running_thread().borrow_mut();
-    //     thread
-    //         .data_stack
-    //         .extend(std::iter::repeat(LuaValue::Nil).take(n));
-    // }
 
     pub fn get_metavalue(&self, value: &LuaValue, key: &str) -> Option<LuaValue> {
         match value {
@@ -292,18 +363,19 @@ impl LuaEnv {
         lhs: LuaValue,
         rhs: LuaValue,
         meta_name: &str,
-        force_wait: bool,
         error_wrapper: impl FnOnce(&'static str) -> RuntimeError,
     ) -> Result<(), RuntimeError> {
         match self.get_metavalue(&lhs, meta_name) {
             Some(meta) => {
                 self.push2(lhs, rhs);
-                self.function_call(2, meta, Some(1), force_wait)
+                self.function_call(2, meta, Some(1))?;
+                Ok(())
             }
             None => match self.get_metavalue(&rhs, meta_name) {
                 Some(meta) => {
                     self.push2(lhs, rhs);
-                    self.function_call(2, meta, Some(1), force_wait)
+                    self.function_call(2, meta, Some(1))?;
+                    Ok(())
                 }
                 None => Err(error_wrapper(lhs.type_str())),
             },
@@ -316,7 +388,7 @@ impl LuaEnv {
         match meta {
             Some(meta) => {
                 self.push(top);
-                self.function_call(1, meta, Some(1), true)?;
+                self.function_call(1, meta, Some(1))?;
                 self.tostring()
             }
             _ => {
@@ -347,13 +419,9 @@ impl LuaEnv {
                 Ok(())
             }
             // else, try to call metamethod, search on left first
-            (lhs, rhs) => self.try_call_metamethod(
-                lhs,
-                rhs,
-                "__add",
-                false,
-                RuntimeError::AttemptToArithmeticOn,
-            ),
+            (lhs, rhs) => {
+                self.try_call_metamethod(lhs, rhs, "__add", RuntimeError::AttemptToArithmeticOn)
+            }
         }
     }
 
@@ -366,13 +434,9 @@ impl LuaEnv {
                 Ok(())
             }
             // else, try to call metamethod, search on left first
-            (lhs, rhs) => self.try_call_metamethod(
-                lhs,
-                rhs,
-                "__sub",
-                false,
-                RuntimeError::AttemptToArithmeticOn,
-            ),
+            (lhs, rhs) => {
+                self.try_call_metamethod(lhs, rhs, "__sub", RuntimeError::AttemptToArithmeticOn)
+            }
         }
     }
     /// mul operation with __mul metamethod
@@ -384,13 +448,9 @@ impl LuaEnv {
                 Ok(())
             }
             // else, try to call metamethod, search on left first
-            (lhs, rhs) => self.try_call_metamethod(
-                lhs,
-                rhs,
-                "__mul",
-                false,
-                RuntimeError::AttemptToArithmeticOn,
-            ),
+            (lhs, rhs) => {
+                self.try_call_metamethod(lhs, rhs, "__mul", RuntimeError::AttemptToArithmeticOn)
+            }
         }
     }
     /// div operation with __div metamethod
@@ -402,13 +462,9 @@ impl LuaEnv {
                 Ok(())
             }
             // else, try to call metamethod, search on left first
-            (lhs, rhs) => self.try_call_metamethod(
-                lhs,
-                rhs,
-                "__div",
-                false,
-                RuntimeError::AttemptToArithmeticOn,
-            ),
+            (lhs, rhs) => {
+                self.try_call_metamethod(lhs, rhs, "__div", RuntimeError::AttemptToArithmeticOn)
+            }
         }
     }
     /// mod operation with __mod metamethod
@@ -420,13 +476,9 @@ impl LuaEnv {
                 Ok(())
             }
             // else, try to call metamethod, search on left first
-            (lhs, rhs) => self.try_call_metamethod(
-                lhs,
-                rhs,
-                "__mod",
-                false,
-                RuntimeError::AttemptToArithmeticOn,
-            ),
+            (lhs, rhs) => {
+                self.try_call_metamethod(lhs, rhs, "__mod", RuntimeError::AttemptToArithmeticOn)
+            }
         }
     }
     /// pow operation with __pow metamethod
@@ -438,13 +490,9 @@ impl LuaEnv {
                 Ok(())
             }
             // else, try to call metamethod, search on left first
-            (lhs, rhs) => self.try_call_metamethod(
-                lhs,
-                rhs,
-                "__pow",
-                false,
-                RuntimeError::AttemptToArithmeticOn,
-            ),
+            (lhs, rhs) => {
+                self.try_call_metamethod(lhs, rhs, "__pow", RuntimeError::AttemptToArithmeticOn)
+            }
         }
     }
     /// unary minus operation with __unm metamethod
@@ -461,7 +509,8 @@ impl LuaEnv {
                     // the metamethod is computed and called with a dummy second operand
                     // equal to the first one.
                     self.push2(lhs.clone(), lhs);
-                    self.function_call(2, meta, Some(1), false)
+                    self.function_call(2, meta, Some(1))?;
+                    Ok(())
                 }
                 _ => Err(RuntimeError::AttemptToArithmeticOn(lhs.type_str())),
             },
@@ -476,13 +525,9 @@ impl LuaEnv {
                 Ok(())
             }
             // else, try to call metamethod, search on left first
-            (lhs, rhs) => self.try_call_metamethod(
-                lhs,
-                rhs,
-                "__idiv",
-                false,
-                RuntimeError::AttemptToArithmeticOn,
-            ),
+            (lhs, rhs) => {
+                self.try_call_metamethod(lhs, rhs, "__idiv", RuntimeError::AttemptToArithmeticOn)
+            }
         }
     }
     /// bitwise and operation with __band metamethod
@@ -499,19 +544,12 @@ impl LuaEnv {
                         lhs,
                         rhs,
                         "__band",
-                        false,
                         RuntimeError::AttemptToBitwiseOn,
                     ),
                 }
             }
             // else, try to call metamethod, search on left first
-            _ => self.try_call_metamethod(
-                lhs,
-                rhs,
-                "__band",
-                false,
-                RuntimeError::AttemptToBitwiseOn,
-            ),
+            _ => self.try_call_metamethod(lhs, rhs, "__band", RuntimeError::AttemptToBitwiseOn),
         }
     }
     /// bitwise or operation with __bor metamethod
@@ -528,15 +566,12 @@ impl LuaEnv {
                         lhs,
                         rhs,
                         "__bor",
-                        false,
                         RuntimeError::AttemptToBitwiseOn,
                     ),
                 }
             }
             // else, try to call metamethod, search on left first
-            _ => {
-                self.try_call_metamethod(lhs, rhs, "__bor", false, RuntimeError::AttemptToBitwiseOn)
-            }
+            _ => self.try_call_metamethod(lhs, rhs, "__bor", RuntimeError::AttemptToBitwiseOn),
         }
     }
     /// bitwise xor operation with __bxor metamethod
@@ -553,19 +588,12 @@ impl LuaEnv {
                         lhs,
                         rhs,
                         "__bxor",
-                        false,
                         RuntimeError::AttemptToBitwiseOn,
                     ),
                 }
             }
             // else, try to call metamethod, search on left first
-            _ => self.try_call_metamethod(
-                lhs,
-                rhs,
-                "__bxor",
-                false,
-                RuntimeError::AttemptToBitwiseOn,
-            ),
+            _ => self.try_call_metamethod(lhs, rhs, "__bxor", RuntimeError::AttemptToBitwiseOn),
         }
     }
     /// bitwise shift left operation with __shl metamethod
@@ -582,15 +610,12 @@ impl LuaEnv {
                         lhs,
                         rhs,
                         "__shl",
-                        false,
                         RuntimeError::AttemptToBitwiseOn,
                     ),
                 }
             }
             // else, try to call metamethod, search on left first
-            _ => {
-                self.try_call_metamethod(lhs, rhs, "__shl", false, RuntimeError::AttemptToBitwiseOn)
-            }
+            _ => self.try_call_metamethod(lhs, rhs, "__shl", RuntimeError::AttemptToBitwiseOn),
         }
     }
     /// bitwise shift right operation with __shr metamethod
@@ -607,15 +632,12 @@ impl LuaEnv {
                         lhs,
                         rhs,
                         "__shr",
-                        false,
                         RuntimeError::AttemptToBitwiseOn,
                     ),
                 }
             }
             // else, try to call metamethod, search on left first
-            _ => {
-                self.try_call_metamethod(lhs, rhs, "__shr", false, RuntimeError::AttemptToBitwiseOn)
-            }
+            _ => self.try_call_metamethod(lhs, rhs, "__shr", RuntimeError::AttemptToBitwiseOn),
         }
     }
     /// bitwise not operation with __bnot metamethod
@@ -633,7 +655,8 @@ impl LuaEnv {
                         // the metamethod is computed and called with a dummy second operand
                         // equal to the first one.
                         self.push2(lhs.clone(), lhs);
-                        self.function_call(2, meta, Some(1), false)
+                        self.function_call(2, meta, Some(1))?;
+                        Ok(())
                     }
                     _ => Err(RuntimeError::AttemptToBitwiseOn(lhs.type_str())),
                 },
@@ -644,7 +667,8 @@ impl LuaEnv {
                     // the metamethod is computed and called with a dummy second operand
                     // equal to the first one.
                     self.push2(lhs.clone(), lhs);
-                    self.function_call(2, meta, Some(1), false)
+                    self.function_call(2, meta, Some(1))?;
+                    Ok(())
                 }
                 _ => Err(RuntimeError::AttemptToBitwiseOn(lhs.type_str())),
             },
@@ -671,7 +695,6 @@ impl LuaEnv {
                     lhs,
                     rhs,
                     "__concat",
-                    false,
                     RuntimeError::AttemptToConcatenate,
                 ),
             },
@@ -693,18 +716,11 @@ impl LuaEnv {
                     LuaValue::String(lhs_str),
                     rhs,
                     "__concat",
-                    false,
                     RuntimeError::AttemptToConcatenate,
                 ),
             },
 
-            _ => self.try_call_metamethod(
-                lhs,
-                rhs,
-                "__concat",
-                false,
-                RuntimeError::AttemptToConcatenate,
-            ),
+            _ => self.try_call_metamethod(lhs, rhs, "__concat", RuntimeError::AttemptToConcatenate),
         }
     }
     /// `#` length operation with __len metamethod
@@ -723,7 +739,8 @@ impl LuaEnv {
                         // the metamethod is computed and called with a dummy second operand
                         // equal to the first one.
                         self.push2(LuaValue::Table(Rc::clone(&table)), LuaValue::Table(table));
-                        self.function_call(2, meta, Some(1), false)
+                        self.function_call(2, meta, Some(1))?;
+                        Ok(())
                     }
                     _ => {
                         self.push((table.borrow().len() as IntType).into());
@@ -737,7 +754,8 @@ impl LuaEnv {
                     // the metamethod is computed and called with a dummy second operand
                     // equal to the first one.
                     self.push2(lhs.clone(), lhs);
-                    self.function_call(2, meta, Some(1), false)
+                    self.function_call(2, meta, Some(1))?;
+                    Ok(())
                 }
                 _ => Err(RuntimeError::AttemptToGetLengthOf(lhs.type_str())),
             },
@@ -757,7 +775,8 @@ impl LuaEnv {
                     match meta {
                         Some(LuaValue::Function(meta_func)) => {
                             self.push2(LuaValue::Table(table), key);
-                            self.function_call(2, LuaValue::Function(meta_func), Some(1), false)
+                            self.function_call(2, LuaValue::Function(meta_func), Some(1))?;
+                            Ok(())
                         }
                         Some(LuaValue::Table(meta_table)) => {
                             self.push2(LuaValue::Table(meta_table), key);
@@ -775,7 +794,8 @@ impl LuaEnv {
                 match meta {
                     Some(LuaValue::Function(meta_func)) => {
                         self.push2(table, key);
-                        self.function_call(2, LuaValue::Function(meta_func), Some(1), false)
+                        self.function_call(2, LuaValue::Function(meta_func), Some(1))?;
+                        Ok(())
                     }
                     Some(LuaValue::Table(meta_table)) => {
                         self.push2(LuaValue::Table(meta_table), key);
@@ -812,7 +832,8 @@ impl LuaEnv {
                 match meta {
                     Some(LuaValue::Function(meta_func)) => {
                         self.push3(LuaValue::Table(table), key, value);
-                        self.function_call(3, LuaValue::Function(meta_func), Some(0), false)
+                        self.function_call(3, LuaValue::Function(meta_func), Some(0))?;
+                        Ok(())
                     }
                     Some(LuaValue::Table(meta_table)) => {
                         self.push3(value, LuaValue::Table(meta_table), key);
@@ -829,7 +850,8 @@ impl LuaEnv {
                 match meta {
                     Some(LuaValue::Function(meta_func)) => {
                         self.push3(table, key, value);
-                        self.function_call(3, LuaValue::Function(meta_func), Some(0), false)
+                        self.function_call(3, LuaValue::Function(meta_func), Some(0))?;
+                        Ok(())
                     }
                     Some(LuaValue::Table(meta_table)) => {
                         self.push3(value, LuaValue::Table(meta_table), key);
@@ -857,7 +879,6 @@ impl LuaEnv {
                         LuaValue::Table(lhs),
                         LuaValue::Table(rhs),
                         "__eq",
-                        false,
                         RuntimeError::AttemptToArithmeticOn,
                     )
                 }
@@ -882,17 +903,12 @@ impl LuaEnv {
                 Ok(())
             }
             // @TODO error type
-            (lhs, rhs) => self.try_call_metamethod(
-                lhs,
-                rhs,
-                "__lt",
-                false,
-                RuntimeError::AttemptToArithmeticOn,
-            ),
+            (lhs, rhs) => {
+                self.try_call_metamethod(lhs, rhs, "__lt", RuntimeError::AttemptToArithmeticOn)
+            }
         }
     }
 
-    /// less than or equal operation with __le metamethod
     pub fn le(&mut self) -> Result<(), RuntimeError> {
         let (lhs, rhs) = self.pop2();
 
@@ -906,20 +922,14 @@ impl LuaEnv {
                 Ok(())
             }
             // @TODO error type
-            (lhs, rhs) => self.try_call_metamethod(
-                lhs,
-                rhs,
-                "__le",
-                false,
-                RuntimeError::AttemptToArithmeticOn,
-            ),
+            (lhs, rhs) => {
+                self.try_call_metamethod(lhs, rhs, "__le", RuntimeError::AttemptToArithmeticOn)
+            }
         }
     }
 
-    /// function call with __call metamethod.
-    /// if `force_wait` is true, this does not return until the function call is finished.
-    /// that is, if `force_wait` is false, this function just pushes data to the function-call-stack, and returns.
-    /// user must call `run_instruction` to actually run the function.
+    /// Function call with given function object.
+    /// This could search for `__call` metamethod if the function object is not a function.
     pub fn function_call(
         &mut self,
         // number of arguments actually passed
@@ -928,7 +938,6 @@ impl LuaEnv {
         func: LuaValue,
         // number of return values expected; returned values will be adjusted to this number
         expected_ret: Option<usize>,
-        force_wait: bool,
     ) -> Result<(), RuntimeError> {
         match func {
             LuaValue::Function(func) => {
@@ -1021,26 +1030,39 @@ impl LuaEnv {
                         drop(func_borrow);
                         drop(func);
 
-                        if force_wait {
-                            let coroutine_len = self.coroutines.len();
-                            let call_stack_len = self.running_thread().borrow().call_stack.len();
-                            loop {
-                                if coroutine_len == self.coroutines.len()
-                                    && self.coroutines[coroutine_len - 1].borrow().call_stack.len()
-                                        == call_stack_len - 1
-                                {
-                                    break;
-                                }
-                                if self.cycle()? == false {
-                                    break;
-                                }
+                        let coroutine_len = self.coroutines.len();
+                        let call_stack_len = self.running_thread().borrow().call_stack.len();
+                        loop {
+                            if self.coroutines.len() < coroutine_len {
+                                break;
+                            } else if self.coroutines.len() == coroutine_len
+                                && self.coroutines[coroutine_len - 1].borrow().call_stack.len()
+                                    < call_stack_len
+                            {
+                                break;
                             }
+
+                            self.cycle()?;
                         }
                         Ok(())
                     }
                     LuaFunction::RustFunc(rust_internal) => {
-                        // @TODO add call stack
-                        rust_internal(self, args_num, expected_ret)
+                        // self.running_thread()
+                        //     .borrow_mut()
+                        //     .call_stack
+                        //     .push(CallStackFrame {
+                        //         bp: 0,
+                        //         counter: 0,
+                        //         data_stack: 0,
+                        //         function: Rc::clone(&func),
+                        //         local_variables: 0,
+                        //         return_expected: expected_ret,
+                        //         usize_stack: 0,
+                        //         variadic: Vec::new(),
+                        //     });
+                        rust_internal(self, args_num, expected_ret)?;
+                        // self.running_thread().borrow_mut().call_stack.pop();
+                        Ok(())
                     }
                 }
             }
@@ -1056,7 +1078,7 @@ impl LuaEnv {
                             .data_stack
                             .insert(front_arg_pos, other);
                     }
-                    self.function_call(args_num + 1, meta, expected_ret, force_wait)
+                    self.function_call(args_num + 1, meta, expected_ret)
                 } else {
                     // @TODO : error message
                     let msg = format!("__call metamethod not found for {}", other);
@@ -1222,7 +1244,7 @@ impl LuaEnv {
             }
 
             Instruction::FunctionInit(func) => {
-                self.push(LuaFunction::LuaFunc(func).into());
+                self.push(LuaFunction::LuaFunc(*func).into());
             }
             Instruction::FunctionInitUpvalueFromLocalVar(src_local_id) => {
                 let mut thread_mut = self.running_thread().borrow_mut();
@@ -1370,7 +1392,7 @@ impl LuaEnv {
                     let num_args = thread_mut.data_stack.len() - sp;
                     (func, num_args)
                 };
-                self.function_call(num_args, func, expected_ret, false)?;
+                self.function_call(num_args, func, expected_ret)?;
             }
 
             Instruction::Return => {
@@ -1386,7 +1408,7 @@ impl LuaEnv {
                         let mut yield_thread_mut = yield_thread.borrow_mut();
                         let mut resume_thread_mut = self.running_thread().borrow_mut();
 
-                        let return_args_num = resume_thread_mut.data_stack.len() - frame.data_stack;
+                        let return_args_num = yield_thread_mut.data_stack.len() - frame.data_stack;
                         let resume_expected = match resume_thread_mut.status {
                             ThreadStatus::ResumePending(expected) => expected,
                             _ => unreachable!("coroutine must be in resume pending state"),
@@ -1451,9 +1473,11 @@ impl LuaEnv {
         }
         Ok(())
     }
-    pub fn cycle(&mut self) -> Result<bool, RuntimeError> {
+
+    /// run single instruction
+    pub fn cycle(&mut self) -> Result<(), RuntimeError> {
         if self.coroutines.len() == 0 {
-            return Ok(false);
+            return Ok(());
         }
         let mut thread_mut = self.running_thread().borrow_mut();
         let frame_mut = thread_mut.call_stack.last_mut().unwrap();
@@ -1463,10 +1487,9 @@ impl LuaEnv {
                 if let Some(instruction) = f.chunk.instructions.get(frame_mut.counter).cloned() {
                     frame_mut.counter += 1;
                     drop(func);
-                    drop(frame_mut);
                     drop(thread_mut);
                     match self.run_instruction(instruction.clone()) {
-                        Ok(_) => return Ok(true),
+                        Ok(_) => return Ok(()),
                         Err(err) => {
                             // if this error was occured in main chunk, just return it
                             if self.coroutines.len() == 1 {
@@ -1505,18 +1528,13 @@ impl LuaEnv {
                             }
                         }
                     }
-                    return Ok(true);
+                    return Ok(());
                 } else {
-                    return Ok(false);
+                    return Ok(());
                 }
             }
             _ => unimplemented!("cycle: function call from non-lua function"),
         }
-    }
-    /// run the whole chunk
-    pub fn run(&mut self) -> Result<(), RuntimeError> {
-        while self.cycle()? {}
-        Ok(())
     }
 }
 
@@ -1580,7 +1598,6 @@ pub struct ThreadState {
     pub data_stack: usize,
     pub usize_stack: usize,
     pub call_stack: usize,
-    pub counter: usize,
     pub bp: usize,
 }
 
@@ -1601,6 +1618,10 @@ pub struct LuaThread {
     pub call_stack: Vec<CallStackFrame>,
 
     pub status: ThreadStatus,
+
+    /// If this thread is created by `coroutine.create`, this field is Some.
+    /// The function object of the coroutine.
+    pub function: Option<Rc<RefCell<LuaFunction>>>,
 }
 impl LuaThread {
     pub fn new_main(chunk: Chunk) -> LuaThread {
@@ -1631,29 +1652,17 @@ impl LuaThread {
             call_stack: vec![frame],
             bp: 0,
             status: ThreadStatus::Running,
+            function: None,
         }
     }
-    pub fn new_coroutine(env: &LuaEnv, func: Rc<RefCell<LuaFunction>>) -> LuaThread {
-        let mut local_variables = Vec::new();
-        let func_borrow = func.borrow();
-        match &*func_borrow {
-            LuaFunction::LuaFunc(func) => {
-                local_variables.resize_with(
-                    env.chunk.functions[func.function_id].local_variables,
-                    Default::default,
-                );
-            }
-            _ => {}
-        }
-        drop(func_borrow);
+    pub fn new_coroutine(_env: &LuaEnv, func: Rc<RefCell<LuaFunction>>) -> LuaThread {
         LuaThread {
-            local_variables,
+            local_variables: Vec::new(),
             data_stack: Vec::new(),
             usize_stack: Vec::new(),
             call_stack: Vec::new(),
-            counter: usize::MAX,
+            function: Some(func),
             bp: 0,
-            func: Some(func),
             status: ThreadStatus::NotStarted,
         }
     }
@@ -1664,7 +1673,6 @@ impl LuaThread {
             data_stack: self.data_stack.len(),
             usize_stack: self.usize_stack.len(),
             call_stack: self.call_stack.len(),
-            counter: self.counter,
             bp: self.bp,
         }
     }
@@ -1674,7 +1682,6 @@ impl LuaThread {
         self.data_stack.truncate(state.data_stack);
         self.usize_stack.truncate(state.usize_stack);
         self.call_stack.truncate(state.call_stack);
-        self.counter = state.counter;
         self.bp = state.bp;
     }
 

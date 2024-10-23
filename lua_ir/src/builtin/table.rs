@@ -478,7 +478,7 @@ pub fn sort(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
             )?;
             list_to_vec_elem.sort_unstable_by(|a, b| {
                 env.push2(a.clone(), b.clone());
-                if env.function_call(2, cmp.clone(), Some(1), true).is_err() {
+                if env.function_call(2, cmp.clone(), Some(1)).is_err() {
                     std::cmp::Ordering::Equal
                 } else {
                     let ret = env.pop().to_bool();
@@ -486,7 +486,7 @@ pub fn sort(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
                         std::cmp::Ordering::Less
                     } else {
                         env.push2(b.clone(), a.clone());
-                        if env.function_call(2, cmp.clone(), Some(1), true).is_err() {
+                        if env.function_call(2, cmp.clone(), Some(1)).is_err() {
                             std::cmp::Ordering::Equal
                         } else {
                             let ret = env.pop().to_bool();

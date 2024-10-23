@@ -106,8 +106,9 @@ pub fn pcall(
     let func = thread_borrow.data_stack[thread_state.data_stack].clone();
     drop(thread_borrow);
 
+    // @TODO use call stack frame
     match expected_ret {
-        Some(0) => match env.function_call(args - 1, func, Some(0), true) {
+        Some(0) => match env.function_call(args - 1, func, Some(0)) {
             Ok(_) => Ok(()),
             Err(_e) => {
                 env.coroutines.truncate(coroutine_count);
@@ -115,8 +116,7 @@ pub fn pcall(
                 Ok(())
             }
         },
-        Some(expected_ret) => match env.function_call(args - 1, func, Some(expected_ret - 1), true)
-        {
+        Some(expected_ret) => match env.function_call(args - 1, func, Some(expected_ret - 1)) {
             Ok(_) => {
                 env.running_thread().borrow_mut().data_stack[thread_state.data_stack] =
                     LuaValue::Boolean(true);
@@ -139,7 +139,7 @@ pub fn pcall(
                 Ok(())
             }
         },
-        None => match env.function_call(args - 1, func, None, true) {
+        None => match env.function_call(args - 1, func, None) {
             Ok(_) => {
                 env.running_thread().borrow_mut().data_stack[thread_state.data_stack] =
                     LuaValue::Boolean(true);

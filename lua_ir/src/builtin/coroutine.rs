@@ -137,7 +137,6 @@ pub fn resume(
         }
     };
     let mut co_borrow_mut = co.borrow_mut();
-    // @TODO error message and return false
     match co_borrow_mut.status {
         ThreadStatus::Running => {
             env.pop_n(args_num);
@@ -210,68 +209,48 @@ pub fn resume(
             }
         }
         ThreadStatus::NotStarted => {
-            let func = co_borrow_mut.func.clone().unwrap();
-
             env.borrow_running_thread_mut().status =
                 ThreadStatus::ResumePending(expected_resume_return);
             co_borrow_mut.status = ThreadStatus::Running;
             co_borrow_mut
                 .data_stack
                 .extend(env.borrow_running_thread_mut().drain_last(args_num - 1));
+            // pop `co`
             env.pop();
             drop(co_borrow_mut);
+            let func = Rc::clone(co.borrow().function.as_ref().unwrap());
             env.coroutines.push(co);
+            let function_call_res = env.function_call(
+                args_num - 1,
+                LuaValue::Function(func),
+                expected_resume_return,
+            );
+            match function_call_res {
+                Ok(_) => {}
 
-            let func_borrow = func.borrow();
-            match &*func_borrow {
-                LuaFunction::LuaFunc(lua_func) => {
-                    let upvalues = lua_func.upvalues.clone();
-                    let func_id = lua_func.function_id;
-                    // no need to pass `expected_ret`, since it was passed by `ThreadStatus::ResumePending(_)`
-                    env.function_call_lua(args_num - 1, upvalues, func_id, None)
-                }
-                LuaFunction::RustFunc(rust_func) => {
-                    let rust_func_ret = match expected_resume_return {
-                        Some(0) => rust_func(env, args_num - 1, Some(0)),
+                Err(err) => {
+                    let error_object = err.into_lua_value(env);
+                    env.coroutines.pop().unwrap().borrow_mut().set_dead();
+                    env.running_thread().borrow_mut().status = ThreadStatus::Running;
+
+                    match expected_resume_return {
+                        Some(0) => {}
+                        Some(1) => {
+                            env.push(false.into());
+                        }
                         Some(expected_resume_return) => {
-                            rust_func(env, args_num - 1, Some(expected_resume_return - 1))
+                            env.push2(false.into(), error_object);
+                            env.running_thread().borrow_mut().data_stack.extend(
+                                std::iter::repeat(LuaValue::Nil).take(expected_resume_return - 2),
+                            );
                         }
-                        None => rust_func(env, args_num - 1, None),
-                    };
-                    match rust_func_ret {
-                        Ok(_) => {
-                            env.coroutines.pop().unwrap().borrow_mut().set_dead();
-                            env.running_thread().borrow_mut().status = ThreadStatus::Running;
-                            Ok(())
-                        }
-                        Err(err) => {
-                            let error_object = err.into_lua_value(env);
-                            env.coroutines.pop().unwrap().borrow_mut().set_dead();
-                            env.running_thread().borrow_mut().status = ThreadStatus::Running;
-
-                            match expected_resume_return {
-                                Some(0) => Ok(()),
-                                Some(1) => {
-                                    env.push(false.into());
-                                    Ok(())
-                                }
-                                Some(expected_resume_return) => {
-                                    env.push2(false.into(), error_object);
-                                    env.running_thread().borrow_mut().data_stack.extend(
-                                        std::iter::repeat(LuaValue::Nil)
-                                            .take(expected_resume_return - 2),
-                                    );
-                                    Ok(())
-                                }
-                                None => {
-                                    env.push2(false.into(), error_object);
-                                    Ok(())
-                                }
-                            }
+                        None => {
+                            env.push2(false.into(), error_object);
                         }
                     }
                 }
             }
+            Ok(())
         }
         ThreadStatus::YieldPending(expected_yield_return) => {
             co_borrow_mut.status = ThreadStatus::Running;
@@ -291,6 +270,35 @@ pub fn resume(
             env.running_thread().borrow_mut().status =
                 ThreadStatus::ResumePending(expected_resume_return);
             env.coroutines.push(co);
+            let coroutine_len = env.coroutines.len();
+            while env.coroutines.len() >= coroutine_len {
+                let cycle_res = env.cycle();
+                match cycle_res {
+                    Ok(_) => {}
+                    Err(err) => {
+                        let error_object = err.into_lua_value(env);
+                        env.coroutines.pop().unwrap().borrow_mut().set_dead();
+                        env.running_thread().borrow_mut().status = ThreadStatus::Running;
+
+                        match expected_resume_return {
+                            Some(0) => {}
+                            Some(1) => {
+                                env.push(false.into());
+                            }
+                            Some(expected_resume_return) => {
+                                env.push2(false.into(), error_object);
+                                env.running_thread().borrow_mut().data_stack.extend(
+                                    std::iter::repeat(LuaValue::Nil)
+                                        .take(expected_resume_return - 2),
+                                );
+                            }
+                            None => {
+                                env.push2(false.into(), error_object);
+                            }
+                        }
+                    }
+                }
+            }
 
             Ok(())
         }
@@ -311,11 +319,18 @@ pub fn yield_(
     debug_assert_eq!(yield_thread.status, ThreadStatus::Running);
     yield_thread.status = ThreadStatus::YieldPending(expected_yield_return);
 
-    // @TODO check if error occurs; if so, return false
     let mut resume_thread = env.running_thread().borrow_mut();
     if let ThreadStatus::ResumePending(expected_resume_return) = resume_thread.status {
         match expected_resume_return {
-            Some(0) => { /* do nothing */ }
+            Some(0) => {
+                let trunc_len = yield_thread.data_stack.len() - args;
+                yield_thread.data_stack.truncate(trunc_len);
+            }
+            Some(1) => {
+                resume_thread.data_stack.push(true.into());
+                let trunc_len = yield_thread.data_stack.len() - args;
+                yield_thread.data_stack.truncate(trunc_len);
+            }
             Some(expected_resume_return) => {
                 resume_thread.data_stack.push(true.into());
                 resume_thread

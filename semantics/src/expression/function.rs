@@ -13,9 +13,6 @@ pub struct FunctionDefinition {
     pub variadic: bool,
     /// function body
     pub body: Block,
-
-    /// necessary stack size for this function
-    pub stack_size: usize,
 }
 
 impl FunctionDefinition {
@@ -23,13 +20,13 @@ impl FunctionDefinition {
         args: Vec<Rc<RefCell<VariableInfo>>>,
         variadic: bool,
         body: Block,
-        stack_size: usize,
+        // stack_size: usize,
     ) -> Self {
         Self {
             args,
             variadic,
             body,
-            stack_size,
+            // stack_size,
         }
     }
 }

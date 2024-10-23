@@ -162,10 +162,10 @@ impl Context {
         tree
     }
 
-    pub fn process(&mut self, block: lua_parser::Block) -> Result<crate::Block, ProcessError> {
-        self.begin_scope(false);
-        self.process_block(block, false, false)
-    }
+    // pub fn process(&mut self, block: lua_parser::Block) -> Result<crate::Block, ProcessError> {
+    //     self.begin_scope(false);
+    //     self.process_block(block, false, false)
+    // }
 
     pub fn process_block(
         &mut self,
@@ -177,7 +177,7 @@ impl Context {
             self.begin_scope(is_loop);
         }
 
-        let mut blk = crate::Block::new(Vec::with_capacity(block.statements.len()), None);
+        let mut blk = crate::Block::new(Vec::with_capacity(block.statements.len()), None, None);
         for stmt in block.statements.into_iter() {
             self.process_statement(stmt, &mut blk)?;
         }
@@ -911,19 +911,16 @@ impl Context {
                 lua_parser::Span::new_none(),
             ));
         }
-        let block = self.process_block(expr.block, false, false)?;
+        let mut block = self.process_block(expr.block, false, false)?;
 
         self.end_scope();
         let function_scope = self.end_function_scope();
+        block.stack_size = Some(function_scope.max_variables);
         // end function scope
 
         // add function definition
-        let definition = crate::FunctionDefinition::new(
-            param_offsets,
-            expr.parameters.variadic,
-            block,
-            function_scope.max_variables,
-        );
+        let definition =
+            crate::FunctionDefinition::new(param_offsets, expr.parameters.variadic, block);
 
         let upvalues_source = function_scope
             .upvalues

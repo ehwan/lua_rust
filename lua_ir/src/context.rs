@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use lua_semantics::Block;
 use lua_semantics::ExprLocalVariable;
 use lua_semantics::Expression;
-use lua_semantics::FunctionDefinition;
 use lua_semantics::Statement;
 
 use crate::vm::Chunk;
@@ -47,41 +46,6 @@ impl Context {
         self.label_map[label] = Some(index);
     }
 
-    /*
-    pub fn emit(mut self, mut block: Block, ctx: lua_semantics::Context) -> Chunk {
-        if block.return_statement.is_none() {
-            block.return_statement = Some(lua_semantics::ReturnStatement::new(Vec::new()));
-        }
-        // any function definition will not be emitted, but stored in the context
-        self.emit_block(block);
-
-        // emit function definitions
-        for func in ctx.functions {
-            let func_info = FunctionInfo {
-                args: func.args.len(),
-                is_variadic: func.variadic,
-                local_variables: func.stack_size,
-                address: self.instructions.len(),
-            };
-            self.functions.push(func_info);
-            self.emit_function_definition(func);
-        }
-
-        debug_assert!(ctx.scopes.len() == 1);
-
-        let stack_size = match &ctx.scopes[0] {
-            Scope::Block(block) => block.max_variables,
-            _ => unreachable!("main scope must be block"),
-        };
-        let program = Chunk {
-            instructions: self.instructions,
-            functions: self.functions,
-            label_map: self.label_map.into_iter().map(|x| x.unwrap()).collect(),
-            stack_size,
-        };
-        program
-    }
-    */
     /// return address of newly added instruction to be executed
     pub fn emit(mut self, mut block: Block) -> Chunk {
         if block.return_statement.is_none() {
@@ -95,13 +59,6 @@ impl Context {
             label_map: self.label_map.into_iter().map(|x| x.unwrap()).collect(),
             stack_size,
         }
-    }
-
-    fn emit_function_definition(&mut self, mut func: FunctionDefinition) {
-        if func.body.return_statement.is_none() {
-            func.body.return_statement = Some(lua_semantics::ReturnStatement::new(Vec::new()));
-        }
-        self.emit_block(func.body);
     }
 
     fn emit_block(&mut self, block: Block) {
@@ -623,7 +580,7 @@ impl Context {
         };
 
         self.instructions
-            .push(Instruction::FunctionInit(lua_function));
+            .push(Instruction::FunctionInit(Box::new(lua_function)));
 
         // initialize upvalues
         for upvalue in expr.upvalues_source {

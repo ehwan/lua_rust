@@ -60,7 +60,7 @@ pub enum Instruction {
     TableIndexSet,
 
     /// function_id, number of upvalues
-    FunctionInit(LuaFunctionLua),
+    FunctionInit(Box<LuaFunctionLua>),
     /// func -> top.
     /// src_stack_id
     FunctionInitUpvalueFromLocalVar(usize),

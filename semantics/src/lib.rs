@@ -57,7 +57,8 @@ pub use error::ProcessError;
 /// perform semantic analysis on the given block and generate enhanced AST.
 pub fn process(block: lua_parser::Block) -> Result<Block, ProcessError> {
     let mut context = Context::new();
-    let block = context.process(block)?;
+    context.begin_scope(false);
+    let block = context.process_block(block, true, false)?;
 
     // check all goto label is defined
     for (_, label_info) in context.labels.iter() {

@@ -118,6 +118,7 @@ function fibonacci()
     end)
 end
 
+print( 'Fibonacci numbers with coroutine:' )
 local fib = fibonacci()
 while true do
     local success, value = coroutine.resume(fib)
