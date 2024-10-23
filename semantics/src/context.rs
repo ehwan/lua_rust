@@ -883,7 +883,7 @@ impl Context {
     }
     fn process_expression_function(
         &mut self,
-        expr: lua_parser::ExprFunction,
+        mut expr: lua_parser::ExprFunction,
     ) -> Result<crate::Expression, ProcessError> {
         // begin function scope
         self.begin_function_scope(expr.parameters.variadic);
@@ -896,6 +896,13 @@ impl Context {
             param_offsets.push(offset);
         }
 
+        // force add dummy return statement
+        if expr.block.return_statement.is_none() {
+            expr.block.return_statement = Some(lua_parser::ReturnStatement::new(
+                Vec::new(),
+                lua_parser::Span::new_none(),
+            ));
+        }
         let block = self.process_block(expr.block, false, false)?;
 
         self.end_scope();
