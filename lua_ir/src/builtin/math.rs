@@ -19,9 +19,9 @@ pub fn init() -> Result<LuaValue, RuntimeError> {
     #[cfg(feature = "32bit")]
     {
         math.insert("pi".into(), std::f32::consts::PI.into());
-        math.nsert("huge".into(), std::f32::INFINITY.into());
-        math.nsert("mininteger".into(), std::i32::MIN.into());
-        math.nsert("maxinteger".into(), std::i32::MAX.into());
+        math.insert("huge".into(), std::f32::INFINITY.into());
+        math.insert("mininteger".into(), std::i32::MIN.into());
+        math.insert("maxinteger".into(), std::i32::MAX.into());
     }
     #[cfg(not(feature = "32bit"))]
     {
