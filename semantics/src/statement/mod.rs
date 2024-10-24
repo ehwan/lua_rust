@@ -6,12 +6,20 @@ use crate::Expression;
 pub struct Block {
     pub statements: Vec<Statement>,
     pub return_statement: Option<ReturnStatement>,
+    /// The number of local variables required by this block.
+    /// This field is `Some` if the block itself represents a scope.
+    pub stack_size: Option<usize>,
 }
 impl Block {
-    pub fn new(statements: Vec<Statement>, return_statement: Option<ReturnStatement>) -> Self {
+    pub fn new(
+        statements: Vec<Statement>,
+        return_statement: Option<ReturnStatement>,
+        stack_size: Option<usize>,
+    ) -> Self {
         Self {
             statements,
             return_statement,
+            stack_size,
         }
     }
 }

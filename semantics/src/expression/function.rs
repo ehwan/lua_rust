@@ -13,9 +13,6 @@ pub struct FunctionDefinition {
     pub variadic: bool,
     /// function body
     pub body: Block,
-
-    /// necessary stack size for this function
-    pub stack_size: usize,
 }
 
 impl FunctionDefinition {
@@ -23,13 +20,13 @@ impl FunctionDefinition {
         args: Vec<Rc<RefCell<VariableInfo>>>,
         variadic: bool,
         body: Block,
-        stack_size: usize,
+        // stack_size: usize,
     ) -> Self {
         Self {
             args,
             variadic,
             body,
-            stack_size,
+            // stack_size,
         }
     }
 }
@@ -39,15 +36,15 @@ pub struct ExprFunctionObject {
     /// when constructing function object, copy upvalues from these sources
     pub upvalues_source: Vec<ExprLocalVariable>,
 
-    /// unique id of the function what this object points to
-    pub function_id: usize,
+    /// function definition
+    pub definition: FunctionDefinition,
 }
 
 impl ExprFunctionObject {
-    pub fn new(upvalues_source: Vec<ExprLocalVariable>, function_id: usize) -> Self {
+    pub fn new(upvalues_source: Vec<ExprLocalVariable>, definition: FunctionDefinition) -> Self {
         Self {
             upvalues_source,
-            function_id,
+            definition,
         }
     }
 }

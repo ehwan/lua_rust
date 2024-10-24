@@ -2,22 +2,10 @@ use std::boxed::Box;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use crate::Chunk;
 use crate::LuaEnv;
 use crate::LuaValue;
 use crate::RuntimeError;
-
-/// function information
-#[derive(Debug, Clone, Copy)]
-pub struct FunctionInfo {
-    /// number of arguments ( excluding variadic arguments )
-    pub args: usize,
-    /// if true, this function is variadic
-    pub is_variadic: bool,
-    /// number of local variables for this function (including arguments)
-    pub local_variables: usize,
-    /// entry point of this function ( instruction index )
-    pub address: usize,
-}
 
 /// built-in functions written in Rust
 type LuaFunctionRust = Box<dyn Fn(&mut LuaEnv, usize, Option<usize>) -> Result<(), RuntimeError>>;
@@ -68,6 +56,10 @@ impl LuaFunction {
 pub struct LuaFunctionLua {
     /// upvalues for this function object
     pub upvalues: Vec<Rc<RefCell<LuaValue>>>,
-    /// actual set of instructions connected to this function object
-    pub function_id: usize,
+    /// number of arguments ( excluding variadic arguments )
+    pub args: usize,
+    /// if true, this function is variadic
+    pub is_variadic: bool,
+
+    pub chunk: Chunk,
 }

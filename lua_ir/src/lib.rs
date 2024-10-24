@@ -17,17 +17,19 @@ type LabelType = usize;
 pub use lua_semantics::FloatType;
 pub use lua_semantics::IntType;
 
-pub use function::FunctionInfo;
 pub use function::LuaFunction;
 pub use function::LuaFunctionLua;
+/// Type for any Lua value.
 pub use luaval::LuaValue;
+/// Type for Lua number.
 pub use number::LuaNumber;
+/// Type for Lua table.
 pub use table::LuaTable;
 
-pub use context::Context;
+use context::Context;
 pub use error::RuntimeError;
 pub use instruction::Instruction;
-pub use vm::Chunk;
+use vm::Chunk;
 pub use vm::LuaEnv;
 pub use vm::LuaThread;
 pub use vm::ThreadStatus;

@@ -16,7 +16,6 @@ pub struct Context {
     pub scope_counter: usize,
 
     pub labels: HashMap<String, Rc<RefCell<LabelInfo>>>,
-    pub functions: Vec<crate::FunctionDefinition>,
 }
 
 impl Context {
@@ -25,7 +24,6 @@ impl Context {
             scopes: Vec::new(),
             scope_counter: 0,
             labels: Default::default(),
-            functions: Vec::new(),
         }
     }
 
@@ -164,10 +162,10 @@ impl Context {
         tree
     }
 
-    pub fn process(&mut self, block: lua_parser::Block) -> Result<crate::Block, ProcessError> {
-        self.begin_scope(false);
-        self.process_block(block, false, false)
-    }
+    // pub fn process(&mut self, block: lua_parser::Block) -> Result<crate::Block, ProcessError> {
+    //     self.begin_scope(false);
+    //     self.process_block(block, false, false)
+    // }
 
     pub fn process_block(
         &mut self,
@@ -179,7 +177,7 @@ impl Context {
             self.begin_scope(is_loop);
         }
 
-        let mut blk = crate::Block::new(Vec::with_capacity(block.statements.len()), None);
+        let mut blk = crate::Block::new(Vec::with_capacity(block.statements.len()), None, None);
         for stmt in block.statements.into_iter() {
             self.process_statement(stmt, &mut blk)?;
         }
@@ -188,7 +186,15 @@ impl Context {
         }
 
         if make_scope {
-            self.end_scope();
+            let scope = self.end_scope();
+            match scope {
+                Scope::Block(scope) => {
+                    blk.stack_size = Some(scope.max_variables);
+                }
+                Scope::Function(_) => {
+                    unreachable!("process_block - function scope not closed?");
+                }
+            }
         }
         Ok(blk)
     }
@@ -885,7 +891,7 @@ impl Context {
     }
     fn process_expression_function(
         &mut self,
-        expr: lua_parser::ExprFunction,
+        mut expr: lua_parser::ExprFunction,
     ) -> Result<crate::Expression, ProcessError> {
         // begin function scope
         self.begin_function_scope(expr.parameters.variadic);
@@ -898,20 +904,23 @@ impl Context {
             param_offsets.push(offset);
         }
 
-        let block = self.process_block(expr.block, false, false)?;
+        // force add dummy return statement
+        if expr.block.return_statement.is_none() {
+            expr.block.return_statement = Some(lua_parser::ReturnStatement::new(
+                Vec::new(),
+                lua_parser::Span::new_none(),
+            ));
+        }
+        let mut block = self.process_block(expr.block, false, false)?;
 
         self.end_scope();
         let function_scope = self.end_function_scope();
+        block.stack_size = Some(function_scope.max_variables);
         // end function scope
 
         // add function definition
-        let function_id = self.functions.len();
-        self.functions.push(crate::FunctionDefinition::new(
-            param_offsets,
-            expr.parameters.variadic,
-            block,
-            function_scope.max_variables,
-        ));
+        let definition =
+            crate::FunctionDefinition::new(param_offsets, expr.parameters.variadic, block);
 
         let upvalues_source = function_scope
             .upvalues
@@ -921,7 +930,7 @@ impl Context {
 
         // emit function object
         Ok(crate::Expression::FunctionObject(
-            crate::ExprFunctionObject::new(upvalues_source, function_id),
+            crate::ExprFunctionObject::new(upvalues_source, definition),
         ))
     }
 }

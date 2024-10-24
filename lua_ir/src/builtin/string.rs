@@ -68,21 +68,21 @@ pub fn sub_impl(s: &[u8], mut i: IntType, mut j: IntType) -> &'_ [u8] {
         return s;
     }
     if i < 0 {
-        i = s.len() as i64 + i + 1;
+        i = s.len() as IntType + i + 1;
     }
     if i < 1 {
         i = 1;
-    } else if i > s.len() as i64 {
-        i = s.len() as i64;
+    } else if i > s.len() as IntType {
+        i = s.len() as IntType;
     }
 
     if j < 0 {
-        j = s.len() as i64 + j + 1;
+        j = s.len() as IntType + j + 1;
     }
     if j < 1 {
         j = 1;
-    } else if j > s.len() as i64 {
-        j = s.len() as i64;
+    } else if j > s.len() as IntType {
+        j = s.len() as IntType;
     }
 
     if i > j {

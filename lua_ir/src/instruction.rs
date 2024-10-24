@@ -1,7 +1,8 @@
 use lua_semantics::IntType;
 
-use crate::{LabelType, LuaNumber};
+use crate::{LabelType, LuaFunctionLua, LuaNumber};
 
+/// Instructions for Lua VM.
 #[derive(Debug, Clone)]
 pub enum Instruction {
     /// clone top of the data_stack and push it
@@ -60,7 +61,7 @@ pub enum Instruction {
     TableIndexSet,
 
     /// function_id, number of upvalues
-    FunctionInit(usize, usize),
+    FunctionInit(Box<LuaFunctionLua>),
     /// func -> top.
     /// src_stack_id
     FunctionInitUpvalueFromLocalVar(usize),

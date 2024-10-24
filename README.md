@@ -1,25 +1,38 @@
 # lua_rust
-lua syntax parser & interpreter in Rust
+[![crates.io](https://img.shields.io/crates/v/lua_ir.svg)](https://crates.io/crates/lua_ir)
+[![docs.rs](https://docs.rs/lua_ir/badge.svg)](https://docs.rs/lua_ir)
 
- - Greatly in progress
+lua syntax parser & runtime interpreter in Rust
+
  - LALR(1), GLR parser
  - syntax referenced from [lua 5.4 reference manual](https://www.lua.org/manual/5.4/manual.html)
-
-## project structure
- - `tokenizer`: tokenizing lua code string.
- - `parser`: parsing tokenized lua code into AST.
- - `semantics`: semantic analysis of generated AST. It generates a `Enhanced AST` which contains more information than the original AST.
-      - stack offset of local variables
-      - scope checking for `return`, `break`, `goto`, `label`, ...
-      - split function definition into separated Chunks
- - `lua_ir` : generate IRs from enhanced AST, provide VM interface for running IRs (WIP)
+ - ***Greatly in progress***
+    - grammar fully implemented
+    - std library barely implemented
 
 ## Cargo Features
  - `32bit`: use 32bit integer and float for `lua numeric` type
- - `diag`: enable `to_diag()` function for `ParseError`
 
+## How to use
+As library, add [`lua_ir`](https://crates.io/crates/lua_ir) crate to your `Cargo.toml`
+```toml
+[dependencies]
+lua_ir = "..."
+```
 
-## how to run
+```rust
+let mut env = lua_ir::LuaEnv::new();
+
+env.eval_chunk( b"var_hello = 'Hello'" )?;
+env.eval_chunk( b"var_world = 'World'" )?;
+env.eval_chunk( b"print( var_hello .. ', ' .. var_world .. '!' )" )?;
+// Hello, World!
+
+let hello_value = env.get_global( "var_hello" )?;
+let world_value = env.get_global( "var_world" )?;
+env.set_global( "var_hello", 10.into() )?;
+```
+
 Simply running
 ```
 $ cargo run <source_file.lua>
@@ -28,6 +41,5 @@ or
 ```
 $ cargo run
 ```
-will start lua interpreter.
+will start lua REPL. Note that this executable is not `cargo publish`ed.
 
-No command line arguments are supported yet, some(many) of std functions are not implemented yet.
