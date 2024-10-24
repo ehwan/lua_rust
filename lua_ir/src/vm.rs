@@ -9,6 +9,7 @@ use crate::luaval::RefOrValue;
 use crate::IntType;
 use crate::LuaFunction;
 use crate::LuaFunctionLua;
+use crate::LuaString;
 use crate::LuaTable;
 use crate::LuaValue;
 
@@ -90,9 +91,7 @@ impl LuaEnv {
                         Ok(_) => {}
                         Err(err) => {
                             self.clear_feed_pending();
-                            return Err(RuntimeError::Custom(LuaValue::String(
-                                err.to_string().into(),
-                            )));
+                            return Err(RuntimeError::Custom(err.to_string().into()));
                         }
                     }
                 }
@@ -129,17 +128,13 @@ impl LuaEnv {
             match m {
                 lua_parser::ChunkOrExpressions::Chunk(chunk) => {
                     if matched_stmt.is_some() {
-                        return Err(RuntimeError::Custom(LuaValue::String(
-                            "ambiguous statement".into(),
-                        )));
+                        return Err(RuntimeError::Custom("ambiguous statement".into()));
                     }
                     matched_stmt = Some(chunk);
                 }
                 lua_parser::ChunkOrExpressions::Expressions(exprs) => {
                     if matched_expr.is_some() {
-                        return Err(RuntimeError::Custom(LuaValue::String(
-                            "ambiguous expression".into(),
-                        )));
+                        return Err(RuntimeError::Custom("ambiguous expression".into()));
                     }
                     matched_expr = Some(exprs);
                 }
@@ -175,9 +170,7 @@ impl LuaEnv {
                 {
                     Ok(res) => res,
                     Err(err) => {
-                        return Err(RuntimeError::Custom(LuaValue::String(
-                            err.to_string().into(),
-                        )));
+                        return Err(RuntimeError::Custom(err.to_string().into()));
                     }
                 };
 
@@ -218,9 +211,7 @@ impl LuaEnv {
                         Ok(_) => {}
                         Err(err) => {
                             self.clear_feed_pending();
-                            return Err(RuntimeError::Custom(LuaValue::String(
-                                err.to_string().into(),
-                            )));
+                            return Err(RuntimeError::Custom(err.to_string().into()));
                         }
                     }
                 }
@@ -239,9 +230,7 @@ impl LuaEnv {
             match m {
                 lua_parser::ChunkOrExpressions::Chunk(chunk) => {
                     if matched_stmt.is_some() {
-                        return Err(RuntimeError::Custom(LuaValue::String(
-                            "ambiguous statement".into(),
-                        )));
+                        return Err(RuntimeError::Custom("ambiguous statement".into()));
                     }
                     matched_stmt = Some(chunk);
                 }
@@ -256,9 +245,7 @@ impl LuaEnv {
                 {
                     Ok(res) => res,
                     Err(err) => {
-                        return Err(RuntimeError::Custom(LuaValue::String(
-                            err.to_string().into(),
-                        )));
+                        return Err(RuntimeError::Custom(err.to_string().into()));
                     }
                 };
 
@@ -277,9 +264,7 @@ impl LuaEnv {
                 }
             }
         } else {
-            return Err(RuntimeError::Custom(LuaValue::String(
-                "no statement found".into(),
-            )));
+            return Err(RuntimeError::Custom("no statement found".into()));
         }
 
         Ok(())
@@ -289,7 +274,7 @@ impl LuaEnv {
     pub fn get_global(&self, name: &str) -> LuaValue {
         match &self.env {
             LuaValue::Table(env) => {
-                let name = LuaValue::String(name.to_string().into_bytes());
+                let name = LuaValue::String(LuaString::from_str(name));
                 env.borrow().get(&name).cloned().unwrap_or(LuaValue::Nil)
             }
             _ => LuaValue::Nil,
@@ -299,7 +284,7 @@ impl LuaEnv {
     /// Returns the old value of the variable, or `nil` if it doesn't exist.
     /// Settting a variable to `nil` is equivalent to deleting it.
     pub fn set_global(&mut self, name: &str, value: LuaValue) -> LuaValue {
-        let key = LuaValue::String(name.to_string().into_bytes());
+        let key = LuaValue::String(LuaString::from_str(name));
         match &self.env {
             LuaValue::Table(env) => {
                 if value == LuaValue::Nil {
@@ -368,15 +353,16 @@ impl LuaEnv {
         self.running_thread().borrow_mut()
     }
 
-    pub fn get_metavalue(&self, value: &LuaValue, key: &str) -> Option<LuaValue> {
+    pub fn get_metavalue(&self, value: &LuaValue, key: &'static str) -> Option<LuaValue> {
         match value {
             // @TODO: link `string` module here
-            LuaValue::String(s) => {
-                let s = String::from_utf8_lossy(s);
-                match key {
-                    "__name" => Some(LuaValue::String(s.as_bytes().to_vec())),
-                    _ => None,
-                }
+            LuaValue::String(_s) => {
+                None
+                // let s = String::from_utf8_lossy(s);
+                // match key {
+                //     "__name" => Some(LuaValue::String(s.as_bytes().to_vec())),
+                //     _ => None,
+                // }
             }
             LuaValue::Table(table) => table.borrow().get_metavalue(key),
             _ => None,
@@ -389,7 +375,7 @@ impl LuaEnv {
         &mut self,
         lhs: LuaValue,
         rhs: LuaValue,
-        meta_name: &str,
+        meta_name: &'static str,
         error_wrapper: impl FnOnce(&'static str) -> RuntimeError,
     ) -> Result<(), RuntimeError> {
         match self.get_metavalue(&lhs, meta_name) {
@@ -423,11 +409,11 @@ impl LuaEnv {
                 let s = match name {
                     Some(name) => match name {
                         LuaValue::String(name) => LuaValue::String(name),
-                        _ => LuaValue::String(name.to_string().into_bytes()),
+                        _ => name.to_string().into(),
                     },
                     None => match top {
                         LuaValue::String(s) => LuaValue::String(s),
-                        top => LuaValue::String(top.to_string().into_bytes()),
+                        top => top.to_string().into(),
                     },
                 };
                 self.push(s);
@@ -709,13 +695,13 @@ impl LuaEnv {
                 LuaValue::Number(rhs_num) => {
                     let mut concated = lhs_num.to_string().into_bytes();
                     concated.append(&mut rhs_num.to_string().into_bytes());
-                    self.push(LuaValue::String(concated));
+                    self.push(LuaString::from_vec(concated).into());
                     Ok(())
                 }
-                LuaValue::String(mut rhs) => {
+                LuaValue::String(rhs) => {
                     let mut lhs = lhs_num.to_string().into_bytes();
-                    lhs.append(&mut rhs);
-                    self.push(LuaValue::String(lhs));
+                    lhs.extend_from_slice(rhs.as_bytes());
+                    self.push(LuaString::from_vec(lhs).into());
                     Ok(())
                 }
                 _ => self.try_call_metamethod(
@@ -728,15 +714,15 @@ impl LuaEnv {
 
             LuaValue::String(lhs_str) => match rhs {
                 LuaValue::Number(rhs_num) => {
-                    let mut concated = lhs_str;
+                    let mut concated = lhs_str.into_vec();
                     concated.append(&mut rhs_num.to_string().into_bytes());
-                    self.push(LuaValue::String(concated));
+                    self.push(LuaString::from_vec(concated).into());
                     Ok(())
                 }
-                LuaValue::String(mut rhs) => {
-                    let mut lhs = lhs_str;
-                    lhs.append(&mut rhs);
-                    self.push(LuaValue::String(lhs));
+                LuaValue::String(rhs) => {
+                    let mut lhs = lhs_str.into_vec();
+                    lhs.extend_from_slice(rhs.as_bytes());
+                    self.push(LuaString::from_vec(lhs).into());
                     Ok(())
                 }
                 _ => self.try_call_metamethod(
@@ -1225,7 +1211,7 @@ impl LuaEnv {
                 self.push(LuaValue::Number(n));
             }
             Instruction::String(s) => {
-                self.push(LuaValue::String(s));
+                self.push(LuaString::from_vec(s).into());
             }
             Instruction::GetEnv => {
                 let env = self.env.clone();

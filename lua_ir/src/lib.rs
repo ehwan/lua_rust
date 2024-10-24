@@ -5,6 +5,7 @@ mod function;
 mod instruction;
 mod luaval;
 mod number;
+mod string;
 mod table;
 mod vm;
 
@@ -29,6 +30,7 @@ pub use table::LuaTable;
 use context::Context;
 pub use error::RuntimeError;
 pub use instruction::Instruction;
+pub use string::LuaString;
 use vm::Chunk;
 pub use vm::LuaEnv;
 pub use vm::LuaThread;

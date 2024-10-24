@@ -4,6 +4,7 @@ use std::rc::Rc;
 use crate::IntType;
 use crate::LuaEnv;
 use crate::LuaFunction;
+use crate::LuaString;
 use crate::LuaTable;
 use crate::LuaValue;
 use crate::RuntimeError;
@@ -98,7 +99,7 @@ pub fn byte(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
             let s = env.pop();
             let s = match s {
                 LuaValue::String(s) => s,
-                LuaValue::Number(n) => n.to_string().into_bytes(),
+                LuaValue::Number(n) => LuaString::from_string(n.to_string()),
                 _ => {
                     return Err(RuntimeError::BadArgument(
                         1,
@@ -113,7 +114,7 @@ pub fn byte(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
 
             let s = match s {
                 LuaValue::String(s) => s,
-                LuaValue::Number(n) => n.to_string().into_bytes(),
+                LuaValue::Number(n) => LuaString::from_string(n.to_string()),
                 _ => {
                     return Err(RuntimeError::BadArgument(
                         1,
@@ -148,7 +149,7 @@ pub fn byte(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
             (s, i, j)
         }
     };
-    let sub = sub_impl(&s, i, j);
+    let sub = sub_impl(s.as_bytes(), i, j);
     env.borrow_running_thread_mut()
         .data_stack
         .extend(sub.iter().map(|c| (*c as IntType).into()));
@@ -169,7 +170,7 @@ pub fn sub(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
             let (s, i) = env.pop2();
             let s = match s {
                 LuaValue::String(s) => s,
-                LuaValue::Number(n) => n.to_string().into_bytes(),
+                LuaValue::Number(n) => LuaString::from_string(n.to_string()),
                 _ => {
                     return Err(RuntimeError::BadArgument(
                         1,
@@ -189,7 +190,7 @@ pub fn sub(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
             let (s, i, j) = env.pop3();
             let s = match s {
                 LuaValue::String(s) => s,
-                LuaValue::Number(n) => n.to_string().into_bytes(),
+                LuaValue::Number(n) => LuaString::from_string(n.to_string()),
                 _ => {
                     return Err(RuntimeError::BadArgument(
                         1,
@@ -208,8 +209,8 @@ pub fn sub(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
         }
     };
 
-    let sub = sub_impl(&s, i, j);
-    env.push(LuaValue::String(sub.to_vec()));
+    let sub = sub_impl(s.as_bytes(), i, j);
+    env.push(LuaString::from_slice(sub).into());
     Ok(1)
 }
 
@@ -229,7 +230,7 @@ pub fn char_(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
         }
         s.push(ch as u8);
     }
-    thread_mut.data_stack.push(LuaValue::String(s));
+    thread_mut.data_stack.push(LuaString::from_vec(s).into());
     Ok(1)
 }
 
@@ -268,12 +269,12 @@ pub fn lower(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     let arg = env.pop();
     match arg {
         LuaValue::String(s) => {
-            let ret = LuaValue::String(s.into_iter().map(|c| c.to_ascii_lowercase()).collect());
+            let ret = LuaValue::String(s.into_mapped(|c| c.to_ascii_lowercase()));
             env.push(ret);
             Ok(1)
         }
         LuaValue::Number(n) => {
-            let ret = LuaValue::String(n.to_string().into_bytes());
+            let ret = LuaValue::String(LuaString::from_string(n.to_string()));
             env.push(ret);
             Ok(1)
         }
@@ -294,12 +295,12 @@ pub fn upper(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     let arg = env.pop();
     match arg {
         LuaValue::String(s) => {
-            let ret = LuaValue::String(s.into_iter().map(|c| c.to_ascii_uppercase()).collect());
+            let ret = LuaValue::String(s.into_mapped(|c| c.to_ascii_uppercase()));
             env.push(ret);
             Ok(1)
         }
         LuaValue::Number(n) => {
-            let ret = LuaValue::String(n.to_string().into_bytes());
+            let ret = LuaValue::String(LuaString::from_string(n.to_string()));
             env.push(ret);
             Ok(1)
         }
@@ -322,7 +323,7 @@ pub fn rep(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
             let (s, n) = env.pop2();
             let s = match s {
                 LuaValue::String(s) => s,
-                LuaValue::Number(n) => n.to_string().into_bytes(),
+                LuaValue::Number(n) => LuaString::from_string(n.to_string()),
                 _ => {
                     return Err(RuntimeError::BadArgument(
                         1,
@@ -334,9 +335,9 @@ pub fn rep(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
                 .try_to_int()
                 .map_err(|e| RuntimeError::BadArgument(2, Box::new(e)))?;
             if n <= 0 {
-                env.push(LuaValue::String(Vec::new()));
+                env.push(LuaString::from_static_str("").into());
             } else {
-                env.push(LuaValue::String(s.repeat(n as usize)));
+                env.push(LuaString::from_vec(s.into_vec().repeat(n as usize)).into());
             }
 
             Ok(1)
@@ -346,7 +347,7 @@ pub fn rep(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
             let (s, n, sep) = env.pop3();
             let s = match s {
                 LuaValue::String(s) => s,
-                LuaValue::Number(n) => n.to_string().into_bytes(),
+                LuaValue::Number(n) => LuaString::from_string(n.to_string()),
                 _ => {
                     return Err(RuntimeError::BadArgument(
                         1,
@@ -358,9 +359,9 @@ pub fn rep(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
                 .try_to_int()
                 .map_err(|e| RuntimeError::BadArgument(2, Box::new(e)))?;
             let sep = match sep {
-                LuaValue::Nil => Vec::new(),
+                LuaValue::Nil => LuaString::from_static_str(""),
                 LuaValue::String(s) => s,
-                LuaValue::Number(n) => n.to_string().into_bytes(),
+                LuaValue::Number(n) => LuaString::from_string(n.to_string()),
                 _ => {
                     return Err(RuntimeError::BadArgument(
                         3,
@@ -370,19 +371,18 @@ pub fn rep(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
             };
 
             if n <= 0 {
-                env.push(LuaValue::String(Vec::new()));
+                env.push(LuaString::from_static_str("").into());
             } else {
-                env.push(LuaValue::String(s.repeat(n as usize)));
-            }
-
-            let mut ret = Vec::with_capacity(s.len() * n as usize + sep.len() * (n as usize - 1));
-            for i in 0..n {
-                if i != 0 {
-                    ret.extend_from_slice(&sep);
+                let mut ret =
+                    Vec::with_capacity(s.len() * n as usize + sep.len() * (n as usize - 1));
+                for i in 0..n {
+                    if i != 0 {
+                        ret.extend_from_slice(sep.as_bytes());
+                    }
+                    ret.extend_from_slice(s.as_bytes());
                 }
-                ret.extend_from_slice(&s);
+                env.push(LuaString::from_vec(ret).into());
             }
-            env.push(LuaValue::String(ret));
 
             Ok(1)
         }
@@ -396,9 +396,9 @@ pub fn reverse(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
         env.pop_n(args - 1);
     }
     let arg = env.pop();
-    let mut s = match arg {
+    let s = match arg {
         LuaValue::String(s) => s,
-        LuaValue::Number(n) => n.to_string().into_bytes(),
+        LuaValue::Number(n) => LuaString::from_string(n.to_string()),
         _ => {
             return Err(RuntimeError::BadArgument(
                 1,
@@ -406,7 +406,8 @@ pub fn reverse(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
             ))
         }
     };
+    let mut s = s.into_vec();
     s.reverse();
-    env.push(LuaValue::String(s));
+    env.push(LuaString::from_vec(s).into());
     Ok(1)
 }

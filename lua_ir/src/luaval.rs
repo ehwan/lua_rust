@@ -2,6 +2,7 @@ use crate::number::LuaNumber;
 use crate::FloatType;
 use crate::IntType;
 use crate::LuaFunction;
+use crate::LuaString;
 use crate::LuaTable;
 use crate::LuaThread;
 use crate::RuntimeError;
@@ -26,7 +27,7 @@ pub enum LuaValue {
     Nil,
     Boolean(bool),
     Number(LuaNumber),
-    String(Vec<u8>),
+    String(LuaString),
     Table(Rc<RefCell<LuaTable>>),
     Function(Rc<RefCell<LuaFunction>>),
     UserData(Rc<RefCell<LuaUserData>>),
@@ -73,7 +74,7 @@ impl std::fmt::Display for LuaValue {
             LuaValue::Nil => write!(f, "nil"),
             LuaValue::Boolean(b) => write!(f, "{}", b),
             LuaValue::Number(n) => write!(f, "{}", n),
-            LuaValue::String(s) => write!(f, "{}", String::from_utf8_lossy(s)),
+            LuaValue::String(s) => write!(f, "{}", s),
             LuaValue::Table(t) => {
                 write!(f, "table: {:p}", Rc::as_ptr(t))
             }
@@ -85,6 +86,16 @@ impl std::fmt::Display for LuaValue {
 }
 
 impl LuaValue {
+    /// construct a LuaString from a static string.
+    pub fn from_static_str(s: &'static str) -> Self {
+        LuaValue::String(LuaString::from_static_str(s))
+    }
+    /// construct a LuaString from a static u8 slice.
+    pub fn from_static_slice(s: &'static [u8]) -> Self {
+        LuaValue::String(LuaString::from_static(s))
+    }
+
+    /// get the type of this value as a string.
     pub fn type_str(&self) -> &'static str {
         match self {
             LuaValue::Nil => "nil",
@@ -97,21 +108,26 @@ impl LuaValue {
             LuaValue::UserData(_) => "userdata",
         }
     }
+
+    /// convert this value to a boolean.
     pub fn to_bool(&self) -> bool {
         match self {
             LuaValue::Nil | LuaValue::Boolean(false) => false,
             _ => true,
         }
     }
+
+    /// try convert this value to a number.
     pub fn try_to_int(&self) -> Result<IntType, RuntimeError> {
         self.try_to_number()?.try_to_int()
     }
+    /// try convert this value to a number.
     pub fn try_to_number(&self) -> Result<LuaNumber, RuntimeError> {
         match self {
             LuaValue::Number(n) => Ok(*n),
             LuaValue::String(s) => {
                 // use `lua_tokenizer` to parse the string into a number
-                let mut tokenizer = lua_tokenizer::Tokenizer::from_bytes(s);
+                let mut tokenizer = lua_tokenizer::Tokenizer::from_bytes(s.as_bytes());
                 tokenizer.ignore_whitespace();
                 // sign
                 let neg = match tokenizer.peek() {
@@ -207,14 +223,29 @@ impl From<LuaNumber> for LuaValue {
         LuaValue::Number(n)
     }
 }
-impl From<String> for LuaValue {
-    fn from(s: String) -> Self {
-        LuaValue::String(s.into_bytes())
+impl From<Vec<u8>> for LuaValue {
+    fn from(v: Vec<u8>) -> Self {
+        LuaValue::String(LuaString::from_vec(v))
     }
 }
-impl From<&str> for LuaValue {
-    fn from(s: &str) -> Self {
-        LuaValue::String(s.bytes().collect())
+impl From<String> for LuaValue {
+    fn from(s: String) -> Self {
+        LuaValue::String(LuaString::from_string(s))
+    }
+}
+impl From<&'static str> for LuaValue {
+    fn from(s: &'static str) -> Self {
+        LuaValue::String(LuaString::from_str(s))
+    }
+}
+impl From<&'static [u8]> for LuaValue {
+    fn from(s: &'static [u8]) -> Self {
+        LuaValue::String(LuaString::from_slice(s))
+    }
+}
+impl From<LuaString> for LuaValue {
+    fn from(s: LuaString) -> Self {
+        LuaValue::String(s)
     }
 }
 impl From<LuaTable> for LuaValue {

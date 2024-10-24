@@ -5,6 +5,7 @@ use std::rc::Rc;
 use crate::IntType;
 use crate::LuaEnv;
 use crate::LuaFunction;
+use crate::LuaString;
 use crate::LuaTable;
 use crate::LuaValue;
 use crate::RuntimeError;
@@ -40,7 +41,7 @@ pub fn concat(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
             };
             let i = 1 as IntType;
             let j = list.borrow().len();
-            (list, Vec::new(), i, j)
+            (list, LuaString::from_static_str(""), i, j)
         }
         2 => {
             let (list, sep) = env.pop2();
@@ -54,9 +55,9 @@ pub fn concat(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
                 }
             };
             let sep = match sep {
-                LuaValue::Nil => Vec::new(),
+                LuaValue::Nil => LuaString::from_static_str(""),
                 LuaValue::String(s) => s,
-                LuaValue::Number(n) => n.to_string().into_bytes(),
+                LuaValue::Number(n) => LuaString::from_string(n.to_string()),
                 _ => {
                     return Err(RuntimeError::BadArgument(
                         2,
@@ -81,9 +82,9 @@ pub fn concat(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
                 }
             };
             let sep = match sep {
-                LuaValue::Nil => Vec::new(),
+                LuaValue::Nil => LuaString::from_static_str(""),
                 LuaValue::String(s) => s,
-                LuaValue::Number(n) => n.to_string().into_bytes(),
+                LuaValue::Number(n) => LuaString::from_string(n.to_string()),
                 _ => {
                     return Err(RuntimeError::BadArgument(
                         2,
@@ -111,9 +112,9 @@ pub fn concat(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
                 }
             };
             let sep = match sep {
-                LuaValue::Nil => Vec::new(),
+                LuaValue::Nil => LuaString::from_static_str(""),
                 LuaValue::String(s) => s,
-                LuaValue::Number(n) => n.to_string().into_bytes(),
+                LuaValue::Number(n) => LuaString::from_string(n.to_string()),
                 _ => {
                     return Err(RuntimeError::BadArgument(
                         2,
@@ -131,24 +132,23 @@ pub fn concat(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
         }
     };
     if i > j {
-        env.push(LuaValue::String(Vec::new()));
+        env.push(LuaString::from_static_str("").into());
         return Ok(1);
     }
 
     let mut ret = Vec::with_capacity(sep.len() * (j - i) as usize + ((j - i + 1) * 4) as usize);
     for k in i..=j {
         if k != i {
-            ret.extend(sep.iter().copied());
+            ret.extend_from_slice(sep.as_bytes());
         }
         match list.borrow().get_arr(k) {
             Some(LuaValue::String(s)) => {
-                ret.extend(s.iter().copied());
+                ret.extend_from_slice(s.as_bytes());
             }
             Some(LuaValue::Number(n)) => {
                 ret.extend(n.to_string().into_bytes());
             }
             elem => {
-                // @TODO  invalid value (nil) at index 2 in table for 'concat'
                 return Err(RuntimeError::Custom(
                     format!(
                         "invalid value ({}) at index {} in table for 'concat'",
@@ -160,7 +160,7 @@ pub fn concat(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
             }
         }
     }
-    env.push(LuaValue::String(ret));
+    env.push(LuaString::from_vec(ret).into());
     Ok(1)
 }
 

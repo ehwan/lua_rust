@@ -1,6 +1,7 @@
-use crate::{LuaEnv, LuaValue};
-
 use lua_tokenizer::TokenizeError;
+
+use crate::LuaString;
+use crate::{LuaEnv, LuaValue};
 
 // @TODO
 // error should match with (real) lua error
@@ -63,7 +64,7 @@ impl RuntimeError {
             RuntimeError::Custom(val) => return val,
             _ => {
                 let string = RuntimeErrorEnvPair(&self, env).to_string();
-                LuaValue::String(string.into_bytes())
+                LuaValue::String(LuaString::from_string(string))
             }
         }
     }

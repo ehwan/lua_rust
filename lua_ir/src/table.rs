@@ -1,11 +1,13 @@
-use crate::IntType;
-use crate::{LuaNumber, LuaValue};
+use indexmap::IndexMap;
 
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
-use indexmap::IndexMap;
+use crate::IntType;
+use crate::LuaNumber;
+use crate::LuaString;
+use crate::LuaValue;
 
 #[derive(Debug, Clone)]
 pub struct LuaTable {
@@ -32,9 +34,12 @@ impl LuaTable {
             meta: None,
         }
     }
-    pub fn get_metavalue(&self, key: &str) -> Option<LuaValue> {
+    pub fn get_metavalue(&self, key: &'static str) -> Option<LuaValue> {
         if let Some(meta) = &self.meta {
-            meta.borrow().map.get(&LuaValue::from(key)).cloned()
+            meta.borrow()
+                .map
+                .get(&LuaValue::String(LuaString::from_static_str(key)))
+                .cloned()
         } else {
             None
         }

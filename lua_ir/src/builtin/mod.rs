@@ -167,7 +167,7 @@ pub fn print(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
         env.tostring()?;
         let s = env.pop();
         if let LuaValue::String(s) = s {
-            print!("{}", String::from_utf8_lossy(&s));
+            print!("{}", s);
         } else {
             unreachable!("string expected");
         }
