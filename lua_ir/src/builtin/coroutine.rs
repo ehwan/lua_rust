@@ -389,25 +389,54 @@ pub fn status(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     Ok(1)
 }
 
-// fn wrap_inner(
-//     env: &mut LuaEnv,
-//     thread: &Rc<RefCell<LuaThread>>,
-//     chunk: &Chunk,
-//     args: usize,
-// ) -> Result<usize, RuntimeError> {
-// }
 pub fn wrap(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     create(env, args)?;
     let co = env.pop();
-    let _co = match co {
-        LuaValue::Thread(thread) => thread,
-        _ => {
-            return Err(RuntimeError::BadArgument(
-                1,
-                Box::new(RuntimeError::Expected("thread", co.type_str().into())),
-            ))
-        }
-    };
 
-    unimplemented!("coroutine.wrap")
+    let wrap_inner =
+        move |env: &mut LuaEnv, args: usize, expected: Option<usize>| -> Result<(), RuntimeError> {
+            let mut thread = env.running_thread().borrow_mut();
+            // insert `co` in front of the arguments
+            let co_index = thread.data_stack.len() - args;
+            thread.data_stack.insert(co_index, co.clone());
+            drop(thread);
+
+            match expected {
+                Some(expected) => resume(env, args + 1, Some(expected + 1))?,
+                None => resume(env, args + 1, None)?,
+            }
+
+            // bool, results*
+            // ^^^ co_index
+            let mut thread = env.running_thread().borrow_mut();
+            let res = thread.data_stack[co_index].to_bool();
+            if res {
+                // resume success
+                // remove bool from the stack
+                thread.data_stack.remove(co_index);
+                Ok(())
+            } else {
+                // resume fail
+                // bool, error_message
+                debug_assert!(thread.data_stack.len() == co_index + 2);
+                let error = thread.data_stack.pop().unwrap();
+                thread.data_stack.pop();
+
+                // close coroutine
+                if let LuaValue::Thread(co) = &co {
+                    co.borrow_mut().set_dead();
+                } else {
+                    unreachable!("wrap: co is not a thread");
+                }
+                thread.data_stack.push(co.clone());
+                drop(thread);
+                close(env, 1)?;
+
+                // propagate error
+                Err(RuntimeError::Custom(error))
+            }
+        };
+    let func = LuaFunction::from_func_with_expected(wrap_inner);
+    env.push(func.into());
+    Ok(1)
 }
