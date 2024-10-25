@@ -20,7 +20,7 @@ use crate::RuntimeError;
 /// It contains global environment, random number generator, coroutine stack, etc.
 pub struct LuaEnv {
     /// _env
-    pub(crate) env: LuaValue,
+    pub(crate) env: Rc<RefCell<LuaTable>>,
     /// random number generator
     pub(crate) rng: rand::rngs::StdRng,
 
@@ -44,7 +44,7 @@ impl LuaEnv {
         let mut semantic_context = lua_semantics::Context::new();
         semantic_context.begin_scope(false);
         LuaEnv {
-            env: LuaValue::Table(env),
+            env,
             rng: rand::rngs::StdRng::from_entropy(),
 
             coroutines: vec![],
@@ -281,28 +281,25 @@ impl LuaEnv {
 
     /// Get global variable name `name`.
     pub fn get_global(&self, name: &str) -> LuaValue {
-        match &self.env {
-            LuaValue::Table(env) => {
-                let name = LuaValue::String(LuaString::from_str(name));
-                env.borrow().get(&name).cloned().unwrap_or(LuaValue::Nil)
-            }
-            _ => LuaValue::Nil,
-        }
+        let name = LuaValue::String(LuaString::from_str(name));
+        self.env
+            .borrow()
+            .get(&name)
+            .cloned()
+            .unwrap_or(LuaValue::Nil)
     }
     /// Set global variable name `name` to `value`
     /// Returns the old value of the variable, or `nil` if it doesn't exist.
     /// Settting a variable to `nil` is equivalent to deleting it.
     pub fn set_global(&mut self, name: &str, value: LuaValue) -> LuaValue {
         let key = LuaValue::String(LuaString::from_str(name));
-        match &self.env {
-            LuaValue::Table(env) => {
-                if value == LuaValue::Nil {
-                    env.borrow_mut().remove(&key).unwrap_or(LuaValue::Nil)
-                } else {
-                    env.borrow_mut().insert(key, value).unwrap_or(LuaValue::Nil)
-                }
-            }
-            _ => LuaValue::Nil,
+        if value == LuaValue::Nil {
+            self.env.borrow_mut().remove(&key).unwrap_or(LuaValue::Nil)
+        } else {
+            self.env
+                .borrow_mut()
+                .insert(key, value)
+                .unwrap_or(LuaValue::Nil)
         }
     }
 
@@ -365,14 +362,10 @@ impl LuaEnv {
     pub fn get_metavalue(&self, value: &LuaValue, key: &'static str) -> Option<LuaValue> {
         match value {
             // @TODO: link `string` module here
-            LuaValue::String(_s) => {
-                None
-                // let s = String::from_utf8_lossy(s);
-                // match key {
-                //     "__name" => Some(LuaValue::String(s.as_bytes().to_vec())),
-                //     _ => None,
-                // }
-            }
+            LuaValue::String(_) => match key {
+                "__index" => self.env.borrow().get(&"string".into()).cloned(),
+                _ => None,
+            },
             LuaValue::Table(table) => table.borrow().get_metavalue(key),
             _ => None,
         }
@@ -1247,8 +1240,8 @@ impl LuaEnv {
                 self.push(LuaString::from_vec(s).into());
             }
             Instruction::GetEnv => {
-                let env = self.env.clone();
-                self.push(env);
+                let env = Rc::clone(&self.env);
+                self.push(LuaValue::Table(env));
             }
             Instruction::TableInit(cap) => {
                 let table = LuaTable::with_capacity(cap);
