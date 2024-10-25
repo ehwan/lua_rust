@@ -1,9 +1,11 @@
 use lua_tokenizer::IntType;
 
+use std::io::Read;
 use std::rc::Rc;
 
 use crate::LuaEnv;
 use crate::LuaFunction;
+use crate::LuaFunctionLua;
 use crate::LuaNumber;
 use crate::LuaTable;
 use crate::LuaValue;
@@ -56,7 +58,10 @@ pub fn init_env() -> Result<LuaTable, RuntimeError> {
     );
     env.insert("load".into(), LuaFunction::from_func(load).into());
     env.insert("loadfile".into(), LuaFunction::from_func(loadfile).into());
-    env.insert("dofile".into(), LuaFunction::from_func(dofile).into());
+    env.insert(
+        "dofile".into(),
+        LuaFunction::from_func_with_expected(dofile).into(),
+    );
 
     env.insert("_VERSION".into(), VERSION.into());
 
@@ -77,8 +82,51 @@ fn load(_env: &mut LuaEnv, _args: usize) -> Result<usize, RuntimeError> {
 fn loadfile(_env: &mut LuaEnv, _args: usize) -> Result<usize, RuntimeError> {
     unimplemented!("loadfile");
 }
-fn dofile(_env: &mut LuaEnv, _args: usize) -> Result<usize, RuntimeError> {
-    unimplemented!("dofile");
+fn dofile(env: &mut LuaEnv, args: usize, expected_ret: Option<usize>) -> Result<(), RuntimeError> {
+    let buf = if args == 0 {
+        let mut buf = String::new();
+        std::io::stdin().read_to_string(&mut buf).map_err(|e| {
+            RuntimeError::Custom(format!("failed to read from stdin: {}", e).into())
+        })?;
+        buf.into_bytes()
+    } else {
+        env.pop_n(args - 1);
+        let filename = env.pop();
+        match filename {
+            LuaValue::Nil => {
+                let mut buf = String::new();
+                std::io::stdin().read_to_string(&mut buf).map_err(|e| {
+                    RuntimeError::Custom(format!("failed to read from stdin: {}", e).into())
+                })?;
+                buf.into_bytes()
+            }
+            LuaValue::Number(n) => {
+                let filename = n.to_string();
+                env.read_file(&filename)?
+            }
+            LuaValue::String(s) => {
+                let filename = s.to_string();
+                env.read_file(&filename)?
+            }
+            filename => {
+                return Err(RuntimeError::BadArgument(
+                    1,
+                    Box::new(RuntimeError::Expected("string", filename.type_str().into())),
+                ))
+            }
+        }
+    };
+
+    let chunk = env.load_chunk(&buf)?;
+    drop(buf);
+    let func = LuaFunctionLua {
+        chunk,
+        args: 0,
+        is_variadic: false,
+        upvalues: Vec::new(),
+    };
+    let func = LuaFunction::LuaFunc(func);
+    env.function_call(0, func.into(), expected_ret)
 }
 fn tonumber(_env: &mut LuaEnv, _args: usize) -> Result<usize, RuntimeError> {
     unimplemented!("tonumber");

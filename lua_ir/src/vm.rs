@@ -273,6 +273,12 @@ impl LuaEnv {
         }
     }
 
+    /// Read file from `path`.
+    /// Searches from current directory, then from `package.path`.
+    pub(crate) fn read_file(&self, path: &str) -> Result<Vec<u8>, RuntimeError> {
+        std::fs::read(path).map_err(|e| RuntimeError::Custom(e.to_string().into()))
+    }
+
     /// Get global variable name `name`.
     pub fn get_global(&self, name: &str) -> LuaValue {
         match &self.env {
