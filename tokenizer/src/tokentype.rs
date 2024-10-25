@@ -113,122 +113,122 @@ impl std::fmt::Display for TokenType {
         match self {
             Self::Ident(ident) => {
                 if ident.is_empty() {
-                    write!(f, "<Ident>")
+                    write!(f, "Ident")
                 } else {
-                    write!(f, "<{}:Ident>", ident)
+                    write!(f, "Ident(\"{}\")", ident)
                 }
             }
             Self::Numeric(num) => {
-                write!(f, "{}", num)
+                write!(f, "Numeric({})", num)
             }
             Self::String(string) => {
                 let string = String::from_utf8_lossy(string);
-                write!(f, "\"{}\"", string)
+                write!(f, "String(\"{}\")", string)
             }
             Self::Bool(boolean) => {
-                write!(f, "'{}'", boolean)
+                write!(f, "Boolean({})", boolean)
             }
             Self::Nil => {
                 write!(f, "nil")
             }
             Self::Plus => {
-                write!(f, "+")
+                write!(f, "'+'")
             }
             Self::Minus => {
-                write!(f, "-")
+                write!(f, "'-'")
             }
             Self::Asterisk => {
-                write!(f, "*")
+                write!(f, "'*'")
             }
             Self::Slash => {
-                write!(f, "/")
+                write!(f, "'/'")
             }
             Self::Percent => {
-                write!(f, "%")
+                write!(f, "'%'")
             }
             Self::Caret => {
-                write!(f, "^")
+                write!(f, "'^'")
             }
             Self::Hash => {
-                write!(f, "#")
+                write!(f, "'#'")
             }
             Self::Ampersand => {
-                write!(f, "&")
+                write!(f, "'&'")
             }
             Self::Tilde => {
-                write!(f, "~")
+                write!(f, "'~'")
             }
             Self::Pipe => {
-                write!(f, "|")
+                write!(f, "'|'")
             }
             Self::LessLess => {
-                write!(f, "<<")
+                write!(f, "'<<'")
             }
             Self::GreaterGreater => {
-                write!(f, ">>")
+                write!(f, "'>>'")
             }
             Self::SlashSlash => {
-                write!(f, "//")
+                write!(f, "'//'")
             }
             Self::EqualEqual => {
-                write!(f, "==")
+                write!(f, "'=='")
             }
             Self::TildeEqual => {
-                write!(f, "~=")
+                write!(f, "'~='")
             }
             Self::LessEqual => {
-                write!(f, "<=")
+                write!(f, "'<='")
             }
             Self::GreaterEqual => {
-                write!(f, ">=")
+                write!(f, "'>='")
             }
             Self::Less => {
-                write!(f, "<")
+                write!(f, "'<'")
             }
             Self::Greater => {
-                write!(f, ">")
+                write!(f, "'>'")
             }
             Self::Equal => {
-                write!(f, "=")
+                write!(f, "'='")
             }
             Self::LParen => {
-                write!(f, "(")
+                write!(f, "'('")
             }
             Self::RParen => {
-                write!(f, ")")
+                write!(f, "')'")
             }
             Self::LBrace => {
-                write!(f, "{{")
+                write!(f, "'{{'")
             }
             Self::RBrace => {
-                write!(f, "}}")
+                write!(f, "'}}'")
             }
             Self::LBracket => {
-                write!(f, "[")
+                write!(f, "'['")
             }
             Self::RBracket => {
-                write!(f, "]")
+                write!(f, "']'")
             }
             Self::ColonColon => {
-                write!(f, "::")
+                write!(f, "'::'")
             }
             Self::Semicolon => {
-                write!(f, ";")
+                write!(f, "';'")
             }
             Self::Colon => {
-                write!(f, ":")
+                write!(f, "':'")
             }
             Self::Comma => {
-                write!(f, ",")
+                write!(f, "','")
             }
             Self::Dot => {
-                write!(f, ".")
+                write!(f, "'.'")
             }
             Self::DotDot => {
-                write!(f, "..")
+                write!(f, "'..'")
             }
             Self::DotDotDot => {
-                write!(f, "...")
+                write!(f, "'...'")
             }
             Self::And => {
                 write!(f, "and")
@@ -290,7 +290,6 @@ impl std::fmt::Display for TokenType {
             Self::Eof => {
                 write!(f, "<eof>")
             }
-        }?;
-        write!(f, " ")
+        }
     }
 }
