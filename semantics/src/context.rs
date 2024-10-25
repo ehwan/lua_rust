@@ -46,6 +46,7 @@ impl Context {
             offset,
             variables: Vec::new(),
             is_loop,
+            labels: Vec::new(),
         }));
     }
     /// close all local variable scopes, count up variables and re calculate stack size.
@@ -53,6 +54,9 @@ impl Context {
         let scope = self.scopes.pop().unwrap();
 
         if let Scope::Block(blk) = &scope {
+            for label in blk.labels.iter() {
+                self.labels.remove(label);
+            }
             match self.scopes.last_mut() {
                 Some(Scope::Block(parent)) => {
                     let vars = parent.variables.len() + blk.max_variables;
@@ -881,6 +885,7 @@ impl Context {
         let scope_tree = self.scope_tree();
         let span = stmt.span();
         let spanned_name = stmt.name;
+        let name = spanned_name.to_string();
         let label = self
             .labels
             .entry(spanned_name.to_string())
@@ -888,6 +893,12 @@ impl Context {
         label
             .borrow_mut()
             .set_label(spanned_name, scope_tree, span)?;
+        match self.scopes.last_mut().unwrap() {
+            Scope::Block(blk) => {
+                blk.labels.push(name);
+            }
+            _ => unreachable!("process_statement_label - block scope not opened?"),
+        }
         let label_stmt = crate::Statement::Label(crate::StmtLabel::new(Rc::clone(label)));
         blk.statements.push(label_stmt);
 

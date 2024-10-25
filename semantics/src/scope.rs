@@ -25,6 +25,8 @@ pub struct ScopeBlock {
     pub variables: Vec<Rc<RefCell<VariableInfo>>>,
 
     pub is_loop: bool,
+
+    pub labels: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
