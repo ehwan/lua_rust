@@ -1120,7 +1120,7 @@ impl LuaEnv {
             }
             Instruction::Deref => {
                 let mut thread_mut = self.running_thread().borrow_mut();
-                let sp = thread_mut.usize_stack.pop().unwrap();
+                let sp = *thread_mut.usize_stack.last().unwrap();
                 let top = thread_mut.data_stack[sp].clone();
                 thread_mut.data_stack.push(top);
             }
