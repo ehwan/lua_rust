@@ -24,7 +24,7 @@ pub enum Instruction {
     JumpFalse(LabelType),
 
     /// get i'th local variable and push the value to stack_top
-    GetLocalVariable(usize),
+    GetLocalVariable(usize, String),
     /// pop data_stack and set i'th local variable to the value.
     /// If i'th local variable is `Ref`, the internal value will be set.
     SetLocalVariable(usize),
@@ -69,7 +69,7 @@ pub enum Instruction {
     FunctionInitUpvalueFromUpvalue(usize),
 
     /// get i'th upvalue of current function
-    FunctionUpvalue(usize),
+    FunctionUpvalue(usize, String),
     /// set i'th upvalue of current function
     FunctionUpvalueSet(usize),
 

@@ -1160,7 +1160,8 @@ impl LuaEnv {
                     frame.counter = *next_pc;
                 }
             }
-            Instruction::GetLocalVariable(local_id) => {
+            Instruction::GetLocalVariable(local_id, name) => {
+                self.last_op = name;
                 let mut thread_mut = self.running_thread().borrow_mut();
                 let local_idx = local_id + thread_mut.bp;
                 let val = match thread_mut.local_variables.get(local_idx).unwrap() {
@@ -1211,6 +1212,7 @@ impl LuaEnv {
                 self.push(LuaValue::Number(n));
             }
             Instruction::String(s) => {
+                self.last_op = String::from_utf8_lossy(&s).to_string();
                 self.push(LuaString::from_vec(s).into());
             }
             Instruction::GetEnv => {
@@ -1306,7 +1308,8 @@ impl LuaEnv {
                 }
             }
 
-            Instruction::FunctionUpvalue(upvalue_id) => {
+            Instruction::FunctionUpvalue(upvalue_id, name) => {
+                self.last_op = name;
                 let thread = self.running_thread().borrow();
                 let func = thread.call_stack.last().unwrap().function.borrow();
 

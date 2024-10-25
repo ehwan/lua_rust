@@ -1,7 +1,7 @@
 #[derive(Clone, Debug)]
 pub enum ExprLocalVariable {
     /// on stack
-    Stack(usize),
+    Stack(usize, String),
     /// on upvalue
-    Upvalue(usize),
+    Upvalue(usize, String),
 }

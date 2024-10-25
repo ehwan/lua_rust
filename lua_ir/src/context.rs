@@ -141,11 +141,11 @@ impl Context {
     fn emit_expression_set(&mut self, entry: lua_semantics::Expression) {
         match entry {
             lua_semantics::Expression::LocalVariable(expr) => match expr {
-                ExprLocalVariable::Stack(local_id) => {
+                ExprLocalVariable::Stack(local_id, _name) => {
                     self.instructions
                         .push(Instruction::SetLocalVariable(local_id));
                 }
-                ExprLocalVariable::Upvalue(index) => {
+                ExprLocalVariable::Upvalue(index, _name) => {
                     self.instructions
                         .push(Instruction::FunctionUpvalueSet(index));
                 }
@@ -417,12 +417,13 @@ impl Context {
             return;
         }
         match expr {
-            lua_semantics::ExprLocalVariable::Stack(local_id) => {
+            lua_semantics::ExprLocalVariable::Stack(local_id, name) => {
                 self.instructions
-                    .push(Instruction::GetLocalVariable(local_id));
+                    .push(Instruction::GetLocalVariable(local_id, name));
             }
-            lua_semantics::ExprLocalVariable::Upvalue(index) => {
-                self.instructions.push(Instruction::FunctionUpvalue(index));
+            lua_semantics::ExprLocalVariable::Upvalue(index, name) => {
+                self.instructions
+                    .push(Instruction::FunctionUpvalue(index, name));
             }
         }
         if let Some(expected) = expected {
@@ -476,15 +477,19 @@ impl Context {
         self.instructions
             .push(Instruction::InitLocalVariable(control_offset));
         // check range
-        self.instructions
-            .push(Instruction::GetLocalVariable(control_offset));
+        self.instructions.push(Instruction::GetLocalVariable(
+            control_offset,
+            "@control".to_string(),
+        ));
         self.emit_expression(stmt.end, Some(1));
         self.instructions.push(Instruction::BinaryLessEqual); // @TODO less, overflow check
         self.instructions.push(Instruction::JumpFalse(break_label));
 
         self.emit_block(stmt.block);
-        self.instructions
-            .push(Instruction::GetLocalVariable(control_offset));
+        self.instructions.push(Instruction::GetLocalVariable(
+            control_offset,
+            "@control".to_string(),
+        ));
         self.emit_expression(stmt.step, Some(1));
         self.instructions.push(Instruction::BinaryAdd);
         self.instructions.push(Instruction::Jump(continue_label));
@@ -536,13 +541,18 @@ impl Context {
         // iterator function call
         // control_variables* ... = iterator( state, control_variable_0 )
         self.instructions.push(Instruction::Sp);
-        self.instructions
-            .push(Instruction::GetLocalVariable(stmt.state.borrow().offset));
+        self.instructions.push(Instruction::GetLocalVariable(
+            stmt.state.borrow().offset,
+            "@control".to_string(),
+        ));
         self.instructions.push(Instruction::GetLocalVariable(
             stmt.control_variables[0].borrow().offset,
+            "@control".to_string(),
         ));
-        self.instructions
-            .push(Instruction::GetLocalVariable(stmt.iterator.borrow().offset));
+        self.instructions.push(Instruction::GetLocalVariable(
+            stmt.iterator.borrow().offset,
+            "@control".to_string(),
+        ));
         self.instructions.push(Instruction::FunctionCall(Some(
             stmt.control_variables.len(),
         )));
@@ -553,6 +563,7 @@ impl Context {
         // get control_variable_0
         self.instructions.push(Instruction::GetLocalVariable(
             stmt.control_variables[0].borrow().offset,
+            "@control".to_string(),
         ));
         // check if it is nil
         self.instructions.push(Instruction::IsNil);
@@ -585,11 +596,11 @@ impl Context {
         // initialize upvalues
         for upvalue in expr.upvalues_source {
             match upvalue {
-                ExprLocalVariable::Stack(local_id) => {
+                ExprLocalVariable::Stack(local_id, _name) => {
                     self.instructions
                         .push(Instruction::FunctionInitUpvalueFromLocalVar(local_id));
                 }
-                ExprLocalVariable::Upvalue(index) => {
+                ExprLocalVariable::Upvalue(index, _name) => {
                     self.instructions
                         .push(Instruction::FunctionInitUpvalueFromUpvalue(index));
                 }

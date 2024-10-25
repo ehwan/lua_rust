@@ -94,7 +94,10 @@ impl Context {
                 Scope::Block(blk) => {
                     for var in blk.variables.iter().rev() {
                         if var.borrow().name == name {
-                            found = Some(ExprLocalVariable::Stack(var.borrow().offset));
+                            found = Some(ExprLocalVariable::Stack(
+                                var.borrow().offset,
+                                name.to_string(),
+                            ));
                             break 'a;
                         }
                     }
@@ -102,7 +105,7 @@ impl Context {
                 Scope::Function(func) => {
                     for (upvalue_idx, upvalue) in func.upvalues.iter().enumerate() {
                         if upvalue.name.as_str() == name {
-                            found = Some(ExprLocalVariable::Upvalue(upvalue_idx));
+                            found = Some(ExprLocalVariable::Upvalue(upvalue_idx, name.to_string()));
                             break 'a;
                         }
                     }
@@ -117,7 +120,7 @@ impl Context {
                     name: name.to_string(),
                     from: found,
                 });
-                found = ExprLocalVariable::Upvalue(upvalue_idx);
+                found = ExprLocalVariable::Upvalue(upvalue_idx, name.to_string());
             }
             Some(found)
         } else {
@@ -584,6 +587,7 @@ impl Context {
 
         let var_expr = crate::Expression::LocalVariable(crate::ExprLocalVariable::Stack(
             varinfo.borrow().offset,
+            stmt.name.to_string(),
         ));
         let assign_stmt = crate::Statement::Assignment(crate::StmtAssignment::new(
             vec![var_expr],
