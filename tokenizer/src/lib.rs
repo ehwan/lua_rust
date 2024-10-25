@@ -199,41 +199,60 @@ impl<'a> Tokenizer<'a> {
         if self.starts_with_and_advance(b"0x") || self.starts_with_and_advance(b"0X") {
             // hex
 
-            // one or more hexs
             let mut value = IntOrFloat::from(0);
-            let mut count = 0;
+
+            // hexs
+            let mut hexs_exist = false;
             while let Some(ch) = self.peek() {
                 if let Some(hex) = Self::hex(ch) {
                     self.advance();
-                    count += 1;
+                    hexs_exist = true;
                     value *= 16 as IntType;
                     value += hex as IntType;
                 } else {
                     break;
                 }
             }
-            if count == 0 {
-                return Err(TokenizeError::NumericEmpty {
-                    start: i0,
-                    pos: self.byte_offset,
-                });
-            }
 
-            // check fraction
-            // dot
-            if self.peek() == Some(b'.') {
+            if hexs_exist {
+                // check fraction
+                // dot
+                if self.peek() == Some(b'.') {
+                    self.advance();
+
+                    // one or more hexs for fraction
+                    let base = (1.0 / 16.0) as FloatType;
+                    let mut exp = base;
+                    while let Some(ch) = self.peek() {
+                        if let Some(hex) = Self::hex(ch) {
+                            self.advance();
+
+                            let f = hex as FloatType * exp;
+                            value += f;
+                            exp *= base;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+            } else {
+                // hex part does not exist.
+
+                // dot must exist.
+                if self.peek() != Some(b'.') {
+                    self.set_cursor(i0);
+                    return Ok(None);
+                }
                 self.advance();
 
-                value = value.to_float().into();
-
-                // one or more hexs for fraction
+                // one or more hexs for fraction must exist
+                let mut fraction_exist = false;
                 let base = (1.0 / 16.0) as FloatType;
                 let mut exp = base;
-                count = 0;
                 while let Some(ch) = self.peek() {
                     if let Some(hex) = Self::hex(ch) {
+                        fraction_exist = true;
                         self.advance();
-                        count += 1;
 
                         let f = hex as FloatType * exp;
                         value += f;
@@ -242,12 +261,9 @@ impl<'a> Tokenizer<'a> {
                         break;
                     }
                 }
-
-                if count == 0 {
-                    return Err(TokenizeError::NumericEmpty {
-                        start: i0,
-                        pos: self.byte_offset,
-                    });
+                if fraction_exist == false {
+                    self.set_cursor(i0);
+                    return Ok(None);
                 }
             }
 
@@ -270,19 +286,19 @@ impl<'a> Tokenizer<'a> {
                 };
 
                 // one or more digits for exponent
-                count = 0;
+                let mut exp_digit_exist = false;
                 let mut binary_exp: u32 = 0;
                 while let Some(ch) = self.peek() {
                     if ch >= b'0' && ch <= b'9' {
                         self.advance();
-                        count += 1;
+                        exp_digit_exist = true;
                         let d = (ch - b'0') as u32;
                         binary_exp = binary_exp.wrapping_mul(10).wrapping_add(d);
                     } else {
                         break;
                     }
                 }
-                if count == 0 {
+                if exp_digit_exist == false {
                     return Err(TokenizeError::NumericEmpty {
                         start: i0,
                         pos: self.byte_offset,
@@ -306,48 +322,62 @@ impl<'a> Tokenizer<'a> {
             };
             Ok(Some(token))
         } else {
-            // decimals
-            if let Some(b'0'..=b'9') = self.peek() {
-            } else {
-                self.set_cursor(i0);
-                return Ok(None);
-            }
-
-            // one or more digits
             let mut value = IntOrFloat::from(0);
-            let mut count = 0;
+
+            // decimals
+            let mut decimal_exist = false;
             while let Some(ch) = self.peek() {
                 if ch >= b'0' && ch <= b'9' {
+                    decimal_exist = true;
                     self.advance();
-                    count += 1;
                     value *= 10 as IntType;
                     value += (ch - b'0') as IntType;
                 } else {
                     break;
                 }
             }
-            if count == 0 {
-                return Err(TokenizeError::NumericEmpty {
-                    start: i0,
-                    pos: self.byte_offset,
-                });
-            }
 
-            // check fraction
-            // dot
-            if self.peek() == Some(b'.') {
+            if decimal_exist {
+                // check fraction
+                // dot
+                if self.peek() == Some(b'.') {
+                    self.advance();
+
+                    value = value.to_float().into();
+
+                    // one or more hexs for fraction
+                    let base = (1.0 / 10.0) as FloatType;
+                    let mut exp = base;
+                    while let Some(ch) = self.peek() {
+                        if ch >= b'0' && ch <= b'9' {
+                            self.advance();
+
+                            let f = (ch - b'0') as FloatType * exp;
+                            value += f;
+                            exp *= base;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+            } else {
+                // decimal part does not exist.
+
+                // dot must exist.
+                if self.peek() != Some(b'.') {
+                    self.set_cursor(i0);
+                    return Ok(None);
+                }
                 self.advance();
 
-                value = value.to_float().into();
-
-                // one or more hexs for fraction
+                // one or more digits must exist
+                let mut digit_exist = false;
                 let base = (1.0 / 10.0) as FloatType;
                 let mut exp = base;
-                count = 0;
                 while let Some(ch) = self.peek() {
                     if ch >= b'0' && ch <= b'9' {
+                        digit_exist = true;
                         self.advance();
-                        count += 1;
 
                         let f = (ch - b'0') as FloatType * exp;
                         value += f;
@@ -356,12 +386,9 @@ impl<'a> Tokenizer<'a> {
                         break;
                     }
                 }
-
-                if count == 0 {
-                    return Err(TokenizeError::NumericEmpty {
-                        start: i0,
-                        pos: self.byte_offset,
-                    });
+                if digit_exist == false {
+                    self.set_cursor(i0);
+                    return Ok(None);
                 }
             }
 
@@ -384,19 +411,19 @@ impl<'a> Tokenizer<'a> {
                 };
 
                 // one or more digits for exponent
-                count = 0;
+                let mut exp_digit_exist = false;
                 let mut base10_exp: u32 = 0;
                 while let Some(ch) = self.peek() {
                     if ch >= b'0' && ch <= b'9' {
                         self.advance();
-                        count += 1;
+                        exp_digit_exist = true;
                         let d = (ch - b'0') as u32;
                         base10_exp = base10_exp.wrapping_mul(10).wrapping_add(d);
                     } else {
                         break;
                     }
                 }
-                if count == 0 {
+                if exp_digit_exist == false {
                     return Err(TokenizeError::NumericEmpty {
                         start: i0,
                         pos: self.byte_offset,
