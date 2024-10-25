@@ -986,7 +986,7 @@ impl LuaEnv {
                                 variadic: variadic,
                                 bp: thread_mut.bp,
                                 counter: 0,
-                                data_stack: thread_mut.data_stack.len() - args_num,
+                                data_stack: thread_mut.data_stack.len() - rest_args_num,
                                 local_variables: thread_mut.local_variables.len(),
                             });
 
