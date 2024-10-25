@@ -38,6 +38,7 @@ pub fn init() -> Result<LuaValue, RuntimeError> {
     math.insert("floor".into(), LuaFunction::from_func(floor).into());
     math.insert("cos".into(), LuaFunction::from_func(cos).into());
     math.insert("sin".into(), LuaFunction::from_func(sin).into());
+    math.insert("tan".into(), LuaFunction::from_func(tan).into());
     math.insert("deg".into(), LuaFunction::from_func(deg).into());
     math.insert("rad".into(), LuaFunction::from_func(rad).into());
     math.insert("exp".into(), LuaFunction::from_func(exp).into());
@@ -48,6 +49,8 @@ pub fn init() -> Result<LuaValue, RuntimeError> {
     math.insert("ult".into(), LuaFunction::from_func(ult).into());
     math.insert("modf".into(), LuaFunction::from_func(modf).into());
     math.insert("fmod".into(), LuaFunction::from_func(fmod).into());
+    math.insert("max".into(), LuaFunction::from_func(max).into());
+    math.insert("min".into(), LuaFunction::from_func(min).into());
 
     math.insert("random".into(), LuaFunction::from_func(random).into());
 
@@ -422,5 +425,59 @@ pub fn fmod(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
         .try_to_number()
         .map_err(|e| RuntimeError::BadArgument(2, Box::new(e)))?;
     env.push((x % y).into());
+    Ok(1)
+}
+
+pub fn min(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
+    if args == 0 {
+        return Err(RuntimeError::new_empty_argument(1, "value"));
+    }
+
+    let mut value = env.pop();
+    for _ in 1..args {
+        let x = env.pop();
+        // if x < value then value = x
+        env.push2(x.clone(), value.clone());
+        env.lt()?;
+        if env.pop().to_bool() {
+            value = x;
+        }
+    }
+
+    env.push(value);
+    Ok(1)
+}
+
+pub fn max(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
+    if args == 0 {
+        return Err(RuntimeError::new_empty_argument(1, "value"));
+    }
+
+    let mut value = env.pop();
+    for _ in 1..args {
+        let x = env.pop();
+        // if x > value then value = x
+        env.push2(value.clone(), x.clone());
+        env.lt()?;
+        if env.pop().to_bool() {
+            value = x;
+        }
+    }
+
+    env.push(value);
+    Ok(1)
+}
+
+pub fn tan(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
+    if args == 0 {
+        return Err(RuntimeError::new_empty_argument(1, "number"));
+    } else if args > 1 {
+        env.pop_n(args - 1);
+    }
+    let arg = env.pop();
+    let arg = arg
+        .try_to_number()
+        .map_err(|e| RuntimeError::BadArgument(1, Box::new(e)))?;
+    env.push(arg.to_float().tan().into());
     Ok(1)
 }
