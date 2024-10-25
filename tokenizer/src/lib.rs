@@ -553,7 +553,7 @@ impl<'a> Tokenizer<'a> {
                             }
                         }
                         Some(b'0'..=b'9') => {
-                            // three decimal digits
+                            // up to three decimal digits
                             let first: u32 = (self.peek().unwrap() - b'0') as u32;
                             self.advance();
 
@@ -567,11 +567,7 @@ impl<'a> Tokenizer<'a> {
                                             self.advance();
                                             s.push((first * 100 + second * 10 + third) as u8);
                                         } else {
-                                            // not decimal
-                                            return Err(TokenizeError::ShortStringNotDecimal {
-                                                start,
-                                                pos: self.byte_offset,
-                                            });
+                                            s.push((first * 10 + second) as u8);
                                         }
                                     } else {
                                         // not closed
@@ -582,11 +578,7 @@ impl<'a> Tokenizer<'a> {
                                         });
                                     }
                                 } else {
-                                    // not decimal
-                                    return Err(TokenizeError::ShortStringNotDecimal {
-                                        start,
-                                        pos: self.byte_offset,
-                                    });
+                                    s.push(first as u8);
                                 }
                             } else {
                                 // not closed
