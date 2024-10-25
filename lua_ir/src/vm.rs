@@ -625,7 +625,18 @@ impl LuaEnv {
             (LuaValue::Number(lhs_num), LuaValue::Number(rhs_num)) => {
                 match (lhs_num.try_to_int(), rhs_num.try_to_int()) {
                     (Ok(lhs), Ok(rhs)) => {
-                        self.push((lhs << rhs).into());
+                        self.push(
+                            if rhs <= -64 {
+                                0
+                            } else if rhs < 0 {
+                                lhs.wrapping_shr((-rhs) as u32)
+                            } else if rhs < 64 {
+                                lhs.wrapping_shl(rhs as u32)
+                            } else {
+                                0
+                            }
+                            .into(),
+                        );
                         Ok(())
                     }
                     _ => self.try_call_metamethod(
@@ -647,7 +658,18 @@ impl LuaEnv {
             (LuaValue::Number(lhs_num), LuaValue::Number(rhs_num)) => {
                 match (lhs_num.try_to_int(), rhs_num.try_to_int()) {
                     (Ok(lhs), Ok(rhs)) => {
-                        self.push((lhs >> rhs).into());
+                        self.push(
+                            if rhs <= -64 {
+                                0
+                            } else if rhs < 0 {
+                                lhs.wrapping_shl((-rhs) as u32)
+                            } else if rhs < 64 {
+                                lhs.wrapping_shr(rhs as u32)
+                            } else {
+                                0
+                            }
+                            .into(),
+                        );
                         Ok(())
                     }
                     _ => self.try_call_metamethod(
