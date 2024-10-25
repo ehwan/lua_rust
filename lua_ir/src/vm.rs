@@ -195,6 +195,23 @@ impl LuaEnv {
 
     /// parse lua chunk from `source` and evaluate it.
     pub fn eval_chunk(&mut self, source: &[u8]) -> Result<(), RuntimeError> {
+        let chunk = self.load_chunk(source)?;
+        let thread = LuaThread::new_main(chunk);
+        self.coroutines.push(Rc::new(RefCell::new(thread)));
+
+        while !self.coroutines.is_empty() {
+            match self.cycle() {
+                Ok(_) => {}
+                Err(err) => {
+                    self.coroutines.clear();
+                    return Err(err);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub(crate) fn load_chunk(&mut self, source: &[u8]) -> Result<Chunk, RuntimeError> {
         self.parser_context = Some(lua_parser::Context::new());
 
         for token in lua_tokenizer::Tokenizer::from_bytes(source).chain(std::iter::once(Ok(
@@ -238,36 +255,22 @@ impl LuaEnv {
             }
         }
         if let Some(matched_stmt) = matched_stmt {
-            let processed_block =
-                match self
-                    .semantic_context
-                    .process_block(matched_stmt, true, false)
-                {
-                    Ok(res) => res,
-                    Err(err) => {
-                        return Err(RuntimeError::Custom(err.to_string().into()));
-                    }
-                };
+            let mut sem_context = lua_semantics::Context::new();
+            sem_context.begin_scope(false);
+            let processed_block = match sem_context.process_block(matched_stmt, true, false) {
+                Ok(res) => res,
+                Err(err) => {
+                    return Err(RuntimeError::Custom(err.to_string().into()));
+                }
+            };
+            drop(sem_context);
 
             let ir_context = crate::Context::new();
             let chunk = ir_context.emit(processed_block);
-            let thread = LuaThread::new_main(chunk);
-            self.coroutines.push(Rc::new(RefCell::new(thread)));
-
-            while !self.coroutines.is_empty() {
-                match self.cycle() {
-                    Ok(_) => {}
-                    Err(err) => {
-                        self.coroutines.clear();
-                        return Err(err);
-                    }
-                }
-            }
+            Ok(chunk)
         } else {
-            return Err(RuntimeError::Custom("no statement found".into()));
+            Err(RuntimeError::Custom("no statement found".into()))
         }
-
-        Ok(())
     }
 
     /// Get global variable name `name`.

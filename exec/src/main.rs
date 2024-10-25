@@ -4,6 +4,7 @@ use lua_ir::LuaEnv;
 
 fn main() {
     let mut env = LuaEnv::new();
+    // env.eval_chunk(b"print('Hello, World!')").unwrap();
 
     let mut arg = std::env::args();
     arg.next();
