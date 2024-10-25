@@ -570,9 +570,12 @@ pub fn unpack(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
                     ))
                 }
             };
-            let i = i
-                .try_to_int()
-                .map_err(|e| RuntimeError::BadArgument(2, Box::new(e)))?;
+            let i = match i {
+                LuaValue::Nil => 1,
+                _ => i
+                    .try_to_int()
+                    .map_err(|e| RuntimeError::BadArgument(2, Box::new(e)))?,
+            };
             let j = list.borrow().len() as IntType;
             (list, i, j)
         }
@@ -588,12 +591,19 @@ pub fn unpack(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
                     ))
                 }
             };
-            let i = i
-                .try_to_int()
-                .map_err(|e| RuntimeError::BadArgument(2, Box::new(e)))?;
-            let j = j
-                .try_to_int()
-                .map_err(|e| RuntimeError::BadArgument(3, Box::new(e)))?;
+            let i = match i {
+                LuaValue::Nil => 1,
+                _ => i
+                    .try_to_int()
+                    .map_err(|e| RuntimeError::BadArgument(2, Box::new(e)))?,
+            };
+
+            let j = match j {
+                LuaValue::Nil => list.borrow().len() as IntType,
+                _ => j
+                    .try_to_int()
+                    .map_err(|e| RuntimeError::BadArgument(3, Box::new(e)))?,
+            };
             (list, i, j)
         }
     };
