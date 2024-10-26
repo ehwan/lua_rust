@@ -1,3 +1,5 @@
+use crate::{LuaNumber, RuntimeError};
+
 /// A Lua string, which can be stored on the heap, stack, or as a static reference, based on its length.
 #[derive(Clone)]
 pub enum LuaString {
@@ -77,6 +79,56 @@ impl LuaString {
                 }
                 LuaString::Stack(stack, len)
             }
+        }
+    }
+
+    pub fn try_to_number(&self) -> Result<LuaNumber, RuntimeError> {
+        // use `lua_tokenizer` to parse the string into a number
+        let mut tokenizer = lua_tokenizer::Tokenizer::from_bytes(self.as_bytes());
+        tokenizer.ignore_whitespace();
+        // sign
+        let neg = match tokenizer.peek() {
+            Some(b'-') => {
+                tokenizer.next();
+                true
+            }
+            Some(b'+') => {
+                tokenizer.next();
+                false
+            }
+            _ => false,
+        };
+        // number
+        let tokenize_res = tokenizer.tokenize_numeric();
+        match tokenize_res {
+            Ok(Some(res)) => {
+                tokenizer.ignore_whitespace();
+                if tokenizer.is_end() {
+                    match res.token_type {
+                        lua_tokenizer::TokenType::Numeric(numeric) => match numeric {
+                            lua_tokenizer::IntOrFloat::Int(i) => {
+                                if neg {
+                                    Ok((-i).into())
+                                } else {
+                                    Ok(i.into())
+                                }
+                            }
+                            lua_tokenizer::IntOrFloat::Float(f) => {
+                                if neg {
+                                    Ok((-f).into())
+                                } else {
+                                    Ok(f.into())
+                                }
+                            }
+                        },
+                        _ => Err(RuntimeError::Expected("number", Some("string"))),
+                    }
+                } else {
+                    Err(RuntimeError::Expected("number", Some("string")))
+                }
+            }
+            Ok(None) => Err(RuntimeError::Expected("number", Some("string"))),
+            Err(tokenize_error) => Err(RuntimeError::TokenizeError(tokenize_error)),
         }
     }
 }

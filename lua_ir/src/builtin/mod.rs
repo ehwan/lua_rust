@@ -128,14 +128,56 @@ fn dofile(env: &mut LuaEnv, args: usize, expected_ret: Option<usize>) -> Result<
     let func = LuaFunction::LuaFunc(func);
     env.function_call(0, func.into(), expected_ret)
 }
-fn tonumber(_env: &mut LuaEnv, _args: usize) -> Result<usize, RuntimeError> {
-    unimplemented!("tonumber");
-}
 fn collectgarbage(_env: &mut LuaEnv, _args: usize) -> Result<usize, RuntimeError> {
     unimplemented!("collectgarbage");
 }
 fn xpcall(_env: &mut LuaEnv, _args: usize) -> Result<usize, RuntimeError> {
     unimplemented!("xpcall");
+}
+fn tonumber(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
+    match args {
+        0 => return Err(RuntimeError::new_empty_argument(1, "value")),
+        1 => {
+            let value = env.pop();
+            let res = match value {
+                LuaValue::Number(n) => LuaValue::Number(n),
+                LuaValue::String(s) => LuaValue::Number(s.try_to_number()?),
+                _ => LuaValue::Nil,
+            };
+            env.push(res);
+            Ok(1)
+        }
+        _ => {
+            env.pop_n(args - 2);
+            let (value, base) = env.pop2();
+            let base = match base {
+                LuaValue::Number(n) => n.try_to_int()?,
+                LuaValue::String(s) => s.try_to_number()?.try_to_int()?,
+                _ => {
+                    return Err(RuntimeError::BadArgument(
+                        2,
+                        Box::new(RuntimeError::Expected("number", base.type_str().into())),
+                    ))
+                }
+            };
+            if base < 2 || base > 36 {
+                return Err(RuntimeError::BadArgument(
+                    2,
+                    Box::new(RuntimeError::BaseOutOfRange),
+                ));
+            }
+            let _value = match value {
+                LuaValue::String(s) => s,
+                _ => {
+                    return Err(RuntimeError::BadArgument(
+                        1,
+                        Box::new(RuntimeError::Expected("string", value.type_str().into())),
+                    ))
+                }
+            };
+            unreachable!("tonumber with more than 1 argument");
+        }
+    }
 }
 
 pub fn pcall(

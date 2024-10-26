@@ -47,6 +47,9 @@ pub enum RuntimeError {
 
     TokenizeError(TokenizeError),
 
+    /// tonumber
+    BaseOutOfRange,
+
     // ========================
     /// not implemented yet (dummy error for some functions)
     Error,
@@ -119,6 +122,7 @@ impl<'a> std::fmt::Display for RuntimeErrorEnvPair<'a> {
             }
             RuntimeError::NoIntegerRepresentation => "number has no integer representation".fmt(f),
             RuntimeError::TokenizeError(err) => write!(f, "{}", err),
+            RuntimeError::BaseOutOfRange => "base out of range".fmt(f),
 
             RuntimeError::Custom(val) => write!(f, "{}", val),
             _ => write!(f, "{:?}", self.0),
