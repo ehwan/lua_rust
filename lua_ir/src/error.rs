@@ -51,11 +51,8 @@ pub enum RuntimeError {
     BaseOutOfRange,
 
     /// string coherence arithmetic
-    AttemptToAdd(&'static str, &'static str),
-    AttemptToSub(&'static str, &'static str),
-    AttemptToMul(&'static str, &'static str),
-    AttemptToDiv(&'static str, &'static str),
-    AttemptToIDiv(&'static str, &'static str),
+    /// method, lhs, rhs
+    AttemptTo(&'static str, &'static str, &'static str),
 
     // ========================
     /// not implemented yet (dummy error for some functions)
@@ -130,20 +127,8 @@ impl<'a> std::fmt::Display for RuntimeErrorEnvPair<'a> {
             RuntimeError::NoIntegerRepresentation => "number has no integer representation".fmt(f),
             RuntimeError::TokenizeError(err) => write!(f, "{}", err),
             RuntimeError::BaseOutOfRange => "base out of range".fmt(f),
-            RuntimeError::AttemptToAdd(lhs, rhs) => {
-                write!(f, "attempt to add a '{}' with a '{}'", lhs, rhs)
-            }
-            RuntimeError::AttemptToSub(lhs, rhs) => {
-                write!(f, "attempt to sub a '{}' with a '{}'", lhs, rhs)
-            }
-            RuntimeError::AttemptToMul(lhs, rhs) => {
-                write!(f, "attempt to mul a '{}' with a '{}'", lhs, rhs)
-            }
-            RuntimeError::AttemptToDiv(lhs, rhs) => {
-                write!(f, "attempt to div a '{}' with a '{}'", lhs, rhs)
-            }
-            RuntimeError::AttemptToIDiv(lhs, rhs) => {
-                write!(f, "attempt to idiv a '{}' with a '{}'", lhs, rhs)
+            RuntimeError::AttemptTo(method, lhs, rhs) => {
+                write!(f, "attempt to {} a '{}' with a '{}'", method, lhs, rhs)
             }
 
             RuntimeError::Custom(val) => write!(f, "{}", val),
