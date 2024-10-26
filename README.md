@@ -14,7 +14,9 @@ lua syntax parser & runtime interpreter in Rust
  - `32bit`: use 32bit integer and float for `lua numeric` type
 
 ## How to use
-As library, add [`lua_ir`](https://crates.io/crates/lua_ir) crate to your `Cargo.toml`
+
+### As Library
+add [`lua_ir`](https://crates.io/crates/lua_ir) crate to your `Cargo.toml`
 ```toml
 [dependencies]
 lua_ir = "..."
@@ -33,7 +35,8 @@ let world_value = env.get_global( "var_world" )?;
 env.set_global( "var_hello", 10.into() )?;
 ```
 
-Simply running
+### As REPL interpreter
+clone this repository and simply run
 ```
 $ cargo run <source_file.lua>
 ```
