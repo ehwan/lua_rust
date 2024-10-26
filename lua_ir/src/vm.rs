@@ -21,6 +21,9 @@ use crate::RuntimeError;
 pub struct LuaEnv {
     /// _env
     pub(crate) env: Rc<RefCell<LuaTable>>,
+    /// meta table for string type
+    pub(crate) string_metatable: Rc<RefCell<LuaTable>>,
+
     /// random number generator
     pub(crate) rng: rand::rngs::StdRng,
 
@@ -40,11 +43,17 @@ impl LuaEnv {
         let env = Rc::new(RefCell::new(builtin::init_env().unwrap()));
         env.borrow_mut()
             .insert("_G".into(), LuaValue::Table(Rc::clone(&env)));
-        // let main_thread = Rc::new(RefCell::new(LuaThread::new_main(&chunk)));
+
+        let string_metatable = builtin::init_string_metatable();
+        string_metatable.borrow_mut().insert(
+            "__index".into(),
+            env.borrow().get(&"string".into()).unwrap().clone(),
+        );
         let mut semantic_context = lua_semantics::Context::new();
         semantic_context.begin_scope(false);
         LuaEnv {
             env,
+            string_metatable,
             rng: rand::rngs::StdRng::from_entropy(),
 
             coroutines: vec![],
@@ -362,10 +371,7 @@ impl LuaEnv {
     pub fn get_metavalue(&self, value: &LuaValue, key: &'static str) -> Option<LuaValue> {
         match value {
             // @TODO: link `string` module here
-            LuaValue::String(_) => match key {
-                "__index" => self.env.borrow().get(&"string".into()).cloned(),
-                _ => None,
-            },
+            LuaValue::String(_) => self.string_metatable.borrow().get(&key.into()).cloned(),
             LuaValue::Table(table) => table.borrow().get_metavalue(key),
             _ => None,
         }

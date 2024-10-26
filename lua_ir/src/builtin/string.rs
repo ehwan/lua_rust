@@ -411,3 +411,203 @@ pub fn reverse(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
     env.push(LuaString::from_vec(s).into());
     Ok(1)
 }
+
+pub fn init_string_metatable() -> Rc<RefCell<LuaTable>> {
+    let mut mt = LuaTable::new();
+    mt.insert("__add".into(), LuaFunction::from_func(string_add).into());
+    mt.insert("__sub".into(), LuaFunction::from_func(string_sub).into());
+    mt.insert("__mul".into(), LuaFunction::from_func(string_mul).into());
+    mt.insert("__div".into(), LuaFunction::from_func(string_div).into());
+    mt.insert("__fdiv".into(), LuaFunction::from_func(string_fdiv).into());
+    Rc::new(RefCell::new(mt))
+}
+
+pub(crate) fn string_add(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
+    if args == 0 {
+        return Err(RuntimeError::new_empty_argument(1, "string"));
+    } else if args == 1 {
+        env.pop();
+        return Err(RuntimeError::new_empty_argument(2, "string"));
+    }
+    env.pop_n(args - 2);
+    let (s1_, s2) = env.pop2();
+    let s1 = match &s1_ {
+        LuaValue::String(s) => match s.try_to_number() {
+            Ok(n) => n,
+            Err(_) => {
+                return Err(RuntimeError::AttemptToAdd("string", s2.type_str()));
+            }
+        },
+        LuaValue::Number(n) => *n,
+        s1 => {
+            return Err(RuntimeError::AttemptToAdd(s1.type_str(), s2.type_str()));
+        }
+    };
+    let s2 = match s2 {
+        LuaValue::String(s) => match s.try_to_number() {
+            Ok(n) => n,
+            Err(_) => {
+                return Err(RuntimeError::AttemptToAdd(s1_.type_str(), "string"));
+            }
+        },
+        LuaValue::Number(n) => n,
+        s2 => {
+            return Err(RuntimeError::AttemptToAdd("number", s2.type_str()));
+        }
+    };
+    let res = s1 + s2;
+    env.push(res.into());
+    Ok(1)
+}
+
+pub(crate) fn string_sub(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
+    if args == 0 {
+        return Err(RuntimeError::new_empty_argument(1, "string"));
+    } else if args == 1 {
+        env.pop();
+        return Err(RuntimeError::new_empty_argument(2, "string"));
+    }
+    env.pop_n(args - 2);
+    let (s1_, s2) = env.pop2();
+    let s1 = match &s1_ {
+        LuaValue::String(s) => match s.try_to_number() {
+            Ok(n) => n,
+            Err(_) => {
+                return Err(RuntimeError::AttemptToSub("string", s2.type_str()));
+            }
+        },
+        LuaValue::Number(n) => *n,
+        s1 => {
+            return Err(RuntimeError::AttemptToSub(s1.type_str(), s2.type_str()));
+        }
+    };
+    let s2 = match s2 {
+        LuaValue::String(s) => match s.try_to_number() {
+            Ok(n) => n,
+            Err(_) => {
+                return Err(RuntimeError::AttemptToSub(s1_.type_str(), "string"));
+            }
+        },
+        LuaValue::Number(n) => n,
+        s2 => {
+            return Err(RuntimeError::AttemptToSub("number", s2.type_str()));
+        }
+    };
+    let res = s1 - s2;
+    env.push(res.into());
+    Ok(1)
+}
+
+pub(crate) fn string_mul(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
+    if args == 0 {
+        return Err(RuntimeError::new_empty_argument(1, "string"));
+    } else if args == 1 {
+        env.pop();
+        return Err(RuntimeError::new_empty_argument(2, "string"));
+    }
+    env.pop_n(args - 2);
+    let (s1_, s2) = env.pop2();
+    let s1 = match &s1_ {
+        LuaValue::String(s) => match s.try_to_number() {
+            Ok(n) => n,
+            Err(_) => {
+                return Err(RuntimeError::AttemptToMul("string", s2.type_str()));
+            }
+        },
+        LuaValue::Number(n) => *n,
+        s1 => {
+            return Err(RuntimeError::AttemptToMul(s1.type_str(), s2.type_str()));
+        }
+    };
+    let s2 = match s2 {
+        LuaValue::String(s) => match s.try_to_number() {
+            Ok(n) => n,
+            Err(_) => {
+                return Err(RuntimeError::AttemptToMul(s1_.type_str(), "string"));
+            }
+        },
+        LuaValue::Number(n) => n,
+        s2 => {
+            return Err(RuntimeError::AttemptToMul("number", s2.type_str()));
+        }
+    };
+    let res = s1 * s2;
+    env.push(res.into());
+    Ok(1)
+}
+
+pub(crate) fn string_div(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
+    if args == 0 {
+        return Err(RuntimeError::new_empty_argument(1, "string"));
+    } else if args == 1 {
+        env.pop();
+        return Err(RuntimeError::new_empty_argument(2, "string"));
+    }
+    env.pop_n(args - 2);
+    let (s1_, s2) = env.pop2();
+    let s1 = match &s1_ {
+        LuaValue::String(s) => match s.try_to_number() {
+            Ok(n) => n,
+            Err(_) => {
+                return Err(RuntimeError::AttemptToDiv("string", s2.type_str()));
+            }
+        },
+        LuaValue::Number(n) => *n,
+        s1 => {
+            return Err(RuntimeError::AttemptToDiv(s1.type_str(), s2.type_str()));
+        }
+    };
+    let s2 = match s2 {
+        LuaValue::String(s) => match s.try_to_number() {
+            Ok(n) => n,
+            Err(_) => {
+                return Err(RuntimeError::AttemptToDiv(s1_.type_str(), "string"));
+            }
+        },
+        LuaValue::Number(n) => n,
+        s2 => {
+            return Err(RuntimeError::AttemptToDiv("number", s2.type_str()));
+        }
+    };
+    let res = s1 / s2;
+    env.push(res.into());
+    Ok(1)
+}
+
+pub(crate) fn string_fdiv(env: &mut LuaEnv, args: usize) -> Result<usize, RuntimeError> {
+    if args == 0 {
+        return Err(RuntimeError::new_empty_argument(1, "string"));
+    } else if args == 1 {
+        env.pop();
+        return Err(RuntimeError::new_empty_argument(2, "string"));
+    }
+    env.pop_n(args - 2);
+    let (s1_, s2) = env.pop2();
+    let s1 = match &s1_ {
+        LuaValue::String(s) => match s.try_to_number() {
+            Ok(n) => n,
+            Err(_) => {
+                return Err(RuntimeError::AttemptToIDiv("string", s2.type_str()));
+            }
+        },
+        LuaValue::Number(n) => *n,
+        s1 => {
+            return Err(RuntimeError::AttemptToIDiv(s1.type_str(), s2.type_str()));
+        }
+    };
+    let s2 = match s2 {
+        LuaValue::String(s) => match s.try_to_number() {
+            Ok(n) => n,
+            Err(_) => {
+                return Err(RuntimeError::AttemptToIDiv(s1_.type_str(), "string"));
+            }
+        },
+        LuaValue::Number(n) => n,
+        s2 => {
+            return Err(RuntimeError::AttemptToIDiv("number", s2.type_str()));
+        }
+    };
+    let res = s1.floor_div(s2);
+    env.push(res.into());
+    Ok(1)
+}

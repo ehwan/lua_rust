@@ -18,6 +18,8 @@ mod os;
 mod string;
 mod table;
 
+pub use string::init_string_metatable;
+
 const VERSION: &str = "Lua 5.4 in Rust";
 
 /// generate default `_ENV` table
