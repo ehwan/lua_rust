@@ -417,10 +417,10 @@ Exp0(Expression)
 
 
 Exp1(Expression)
-    : Exp0 caret Exp1 {
-        let span = Exp0.span().merge_ordered(&Exp1.span());
+    : Exp0 caret Exp2 {
+        let span = Exp0.span().merge_ordered(&Exp2.span());
         let span_op = caret.span();
-        let binary_data = expression::ExprBinaryData::new(Exp0, Exp1, span, span_op);
+        let binary_data = expression::ExprBinaryData::new(Exp0, Exp2, span, span_op);
 
         Expression::Binary(
             expression::ExprBinary::Pow(

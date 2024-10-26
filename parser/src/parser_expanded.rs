@@ -71,7 +71,7 @@ Exp0 -> dotdotdot
 Exp0 -> FunctionDef
 Exp0 -> PrefixExp
 Exp0 -> TableConstructor
-Exp1 -> Exp0 caret Exp1
+Exp1 -> Exp0 caret Exp2
 Exp1 -> Exp0
 Exp2 -> not_ Exp2
 Exp2 -> hash Exp2
@@ -1760,16 +1760,16 @@ impl ChunkOrExpressionsNodeEnum {
             } else {
                 unreachable!()
             };
-        let mut Exp1 =
-            if let ChunkOrExpressionsNodeEnum::Variant7(Exp1) = __rustylr_args.pop().unwrap() {
-                Exp1
+        let mut Exp2 =
+            if let ChunkOrExpressionsNodeEnum::Variant7(Exp2) = __rustylr_args.pop().unwrap() {
+                Exp2
             } else {
                 unreachable!()
             };
         Ok(ChunkOrExpressionsNodeEnum::Variant7({
-            let span = Exp0.span().merge_ordered(&Exp1.span());
+            let span = Exp0.span().merge_ordered(&Exp2.span());
             let span_op = caret.span();
-            let binary_data = expression::ExprBinaryData::new(Exp0, Exp1, span, span_op);
+            let binary_data = expression::ExprBinaryData::new(Exp0, Exp2, span, span_op);
             Expression::Binary(expression::ExprBinary::Pow(binary_data))
         }))
     }
@@ -3965,7 +3965,7 @@ impl ChunkOrExpressionsParser {
             &[
                 ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::Exp0),
                 ::rusty_lr::Token::Term(10),
-                ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::Exp1),
+                ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::Exp2),
             ],
             &[::rusty_lr::Token::NonTerm(
                 ChunkOrExpressionsNonTerminals::Exp0,
@@ -4558,9 +4558,6 @@ impl ChunkOrExpressionsParser {
                 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74,
                 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 102,
             ],
-            &[
-                21, 22, 23, 24, 25, 26, 27, 28, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 92, 102,
-            ],
             &[40, 41, 42],
             &[43, 44],
             &[126, 127, 128],
@@ -4924,10 +4921,15 @@ impl ChunkOrExpressionsParser {
                 (2, 3),
                 (3, 4),
                 (4, 5),
+                (5, 6),
+                (6, 7),
+                (11, 8),
+                (13, 9),
                 (25, 10),
                 (27, 11),
                 (37, 14),
                 (45, 15),
+                (50, 38),
             ],
             &[(34, 60)],
             &[
@@ -6042,7 +6044,8 @@ impl ChunkOrExpressionsParser {
             &[],
             &[
                 (ChunkOrExpressionsNonTerminals::Exp0, 57),
-                (ChunkOrExpressionsNonTerminals::Exp1, 124),
+                (ChunkOrExpressionsNonTerminals::Exp1, 77),
+                (ChunkOrExpressionsNonTerminals::Exp2, 124),
                 (ChunkOrExpressionsNonTerminals::FunctionCall, 55),
                 (ChunkOrExpressionsNonTerminals::FunctionDef, 83),
                 (ChunkOrExpressionsNonTerminals::PrefixExp, 52),
@@ -7370,13 +7373,13 @@ impl ChunkOrExpressionsParser {
         const RUSTYLR_RULESET_SHIFTED0_MAP: &[u8] = &[
             0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 3, 4, 1, 3, 1, 5, 6, 1, 1, 7, 1, 1, 1, 1, 1, 1, 1, 8, 1,
             1, 1, 1, 1, 8, 9, 1, 3, 3, 2, 10, 1, 1, 1, 1, 1, 1, 5, 1, 1, 1, 3, 1, 11, 1, 12, 1, 1,
-            1, 13, 1, 3, 14, 15, 1, 1, 1, 1, 1, 5, 1, 1, 16, 17, 8, 3, 1, 1, 1, 1, 1, 2, 1, 1, 1,
-            2, 1, 2, 1, 2, 1, 1, 18, 1, 1, 1, 1, 1, 19, 1, 20, 1, 21, 1, 22, 1, 23, 1, 24, 1, 25,
-            3, 26, 1, 1, 27, 1, 1, 1, 11, 1, 1, 1, 1, 1, 1, 1, 1, 18, 1, 19, 1, 1, 19, 1, 1, 1, 1,
-            1, 23, 1, 23, 1, 23, 1, 23, 1, 23, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 11, 1, 1, 17, 1,
-            1, 28, 1, 29, 1, 30, 12, 1, 31, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 1, 8, 1, 1, 1, 3, 32, 3,
-            1, 1, 1, 8, 1, 33, 1, 1, 1, 1, 3, 1, 1, 1, 1, 1, 1, 1, 17, 1, 8, 1, 1, 34, 3, 1, 8, 1,
-            1, 35, 1, 36, 8, 1, 1, 1, 1, 1, 1, 3, 1, 1, 37, 1, 1, 1, 1, 1,
+            1, 2, 1, 3, 13, 14, 1, 1, 1, 1, 1, 5, 1, 1, 15, 16, 8, 3, 1, 1, 1, 1, 1, 2, 1, 1, 1, 2,
+            1, 2, 1, 2, 1, 1, 17, 1, 1, 1, 1, 1, 18, 1, 19, 1, 20, 1, 21, 1, 22, 1, 23, 1, 24, 3,
+            25, 1, 1, 26, 1, 1, 1, 11, 1, 1, 1, 1, 1, 1, 1, 1, 17, 1, 18, 1, 1, 18, 1, 1, 1, 1, 1,
+            22, 1, 22, 1, 22, 1, 22, 1, 22, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 11, 1, 1, 16, 1, 1,
+            27, 1, 28, 1, 29, 12, 1, 30, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 1, 8, 1, 1, 1, 3, 31, 3, 1,
+            1, 1, 8, 1, 32, 1, 1, 1, 1, 3, 1, 1, 1, 1, 1, 1, 1, 16, 1, 8, 1, 1, 33, 3, 1, 8, 1, 1,
+            34, 1, 35, 8, 1, 1, 1, 1, 1, 1, 3, 1, 1, 36, 1, 1, 1, 1, 1,
         ];
         let states: Vec<ChunkOrExpressionsState> = RUSTYLR_SHIFT_TERM_MAP
             .iter()
