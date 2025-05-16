@@ -37,7 +37,7 @@ macro_rules! new_unary_node {
 ====================================Grammar=====================================
 
 # of terminal classes: 59
-# of states: 227
+# of states: 226
 
 ChunkOrExpressions -> Chunk
 ChunkOrExpressions -> ExpList1
@@ -84,15 +84,14 @@ AttNameList -> AttNameList comma AttName
 AttNameList -> AttName
 Attrib -> less ident greater
 Attrib ->
-Exp0 -> numeric_literal
-Exp0 -> nil
-Exp0 -> string_literal
-Exp0 -> bool_
-Exp0 -> dotdotdot
-Exp0 -> FunctionDef
-Exp0 -> PrefixExp
-Exp0 -> TableConstructor
-Exp -> Exp0
+Exp -> numeric_literal
+Exp -> nil
+Exp -> string_literal
+Exp -> bool_
+Exp -> dotdotdot
+Exp -> FunctionDef
+Exp -> PrefixExp
+Exp -> TableConstructor
 Exp -> not_ Exp
 Exp -> hash Exp
 Exp -> minus Exp
@@ -216,7 +215,6 @@ pub enum ChunkOrExpressionsNonTerminals {
     AttName,
     AttNameList,
     Attrib,
-    Exp0,
     Exp,
     TableConstructor,
     FieldList1,
@@ -229,22 +227,22 @@ pub enum ChunkOrExpressionsNonTerminals {
     FuncName,
     ParList,
     error,
-    _StatementPlus30,
-    _StatementStar31,
-    _ReturnStatementQuestion32,
-    _ElseIfPlus33,
-    _ElseIfStar34,
-    _Group35,
-    __Group35Question36,
-    _Group37,
-    __Group37Question38,
-    _Group39,
-    __Group39Question40,
-    _semicolonQuestion41,
-    _FieldSepQuestion42,
-    _ParListQuestion43,
-    _Group44,
-    __Group44Question45,
+    _StatementPlus29,
+    _StatementStar30,
+    _ReturnStatementQuestion31,
+    _ElseIfPlus32,
+    _ElseIfStar33,
+    _Group34,
+    __Group34Question35,
+    _Group36,
+    __Group36Question37,
+    _Group38,
+    __Group38Question39,
+    _semicolonQuestion40,
+    _FieldSepQuestion41,
+    _ParListQuestion42,
+    _Group43,
+    __Group43Question44,
     Augmented,
 }
 impl ChunkOrExpressionsNonTerminals {
@@ -268,7 +266,6 @@ impl ChunkOrExpressionsNonTerminals {
             ChunkOrExpressionsNonTerminals::AttName => "AttName",
             ChunkOrExpressionsNonTerminals::AttNameList => "AttNameList",
             ChunkOrExpressionsNonTerminals::Attrib => "Attrib",
-            ChunkOrExpressionsNonTerminals::Exp0 => "Exp0",
             ChunkOrExpressionsNonTerminals::Exp => "Exp",
             ChunkOrExpressionsNonTerminals::TableConstructor => "TableConstructor",
             ChunkOrExpressionsNonTerminals::FieldList1 => "FieldList1",
@@ -281,22 +278,22 @@ impl ChunkOrExpressionsNonTerminals {
             ChunkOrExpressionsNonTerminals::FuncName => "FuncName",
             ChunkOrExpressionsNonTerminals::ParList => "ParList",
             ChunkOrExpressionsNonTerminals::error => "'error'",
-            ChunkOrExpressionsNonTerminals::_StatementPlus30 => "Statement+",
-            ChunkOrExpressionsNonTerminals::_StatementStar31 => "Statement*",
-            ChunkOrExpressionsNonTerminals::_ReturnStatementQuestion32 => "ReturnStatement?",
-            ChunkOrExpressionsNonTerminals::_ElseIfPlus33 => "ElseIf+",
-            ChunkOrExpressionsNonTerminals::_ElseIfStar34 => "ElseIf*",
-            ChunkOrExpressionsNonTerminals::_Group35 => "(else_, Block)",
-            ChunkOrExpressionsNonTerminals::__Group35Question36 => "(else_, Block)?",
-            ChunkOrExpressionsNonTerminals::_Group37 => "(comma, Exp)",
-            ChunkOrExpressionsNonTerminals::__Group37Question38 => "(comma, Exp)?",
-            ChunkOrExpressionsNonTerminals::_Group39 => "(equal, ExpList1)",
-            ChunkOrExpressionsNonTerminals::__Group39Question40 => "(equal, ExpList1)?",
-            ChunkOrExpressionsNonTerminals::_semicolonQuestion41 => "semicolon?",
-            ChunkOrExpressionsNonTerminals::_FieldSepQuestion42 => "FieldSep?",
-            ChunkOrExpressionsNonTerminals::_ParListQuestion43 => "ParList?",
-            ChunkOrExpressionsNonTerminals::_Group44 => "(comma, dotdotdot)",
-            ChunkOrExpressionsNonTerminals::__Group44Question45 => "(comma, dotdotdot)?",
+            ChunkOrExpressionsNonTerminals::_StatementPlus29 => "Statement+",
+            ChunkOrExpressionsNonTerminals::_StatementStar30 => "Statement*",
+            ChunkOrExpressionsNonTerminals::_ReturnStatementQuestion31 => "ReturnStatement?",
+            ChunkOrExpressionsNonTerminals::_ElseIfPlus32 => "ElseIf+",
+            ChunkOrExpressionsNonTerminals::_ElseIfStar33 => "ElseIf*",
+            ChunkOrExpressionsNonTerminals::_Group34 => "(else_, Block)",
+            ChunkOrExpressionsNonTerminals::__Group34Question35 => "(else_, Block)?",
+            ChunkOrExpressionsNonTerminals::_Group36 => "(comma, Exp)",
+            ChunkOrExpressionsNonTerminals::__Group36Question37 => "(comma, Exp)?",
+            ChunkOrExpressionsNonTerminals::_Group38 => "(equal, ExpList1)",
+            ChunkOrExpressionsNonTerminals::__Group38Question39 => "(equal, ExpList1)?",
+            ChunkOrExpressionsNonTerminals::_semicolonQuestion40 => "semicolon?",
+            ChunkOrExpressionsNonTerminals::_FieldSepQuestion41 => "FieldSep?",
+            ChunkOrExpressionsNonTerminals::_ParListQuestion42 => "ParList?",
+            ChunkOrExpressionsNonTerminals::_Group43 => "(comma, dotdotdot)",
+            ChunkOrExpressionsNonTerminals::__Group43Question44 => "(comma, dotdotdot)?",
             ChunkOrExpressionsNonTerminals::Augmented => "Augmented",
         }
     }
@@ -331,7 +328,6 @@ impl ::rusty_lr::NonTerminal<Token> for ChunkOrExpressionsNonTerminals {
             ChunkOrExpressionsNonTerminals::AttName => false,
             ChunkOrExpressionsNonTerminals::AttNameList => false,
             ChunkOrExpressionsNonTerminals::Attrib => false,
-            ChunkOrExpressionsNonTerminals::Exp0 => false,
             ChunkOrExpressionsNonTerminals::Exp => false,
             ChunkOrExpressionsNonTerminals::TableConstructor => false,
             ChunkOrExpressionsNonTerminals::FieldList1 => false,
@@ -344,22 +340,22 @@ impl ::rusty_lr::NonTerminal<Token> for ChunkOrExpressionsNonTerminals {
             ChunkOrExpressionsNonTerminals::FuncName => false,
             ChunkOrExpressionsNonTerminals::ParList => false,
             ChunkOrExpressionsNonTerminals::error => false,
-            ChunkOrExpressionsNonTerminals::_StatementPlus30 => true,
-            ChunkOrExpressionsNonTerminals::_StatementStar31 => true,
-            ChunkOrExpressionsNonTerminals::_ReturnStatementQuestion32 => true,
-            ChunkOrExpressionsNonTerminals::_ElseIfPlus33 => true,
-            ChunkOrExpressionsNonTerminals::_ElseIfStar34 => true,
-            ChunkOrExpressionsNonTerminals::_Group35 => true,
-            ChunkOrExpressionsNonTerminals::__Group35Question36 => true,
-            ChunkOrExpressionsNonTerminals::_Group37 => true,
-            ChunkOrExpressionsNonTerminals::__Group37Question38 => true,
-            ChunkOrExpressionsNonTerminals::_Group39 => true,
-            ChunkOrExpressionsNonTerminals::__Group39Question40 => true,
-            ChunkOrExpressionsNonTerminals::_semicolonQuestion41 => true,
-            ChunkOrExpressionsNonTerminals::_FieldSepQuestion42 => true,
-            ChunkOrExpressionsNonTerminals::_ParListQuestion43 => true,
-            ChunkOrExpressionsNonTerminals::_Group44 => true,
-            ChunkOrExpressionsNonTerminals::__Group44Question45 => true,
+            ChunkOrExpressionsNonTerminals::_StatementPlus29 => true,
+            ChunkOrExpressionsNonTerminals::_StatementStar30 => true,
+            ChunkOrExpressionsNonTerminals::_ReturnStatementQuestion31 => true,
+            ChunkOrExpressionsNonTerminals::_ElseIfPlus32 => true,
+            ChunkOrExpressionsNonTerminals::_ElseIfStar33 => true,
+            ChunkOrExpressionsNonTerminals::_Group34 => true,
+            ChunkOrExpressionsNonTerminals::__Group34Question35 => true,
+            ChunkOrExpressionsNonTerminals::_Group36 => true,
+            ChunkOrExpressionsNonTerminals::__Group36Question37 => true,
+            ChunkOrExpressionsNonTerminals::_Group38 => true,
+            ChunkOrExpressionsNonTerminals::__Group38Question39 => true,
+            ChunkOrExpressionsNonTerminals::_semicolonQuestion40 => true,
+            ChunkOrExpressionsNonTerminals::_FieldSepQuestion41 => true,
+            ChunkOrExpressionsNonTerminals::_ParListQuestion42 => true,
+            ChunkOrExpressionsNonTerminals::_Group43 => true,
+            ChunkOrExpressionsNonTerminals::__Group43Question44 => true,
             ChunkOrExpressionsNonTerminals::Augmented => true,
         }
     }
@@ -382,7 +378,6 @@ impl ::rusty_lr::NonTerminal<Token> for ChunkOrExpressionsNonTerminals {
             ChunkOrExpressionsNonTerminals::AttName => false,
             ChunkOrExpressionsNonTerminals::AttNameList => false,
             ChunkOrExpressionsNonTerminals::Attrib => false,
-            ChunkOrExpressionsNonTerminals::Exp0 => false,
             ChunkOrExpressionsNonTerminals::Exp => false,
             ChunkOrExpressionsNonTerminals::TableConstructor => false,
             ChunkOrExpressionsNonTerminals::FieldList1 => false,
@@ -395,22 +390,22 @@ impl ::rusty_lr::NonTerminal<Token> for ChunkOrExpressionsNonTerminals {
             ChunkOrExpressionsNonTerminals::FuncName => false,
             ChunkOrExpressionsNonTerminals::ParList => false,
             ChunkOrExpressionsNonTerminals::error => false,
-            ChunkOrExpressionsNonTerminals::_StatementPlus30 => false,
-            ChunkOrExpressionsNonTerminals::_StatementStar31 => false,
-            ChunkOrExpressionsNonTerminals::_ReturnStatementQuestion32 => false,
-            ChunkOrExpressionsNonTerminals::_ElseIfPlus33 => false,
-            ChunkOrExpressionsNonTerminals::_ElseIfStar34 => false,
-            ChunkOrExpressionsNonTerminals::_Group35 => false,
-            ChunkOrExpressionsNonTerminals::__Group35Question36 => false,
-            ChunkOrExpressionsNonTerminals::_Group37 => false,
-            ChunkOrExpressionsNonTerminals::__Group37Question38 => false,
-            ChunkOrExpressionsNonTerminals::_Group39 => false,
-            ChunkOrExpressionsNonTerminals::__Group39Question40 => false,
-            ChunkOrExpressionsNonTerminals::_semicolonQuestion41 => false,
-            ChunkOrExpressionsNonTerminals::_FieldSepQuestion42 => false,
-            ChunkOrExpressionsNonTerminals::_ParListQuestion43 => false,
-            ChunkOrExpressionsNonTerminals::_Group44 => false,
-            ChunkOrExpressionsNonTerminals::__Group44Question45 => false,
+            ChunkOrExpressionsNonTerminals::_StatementPlus29 => false,
+            ChunkOrExpressionsNonTerminals::_StatementStar30 => false,
+            ChunkOrExpressionsNonTerminals::_ReturnStatementQuestion31 => false,
+            ChunkOrExpressionsNonTerminals::_ElseIfPlus32 => false,
+            ChunkOrExpressionsNonTerminals::_ElseIfStar33 => false,
+            ChunkOrExpressionsNonTerminals::_Group34 => false,
+            ChunkOrExpressionsNonTerminals::__Group34Question35 => false,
+            ChunkOrExpressionsNonTerminals::_Group36 => false,
+            ChunkOrExpressionsNonTerminals::__Group36Question37 => false,
+            ChunkOrExpressionsNonTerminals::_Group38 => false,
+            ChunkOrExpressionsNonTerminals::__Group38Question39 => false,
+            ChunkOrExpressionsNonTerminals::_semicolonQuestion40 => false,
+            ChunkOrExpressionsNonTerminals::_FieldSepQuestion41 => false,
+            ChunkOrExpressionsNonTerminals::_ParListQuestion42 => false,
+            ChunkOrExpressionsNonTerminals::_Group43 => false,
+            ChunkOrExpressionsNonTerminals::__Group43Question44 => false,
             ChunkOrExpressionsNonTerminals::Augmented => true,
         }
     }
@@ -433,7 +428,6 @@ impl ::rusty_lr::NonTerminal<Token> for ChunkOrExpressionsNonTerminals {
             ChunkOrExpressionsNonTerminals::AttName => false,
             ChunkOrExpressionsNonTerminals::AttNameList => false,
             ChunkOrExpressionsNonTerminals::Attrib => false,
-            ChunkOrExpressionsNonTerminals::Exp0 => false,
             ChunkOrExpressionsNonTerminals::Exp => false,
             ChunkOrExpressionsNonTerminals::TableConstructor => false,
             ChunkOrExpressionsNonTerminals::FieldList1 => false,
@@ -446,22 +440,22 @@ impl ::rusty_lr::NonTerminal<Token> for ChunkOrExpressionsNonTerminals {
             ChunkOrExpressionsNonTerminals::FuncName => false,
             ChunkOrExpressionsNonTerminals::ParList => false,
             ChunkOrExpressionsNonTerminals::error => false,
-            ChunkOrExpressionsNonTerminals::_StatementPlus30 => false,
-            ChunkOrExpressionsNonTerminals::_StatementStar31 => false,
-            ChunkOrExpressionsNonTerminals::_ReturnStatementQuestion32 => false,
-            ChunkOrExpressionsNonTerminals::_ElseIfPlus33 => false,
-            ChunkOrExpressionsNonTerminals::_ElseIfStar34 => false,
-            ChunkOrExpressionsNonTerminals::_Group35 => false,
-            ChunkOrExpressionsNonTerminals::__Group35Question36 => false,
-            ChunkOrExpressionsNonTerminals::_Group37 => false,
-            ChunkOrExpressionsNonTerminals::__Group37Question38 => false,
-            ChunkOrExpressionsNonTerminals::_Group39 => false,
-            ChunkOrExpressionsNonTerminals::__Group39Question40 => false,
-            ChunkOrExpressionsNonTerminals::_semicolonQuestion41 => false,
-            ChunkOrExpressionsNonTerminals::_FieldSepQuestion42 => false,
-            ChunkOrExpressionsNonTerminals::_ParListQuestion43 => false,
-            ChunkOrExpressionsNonTerminals::_Group44 => false,
-            ChunkOrExpressionsNonTerminals::__Group44Question45 => false,
+            ChunkOrExpressionsNonTerminals::_StatementPlus29 => false,
+            ChunkOrExpressionsNonTerminals::_StatementStar30 => false,
+            ChunkOrExpressionsNonTerminals::_ReturnStatementQuestion31 => false,
+            ChunkOrExpressionsNonTerminals::_ElseIfPlus32 => false,
+            ChunkOrExpressionsNonTerminals::_ElseIfStar33 => false,
+            ChunkOrExpressionsNonTerminals::_Group34 => false,
+            ChunkOrExpressionsNonTerminals::__Group34Question35 => false,
+            ChunkOrExpressionsNonTerminals::_Group36 => false,
+            ChunkOrExpressionsNonTerminals::__Group36Question37 => false,
+            ChunkOrExpressionsNonTerminals::_Group38 => false,
+            ChunkOrExpressionsNonTerminals::__Group38Question39 => false,
+            ChunkOrExpressionsNonTerminals::_semicolonQuestion40 => false,
+            ChunkOrExpressionsNonTerminals::_FieldSepQuestion41 => false,
+            ChunkOrExpressionsNonTerminals::_ParListQuestion42 => false,
+            ChunkOrExpressionsNonTerminals::_Group43 => false,
+            ChunkOrExpressionsNonTerminals::__Group43Question44 => false,
             ChunkOrExpressionsNonTerminals::Augmented => false,
         }
     }
@@ -1406,7 +1400,7 @@ impl ChunkOrExpressionsNodeEnum {
     ) -> Result<ChunkOrExpressionsNodeEnum, ParseError> {
         Ok(ChunkOrExpressionsNodeEnum::Variant14({ None }))
     }
-    fn reduce_Exp0_0(
+    fn reduce_Exp_0(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -1421,7 +1415,7 @@ impl ChunkOrExpressionsNodeEnum {
             Expression::Numeric(numeric_literal.into())
         }))
     }
-    fn reduce_Exp0_1(
+    fn reduce_Exp_1(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -1434,7 +1428,7 @@ impl ChunkOrExpressionsNodeEnum {
             Expression::Nil(nil.into())
         }))
     }
-    fn reduce_Exp0_2(
+    fn reduce_Exp_2(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -1449,7 +1443,7 @@ impl ChunkOrExpressionsNodeEnum {
             Expression::String(string_literal.into())
         }))
     }
-    fn reduce_Exp0_3(
+    fn reduce_Exp_3(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -1462,7 +1456,7 @@ impl ChunkOrExpressionsNodeEnum {
             Expression::Bool(bool_.into())
         }))
     }
-    fn reduce_Exp0_4(
+    fn reduce_Exp_4(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -1476,7 +1470,7 @@ impl ChunkOrExpressionsNodeEnum {
             Expression::Variadic(dotdotdot.into())
         }))
     }
-    fn reduce_Exp0_5(
+    fn reduce_Exp_5(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -1490,7 +1484,7 @@ impl ChunkOrExpressionsNodeEnum {
             Expression::Function(FunctionDef)
         }))
     }
-    fn reduce_Exp0_6(
+    fn reduce_Exp_6(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -1502,7 +1496,7 @@ impl ChunkOrExpressionsNodeEnum {
         };
         Ok(ChunkOrExpressionsNodeEnum::Variant7(PrefixExp))
     }
-    fn reduce_Exp0_7(
+    fn reduce_Exp_7(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -1517,18 +1511,7 @@ impl ChunkOrExpressionsNodeEnum {
             Expression::Table(TableConstructor)
         }))
     }
-    fn reduce_Exp_0(
-        __rustylr_args: &mut Vec<Self>,
-        shift: &mut bool,
-        lookahead: &Token,
-        data: &mut (),
-    ) -> Result<ChunkOrExpressionsNodeEnum, ParseError> {
-        let ChunkOrExpressionsNodeEnum::Variant7(mut Exp0) = __rustylr_args.pop().unwrap() else {
-            unreachable!()
-        };
-        Ok(ChunkOrExpressionsNodeEnum::Variant7(Exp0))
-    }
-    fn reduce_Exp_1(
+    fn reduce_Exp_8(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -1544,7 +1527,7 @@ impl ChunkOrExpressionsNodeEnum {
             new_unary_node!(LogicalNot, not_, Exp)
         }))
     }
-    fn reduce_Exp_2(
+    fn reduce_Exp_9(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -1560,7 +1543,7 @@ impl ChunkOrExpressionsNodeEnum {
             new_unary_node!(Length, hash, Exp)
         }))
     }
-    fn reduce_Exp_3(
+    fn reduce_Exp_10(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -1576,7 +1559,7 @@ impl ChunkOrExpressionsNodeEnum {
             new_unary_node!(Minus, minus, Exp)
         }))
     }
-    fn reduce_Exp_4(
+    fn reduce_Exp_11(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -1592,7 +1575,7 @@ impl ChunkOrExpressionsNodeEnum {
             new_unary_node!(Plus, plus, Exp)
         }))
     }
-    fn reduce_Exp_5(
+    fn reduce_Exp_12(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -1608,7 +1591,7 @@ impl ChunkOrExpressionsNodeEnum {
             new_unary_node!(BitwiseNot, tilde, Exp)
         }))
     }
-    fn reduce_Exp_6(
+    fn reduce_Exp_13(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -1628,7 +1611,7 @@ impl ChunkOrExpressionsNodeEnum {
             new_binary_node!(Mul, asterisk, lhs, rhs)
         }))
     }
-    fn reduce_Exp_7(
+    fn reduce_Exp_14(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -1647,7 +1630,7 @@ impl ChunkOrExpressionsNodeEnum {
             new_binary_node!(Div, slash, lhs, rhs)
         }))
     }
-    fn reduce_Exp_8(
+    fn reduce_Exp_15(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -1667,7 +1650,7 @@ impl ChunkOrExpressionsNodeEnum {
             new_binary_node!(FloorDiv, slashslash, lhs, rhs)
         }))
     }
-    fn reduce_Exp_9(
+    fn reduce_Exp_16(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -1687,7 +1670,7 @@ impl ChunkOrExpressionsNodeEnum {
             new_binary_node!(Mod, percent, lhs, rhs)
         }))
     }
-    fn reduce_Exp_10(
+    fn reduce_Exp_17(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -1706,7 +1689,7 @@ impl ChunkOrExpressionsNodeEnum {
             new_binary_node!(Add, plus, lhs, rhs)
         }))
     }
-    fn reduce_Exp_11(
+    fn reduce_Exp_18(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -1725,7 +1708,7 @@ impl ChunkOrExpressionsNodeEnum {
             new_binary_node!(Sub, minus, lhs, rhs)
         }))
     }
-    fn reduce_Exp_12(
+    fn reduce_Exp_19(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -1745,7 +1728,7 @@ impl ChunkOrExpressionsNodeEnum {
             new_binary_node!(Concat, dotdot, lhs, rhs)
         }))
     }
-    fn reduce_Exp_13(
+    fn reduce_Exp_20(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -1765,7 +1748,7 @@ impl ChunkOrExpressionsNodeEnum {
             new_binary_node!(ShiftLeft, lessless, lhs, rhs)
         }))
     }
-    fn reduce_Exp_14(
+    fn reduce_Exp_21(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -1786,7 +1769,7 @@ impl ChunkOrExpressionsNodeEnum {
             new_binary_node!(ShiftRight, greatergreater, lhs, rhs)
         }))
     }
-    fn reduce_Exp_15(
+    fn reduce_Exp_22(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -1806,7 +1789,7 @@ impl ChunkOrExpressionsNodeEnum {
             new_binary_node!(BitwiseAnd, ampersand, lhs, rhs)
         }))
     }
-    fn reduce_Exp_16(
+    fn reduce_Exp_23(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -1825,7 +1808,7 @@ impl ChunkOrExpressionsNodeEnum {
             new_binary_node!(BitwiseXor, tilde, lhs, rhs)
         }))
     }
-    fn reduce_Exp_17(
+    fn reduce_Exp_24(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -1844,7 +1827,7 @@ impl ChunkOrExpressionsNodeEnum {
             new_binary_node!(BitwiseOr, pipe, lhs, rhs)
         }))
     }
-    fn reduce_Exp_18(
+    fn reduce_Exp_25(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -1863,7 +1846,7 @@ impl ChunkOrExpressionsNodeEnum {
             new_binary_node!(LessThan, less, lhs, rhs)
         }))
     }
-    fn reduce_Exp_19(
+    fn reduce_Exp_26(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -1883,7 +1866,7 @@ impl ChunkOrExpressionsNodeEnum {
             new_binary_node!(LessEqual, lessequal, lhs, rhs)
         }))
     }
-    fn reduce_Exp_20(
+    fn reduce_Exp_27(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -1903,7 +1886,7 @@ impl ChunkOrExpressionsNodeEnum {
             new_binary_node!(GreaterThan, greater, lhs, rhs)
         }))
     }
-    fn reduce_Exp_21(
+    fn reduce_Exp_28(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -1923,7 +1906,7 @@ impl ChunkOrExpressionsNodeEnum {
             new_binary_node!(GreaterEqual, greaterequal, lhs, rhs)
         }))
     }
-    fn reduce_Exp_22(
+    fn reduce_Exp_29(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -1943,7 +1926,7 @@ impl ChunkOrExpressionsNodeEnum {
             new_binary_node!(NotEqual, tildeequal, lhs, rhs)
         }))
     }
-    fn reduce_Exp_23(
+    fn reduce_Exp_30(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -1963,7 +1946,7 @@ impl ChunkOrExpressionsNodeEnum {
             new_binary_node!(Equal, equalequal, lhs, rhs)
         }))
     }
-    fn reduce_Exp_24(
+    fn reduce_Exp_31(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -1982,7 +1965,7 @@ impl ChunkOrExpressionsNodeEnum {
             new_binary_node!(LogicalAnd, and_, lhs, rhs)
         }))
     }
-    fn reduce_Exp_25(
+    fn reduce_Exp_32(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -2001,7 +1984,7 @@ impl ChunkOrExpressionsNodeEnum {
             new_binary_node!(LogicalOr, or_, lhs, rhs)
         }))
     }
-    fn reduce_Exp_26(
+    fn reduce_Exp_33(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -2329,7 +2312,7 @@ impl ChunkOrExpressionsNodeEnum {
             expression::ParameterList::new(Vec::new(), true, dotdotdot.span())
         }))
     }
-    fn reduce__StatementPlus30_0(
+    fn reduce__StatementPlus29_0(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -2340,7 +2323,7 @@ impl ChunkOrExpressionsNodeEnum {
         };
         Ok(ChunkOrExpressionsNodeEnum::Variant21({ vec![A] }))
     }
-    fn reduce__StatementPlus30_1(
+    fn reduce__StatementPlus29_1(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -2357,7 +2340,7 @@ impl ChunkOrExpressionsNodeEnum {
             Ap
         }))
     }
-    fn reduce__StatementStar31_0(
+    fn reduce__StatementStar30_0(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -2368,7 +2351,7 @@ impl ChunkOrExpressionsNodeEnum {
         };
         Ok(ChunkOrExpressionsNodeEnum::Variant21({ Ap }))
     }
-    fn reduce__StatementStar31_1(
+    fn reduce__StatementStar30_1(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -2376,7 +2359,7 @@ impl ChunkOrExpressionsNodeEnum {
     ) -> Result<ChunkOrExpressionsNodeEnum, ParseError> {
         Ok(ChunkOrExpressionsNodeEnum::Variant21({ vec![] }))
     }
-    fn reduce__ReturnStatementQuestion32_0(
+    fn reduce__ReturnStatementQuestion31_0(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -2387,7 +2370,7 @@ impl ChunkOrExpressionsNodeEnum {
         };
         Ok(ChunkOrExpressionsNodeEnum::Variant22({ Some(A) }))
     }
-    fn reduce__ReturnStatementQuestion32_1(
+    fn reduce__ReturnStatementQuestion31_1(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -2395,7 +2378,7 @@ impl ChunkOrExpressionsNodeEnum {
     ) -> Result<ChunkOrExpressionsNodeEnum, ParseError> {
         Ok(ChunkOrExpressionsNodeEnum::Variant22({ None }))
     }
-    fn reduce__ElseIfPlus33_0(
+    fn reduce__ElseIfPlus32_0(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -2406,7 +2389,7 @@ impl ChunkOrExpressionsNodeEnum {
         };
         Ok(ChunkOrExpressionsNodeEnum::Variant23({ vec![A] }))
     }
-    fn reduce__ElseIfPlus33_1(
+    fn reduce__ElseIfPlus32_1(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -2423,7 +2406,7 @@ impl ChunkOrExpressionsNodeEnum {
             Ap
         }))
     }
-    fn reduce__ElseIfStar34_0(
+    fn reduce__ElseIfStar33_0(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -2434,7 +2417,7 @@ impl ChunkOrExpressionsNodeEnum {
         };
         Ok(ChunkOrExpressionsNodeEnum::Variant23({ Ap }))
     }
-    fn reduce__ElseIfStar34_1(
+    fn reduce__ElseIfStar33_1(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -2442,7 +2425,7 @@ impl ChunkOrExpressionsNodeEnum {
     ) -> Result<ChunkOrExpressionsNodeEnum, ParseError> {
         Ok(ChunkOrExpressionsNodeEnum::Variant23({ vec![] }))
     }
-    fn reduce__Group35_0(
+    fn reduce__Group34_0(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -2456,7 +2439,7 @@ impl ChunkOrExpressionsNodeEnum {
         };
         Ok(ChunkOrExpressionsNodeEnum::Variant3(__rustylr_group_elem1))
     }
-    fn reduce___Group35Question36_0(
+    fn reduce___Group34Question35_0(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -2467,7 +2450,7 @@ impl ChunkOrExpressionsNodeEnum {
         };
         Ok(ChunkOrExpressionsNodeEnum::Variant24({ Some(A) }))
     }
-    fn reduce___Group35Question36_1(
+    fn reduce___Group34Question35_1(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -2475,7 +2458,7 @@ impl ChunkOrExpressionsNodeEnum {
     ) -> Result<ChunkOrExpressionsNodeEnum, ParseError> {
         Ok(ChunkOrExpressionsNodeEnum::Variant24({ None }))
     }
-    fn reduce__Group37_0(
+    fn reduce__Group36_0(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -2489,7 +2472,7 @@ impl ChunkOrExpressionsNodeEnum {
         };
         Ok(ChunkOrExpressionsNodeEnum::Variant7(__rustylr_group_elem1))
     }
-    fn reduce___Group37Question38_0(
+    fn reduce___Group36Question37_0(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -2500,7 +2483,7 @@ impl ChunkOrExpressionsNodeEnum {
         };
         Ok(ChunkOrExpressionsNodeEnum::Variant25({ Some(A) }))
     }
-    fn reduce___Group37Question38_1(
+    fn reduce___Group36Question37_1(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -2508,7 +2491,7 @@ impl ChunkOrExpressionsNodeEnum {
     ) -> Result<ChunkOrExpressionsNodeEnum, ParseError> {
         Ok(ChunkOrExpressionsNodeEnum::Variant25({ None }))
     }
-    fn reduce__Group39_0(
+    fn reduce__Group38_0(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -2522,7 +2505,7 @@ impl ChunkOrExpressionsNodeEnum {
         };
         Ok(ChunkOrExpressionsNodeEnum::Variant10(__rustylr_group_elem1))
     }
-    fn reduce___Group39Question40_0(
+    fn reduce___Group38Question39_0(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -2533,7 +2516,7 @@ impl ChunkOrExpressionsNodeEnum {
         };
         Ok(ChunkOrExpressionsNodeEnum::Variant26({ Some(A) }))
     }
-    fn reduce___Group39Question40_1(
+    fn reduce___Group38Question39_1(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -2541,7 +2524,7 @@ impl ChunkOrExpressionsNodeEnum {
     ) -> Result<ChunkOrExpressionsNodeEnum, ParseError> {
         Ok(ChunkOrExpressionsNodeEnum::Variant26({ None }))
     }
-    fn reduce__semicolonQuestion41_0(
+    fn reduce__semicolonQuestion40_0(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -2552,7 +2535,7 @@ impl ChunkOrExpressionsNodeEnum {
         };
         Ok(ChunkOrExpressionsNodeEnum::Variant27({ Some(A) }))
     }
-    fn reduce__semicolonQuestion41_1(
+    fn reduce__semicolonQuestion40_1(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -2560,7 +2543,7 @@ impl ChunkOrExpressionsNodeEnum {
     ) -> Result<ChunkOrExpressionsNodeEnum, ParseError> {
         Ok(ChunkOrExpressionsNodeEnum::Variant27({ None }))
     }
-    fn reduce__FieldSepQuestion42_0(
+    fn reduce__FieldSepQuestion41_0(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -2569,7 +2552,7 @@ impl ChunkOrExpressionsNodeEnum {
         __rustylr_args.clear();
         Ok(ChunkOrExpressionsNodeEnum::EmptyRuleType)
     }
-    fn reduce__FieldSepQuestion42_1(
+    fn reduce__FieldSepQuestion41_1(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -2578,7 +2561,7 @@ impl ChunkOrExpressionsNodeEnum {
         __rustylr_args.clear();
         Ok(ChunkOrExpressionsNodeEnum::EmptyRuleType)
     }
-    fn reduce__ParListQuestion43_0(
+    fn reduce__ParListQuestion42_0(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -2589,7 +2572,7 @@ impl ChunkOrExpressionsNodeEnum {
         };
         Ok(ChunkOrExpressionsNodeEnum::Variant28({ Some(A) }))
     }
-    fn reduce__ParListQuestion43_1(
+    fn reduce__ParListQuestion42_1(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -2597,7 +2580,7 @@ impl ChunkOrExpressionsNodeEnum {
     ) -> Result<ChunkOrExpressionsNodeEnum, ParseError> {
         Ok(ChunkOrExpressionsNodeEnum::Variant28({ None }))
     }
-    fn reduce__Group44_0(
+    fn reduce__Group43_0(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -2611,7 +2594,7 @@ impl ChunkOrExpressionsNodeEnum {
         };
         Ok(ChunkOrExpressionsNodeEnum::Terminals(__rustylr_group_elem1))
     }
-    fn reduce___Group44Question45_0(
+    fn reduce___Group43Question44_0(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -2622,7 +2605,7 @@ impl ChunkOrExpressionsNodeEnum {
         };
         Ok(ChunkOrExpressionsNodeEnum::Variant27({ Some(A) }))
     }
-    fn reduce___Group44Question45_1(
+    fn reduce___Group43Question44_1(
         __rustylr_args: &mut Vec<Self>,
         shift: &mut bool,
         lookahead: &Token,
@@ -2709,116 +2692,115 @@ impl ::rusty_lr::glr::NodeData for ChunkOrExpressionsNodeEnum {
             42usize => Self::reduce_AttNameList_1(reduce_args, shift, lookahead, user_data),
             43usize => Self::reduce_Attrib_0(reduce_args, shift, lookahead, user_data),
             44usize => Self::reduce_Attrib_1(reduce_args, shift, lookahead, user_data),
-            45usize => Self::reduce_Exp0_0(reduce_args, shift, lookahead, user_data),
-            46usize => Self::reduce_Exp0_1(reduce_args, shift, lookahead, user_data),
-            47usize => Self::reduce_Exp0_2(reduce_args, shift, lookahead, user_data),
-            48usize => Self::reduce_Exp0_3(reduce_args, shift, lookahead, user_data),
-            49usize => Self::reduce_Exp0_4(reduce_args, shift, lookahead, user_data),
-            50usize => Self::reduce_Exp0_5(reduce_args, shift, lookahead, user_data),
-            51usize => Self::reduce_Exp0_6(reduce_args, shift, lookahead, user_data),
-            52usize => Self::reduce_Exp0_7(reduce_args, shift, lookahead, user_data),
-            53usize => Self::reduce_Exp_0(reduce_args, shift, lookahead, user_data),
-            54usize => Self::reduce_Exp_1(reduce_args, shift, lookahead, user_data),
-            55usize => Self::reduce_Exp_2(reduce_args, shift, lookahead, user_data),
-            56usize => Self::reduce_Exp_3(reduce_args, shift, lookahead, user_data),
-            57usize => Self::reduce_Exp_4(reduce_args, shift, lookahead, user_data),
-            58usize => Self::reduce_Exp_5(reduce_args, shift, lookahead, user_data),
-            59usize => Self::reduce_Exp_6(reduce_args, shift, lookahead, user_data),
-            60usize => Self::reduce_Exp_7(reduce_args, shift, lookahead, user_data),
-            61usize => Self::reduce_Exp_8(reduce_args, shift, lookahead, user_data),
-            62usize => Self::reduce_Exp_9(reduce_args, shift, lookahead, user_data),
-            63usize => Self::reduce_Exp_10(reduce_args, shift, lookahead, user_data),
-            64usize => Self::reduce_Exp_11(reduce_args, shift, lookahead, user_data),
-            65usize => Self::reduce_Exp_12(reduce_args, shift, lookahead, user_data),
-            66usize => Self::reduce_Exp_13(reduce_args, shift, lookahead, user_data),
-            67usize => Self::reduce_Exp_14(reduce_args, shift, lookahead, user_data),
-            68usize => Self::reduce_Exp_15(reduce_args, shift, lookahead, user_data),
-            69usize => Self::reduce_Exp_16(reduce_args, shift, lookahead, user_data),
-            70usize => Self::reduce_Exp_17(reduce_args, shift, lookahead, user_data),
-            71usize => Self::reduce_Exp_18(reduce_args, shift, lookahead, user_data),
-            72usize => Self::reduce_Exp_19(reduce_args, shift, lookahead, user_data),
-            73usize => Self::reduce_Exp_20(reduce_args, shift, lookahead, user_data),
-            74usize => Self::reduce_Exp_21(reduce_args, shift, lookahead, user_data),
-            75usize => Self::reduce_Exp_22(reduce_args, shift, lookahead, user_data),
-            76usize => Self::reduce_Exp_23(reduce_args, shift, lookahead, user_data),
-            77usize => Self::reduce_Exp_24(reduce_args, shift, lookahead, user_data),
-            78usize => Self::reduce_Exp_25(reduce_args, shift, lookahead, user_data),
-            79usize => Self::reduce_Exp_26(reduce_args, shift, lookahead, user_data),
-            80usize => Self::reduce_TableConstructor_0(reduce_args, shift, lookahead, user_data),
-            81usize => Self::reduce_FieldList1_0(reduce_args, shift, lookahead, user_data),
-            82usize => Self::reduce_FieldList1_1(reduce_args, shift, lookahead, user_data),
-            83usize => Self::reduce_FieldList_0(reduce_args, shift, lookahead, user_data),
-            84usize => Self::reduce_FieldList_1(reduce_args, shift, lookahead, user_data),
-            85usize => Self::reduce_Field_0(reduce_args, shift, lookahead, user_data),
-            86usize => Self::reduce_Field_1(reduce_args, shift, lookahead, user_data),
-            87usize => Self::reduce_Field_2(reduce_args, shift, lookahead, user_data),
-            88usize => Self::reduce_FieldSep_0(reduce_args, shift, lookahead, user_data),
-            89usize => Self::reduce_FieldSep_1(reduce_args, shift, lookahead, user_data),
-            90usize => Self::reduce_FunctionDef_0(reduce_args, shift, lookahead, user_data),
-            91usize => Self::reduce_FuncBody_0(reduce_args, shift, lookahead, user_data),
-            92usize => Self::reduce_FuncName1_0(reduce_args, shift, lookahead, user_data),
-            93usize => Self::reduce_FuncName1_1(reduce_args, shift, lookahead, user_data),
-            94usize => Self::reduce_FuncName_0(reduce_args, shift, lookahead, user_data),
-            95usize => Self::reduce_FuncName_1(reduce_args, shift, lookahead, user_data),
-            96usize => Self::reduce_ParList_0(reduce_args, shift, lookahead, user_data),
-            97usize => Self::reduce_ParList_1(reduce_args, shift, lookahead, user_data),
-            98usize => Self::reduce__StatementPlus30_0(reduce_args, shift, lookahead, user_data),
-            99usize => Self::reduce__StatementPlus30_1(reduce_args, shift, lookahead, user_data),
-            100usize => Self::reduce__StatementStar31_0(reduce_args, shift, lookahead, user_data),
-            101usize => Self::reduce__StatementStar31_1(reduce_args, shift, lookahead, user_data),
+            45usize => Self::reduce_Exp_0(reduce_args, shift, lookahead, user_data),
+            46usize => Self::reduce_Exp_1(reduce_args, shift, lookahead, user_data),
+            47usize => Self::reduce_Exp_2(reduce_args, shift, lookahead, user_data),
+            48usize => Self::reduce_Exp_3(reduce_args, shift, lookahead, user_data),
+            49usize => Self::reduce_Exp_4(reduce_args, shift, lookahead, user_data),
+            50usize => Self::reduce_Exp_5(reduce_args, shift, lookahead, user_data),
+            51usize => Self::reduce_Exp_6(reduce_args, shift, lookahead, user_data),
+            52usize => Self::reduce_Exp_7(reduce_args, shift, lookahead, user_data),
+            53usize => Self::reduce_Exp_8(reduce_args, shift, lookahead, user_data),
+            54usize => Self::reduce_Exp_9(reduce_args, shift, lookahead, user_data),
+            55usize => Self::reduce_Exp_10(reduce_args, shift, lookahead, user_data),
+            56usize => Self::reduce_Exp_11(reduce_args, shift, lookahead, user_data),
+            57usize => Self::reduce_Exp_12(reduce_args, shift, lookahead, user_data),
+            58usize => Self::reduce_Exp_13(reduce_args, shift, lookahead, user_data),
+            59usize => Self::reduce_Exp_14(reduce_args, shift, lookahead, user_data),
+            60usize => Self::reduce_Exp_15(reduce_args, shift, lookahead, user_data),
+            61usize => Self::reduce_Exp_16(reduce_args, shift, lookahead, user_data),
+            62usize => Self::reduce_Exp_17(reduce_args, shift, lookahead, user_data),
+            63usize => Self::reduce_Exp_18(reduce_args, shift, lookahead, user_data),
+            64usize => Self::reduce_Exp_19(reduce_args, shift, lookahead, user_data),
+            65usize => Self::reduce_Exp_20(reduce_args, shift, lookahead, user_data),
+            66usize => Self::reduce_Exp_21(reduce_args, shift, lookahead, user_data),
+            67usize => Self::reduce_Exp_22(reduce_args, shift, lookahead, user_data),
+            68usize => Self::reduce_Exp_23(reduce_args, shift, lookahead, user_data),
+            69usize => Self::reduce_Exp_24(reduce_args, shift, lookahead, user_data),
+            70usize => Self::reduce_Exp_25(reduce_args, shift, lookahead, user_data),
+            71usize => Self::reduce_Exp_26(reduce_args, shift, lookahead, user_data),
+            72usize => Self::reduce_Exp_27(reduce_args, shift, lookahead, user_data),
+            73usize => Self::reduce_Exp_28(reduce_args, shift, lookahead, user_data),
+            74usize => Self::reduce_Exp_29(reduce_args, shift, lookahead, user_data),
+            75usize => Self::reduce_Exp_30(reduce_args, shift, lookahead, user_data),
+            76usize => Self::reduce_Exp_31(reduce_args, shift, lookahead, user_data),
+            77usize => Self::reduce_Exp_32(reduce_args, shift, lookahead, user_data),
+            78usize => Self::reduce_Exp_33(reduce_args, shift, lookahead, user_data),
+            79usize => Self::reduce_TableConstructor_0(reduce_args, shift, lookahead, user_data),
+            80usize => Self::reduce_FieldList1_0(reduce_args, shift, lookahead, user_data),
+            81usize => Self::reduce_FieldList1_1(reduce_args, shift, lookahead, user_data),
+            82usize => Self::reduce_FieldList_0(reduce_args, shift, lookahead, user_data),
+            83usize => Self::reduce_FieldList_1(reduce_args, shift, lookahead, user_data),
+            84usize => Self::reduce_Field_0(reduce_args, shift, lookahead, user_data),
+            85usize => Self::reduce_Field_1(reduce_args, shift, lookahead, user_data),
+            86usize => Self::reduce_Field_2(reduce_args, shift, lookahead, user_data),
+            87usize => Self::reduce_FieldSep_0(reduce_args, shift, lookahead, user_data),
+            88usize => Self::reduce_FieldSep_1(reduce_args, shift, lookahead, user_data),
+            89usize => Self::reduce_FunctionDef_0(reduce_args, shift, lookahead, user_data),
+            90usize => Self::reduce_FuncBody_0(reduce_args, shift, lookahead, user_data),
+            91usize => Self::reduce_FuncName1_0(reduce_args, shift, lookahead, user_data),
+            92usize => Self::reduce_FuncName1_1(reduce_args, shift, lookahead, user_data),
+            93usize => Self::reduce_FuncName_0(reduce_args, shift, lookahead, user_data),
+            94usize => Self::reduce_FuncName_1(reduce_args, shift, lookahead, user_data),
+            95usize => Self::reduce_ParList_0(reduce_args, shift, lookahead, user_data),
+            96usize => Self::reduce_ParList_1(reduce_args, shift, lookahead, user_data),
+            97usize => Self::reduce__StatementPlus29_0(reduce_args, shift, lookahead, user_data),
+            98usize => Self::reduce__StatementPlus29_1(reduce_args, shift, lookahead, user_data),
+            99usize => Self::reduce__StatementStar30_0(reduce_args, shift, lookahead, user_data),
+            100usize => Self::reduce__StatementStar30_1(reduce_args, shift, lookahead, user_data),
+            101usize => {
+                Self::reduce__ReturnStatementQuestion31_0(reduce_args, shift, lookahead, user_data)
+            }
             102usize => {
-                Self::reduce__ReturnStatementQuestion32_0(reduce_args, shift, lookahead, user_data)
+                Self::reduce__ReturnStatementQuestion31_1(reduce_args, shift, lookahead, user_data)
             }
-            103usize => {
-                Self::reduce__ReturnStatementQuestion32_1(reduce_args, shift, lookahead, user_data)
+            103usize => Self::reduce__ElseIfPlus32_0(reduce_args, shift, lookahead, user_data),
+            104usize => Self::reduce__ElseIfPlus32_1(reduce_args, shift, lookahead, user_data),
+            105usize => Self::reduce__ElseIfStar33_0(reduce_args, shift, lookahead, user_data),
+            106usize => Self::reduce__ElseIfStar33_1(reduce_args, shift, lookahead, user_data),
+            107usize => Self::reduce__Group34_0(reduce_args, shift, lookahead, user_data),
+            108usize => {
+                Self::reduce___Group34Question35_0(reduce_args, shift, lookahead, user_data)
             }
-            104usize => Self::reduce__ElseIfPlus33_0(reduce_args, shift, lookahead, user_data),
-            105usize => Self::reduce__ElseIfPlus33_1(reduce_args, shift, lookahead, user_data),
-            106usize => Self::reduce__ElseIfStar34_0(reduce_args, shift, lookahead, user_data),
-            107usize => Self::reduce__ElseIfStar34_1(reduce_args, shift, lookahead, user_data),
-            108usize => Self::reduce__Group35_0(reduce_args, shift, lookahead, user_data),
             109usize => {
-                Self::reduce___Group35Question36_0(reduce_args, shift, lookahead, user_data)
+                Self::reduce___Group34Question35_1(reduce_args, shift, lookahead, user_data)
             }
-            110usize => {
-                Self::reduce___Group35Question36_1(reduce_args, shift, lookahead, user_data)
+            110usize => Self::reduce__Group36_0(reduce_args, shift, lookahead, user_data),
+            111usize => {
+                Self::reduce___Group36Question37_0(reduce_args, shift, lookahead, user_data)
             }
-            111usize => Self::reduce__Group37_0(reduce_args, shift, lookahead, user_data),
             112usize => {
-                Self::reduce___Group37Question38_0(reduce_args, shift, lookahead, user_data)
+                Self::reduce___Group36Question37_1(reduce_args, shift, lookahead, user_data)
             }
-            113usize => {
-                Self::reduce___Group37Question38_1(reduce_args, shift, lookahead, user_data)
+            113usize => Self::reduce__Group38_0(reduce_args, shift, lookahead, user_data),
+            114usize => {
+                Self::reduce___Group38Question39_0(reduce_args, shift, lookahead, user_data)
             }
-            114usize => Self::reduce__Group39_0(reduce_args, shift, lookahead, user_data),
             115usize => {
-                Self::reduce___Group39Question40_0(reduce_args, shift, lookahead, user_data)
+                Self::reduce___Group38Question39_1(reduce_args, shift, lookahead, user_data)
             }
             116usize => {
-                Self::reduce___Group39Question40_1(reduce_args, shift, lookahead, user_data)
+                Self::reduce__semicolonQuestion40_0(reduce_args, shift, lookahead, user_data)
             }
             117usize => {
-                Self::reduce__semicolonQuestion41_0(reduce_args, shift, lookahead, user_data)
+                Self::reduce__semicolonQuestion40_1(reduce_args, shift, lookahead, user_data)
             }
             118usize => {
-                Self::reduce__semicolonQuestion41_1(reduce_args, shift, lookahead, user_data)
+                Self::reduce__FieldSepQuestion41_0(reduce_args, shift, lookahead, user_data)
             }
             119usize => {
-                Self::reduce__FieldSepQuestion42_0(reduce_args, shift, lookahead, user_data)
+                Self::reduce__FieldSepQuestion41_1(reduce_args, shift, lookahead, user_data)
             }
-            120usize => {
-                Self::reduce__FieldSepQuestion42_1(reduce_args, shift, lookahead, user_data)
+            120usize => Self::reduce__ParListQuestion42_0(reduce_args, shift, lookahead, user_data),
+            121usize => Self::reduce__ParListQuestion42_1(reduce_args, shift, lookahead, user_data),
+            122usize => Self::reduce__Group43_0(reduce_args, shift, lookahead, user_data),
+            123usize => {
+                Self::reduce___Group43Question44_0(reduce_args, shift, lookahead, user_data)
             }
-            121usize => Self::reduce__ParListQuestion43_0(reduce_args, shift, lookahead, user_data),
-            122usize => Self::reduce__ParListQuestion43_1(reduce_args, shift, lookahead, user_data),
-            123usize => Self::reduce__Group44_0(reduce_args, shift, lookahead, user_data),
             124usize => {
-                Self::reduce___Group44Question45_0(reduce_args, shift, lookahead, user_data)
+                Self::reduce___Group43Question44_1(reduce_args, shift, lookahead, user_data)
             }
-            125usize => {
-                Self::reduce___Group44Question45_1(reduce_args, shift, lookahead, user_data)
-            }
-            126usize => Self::reduce_Augmented_0(reduce_args, shift, lookahead, user_data),
+            125usize => Self::reduce_Augmented_0(reduce_args, shift, lookahead, user_data),
             _ => {
                 unreachable!("Invalid Rule: {}", rule_index);
             }
@@ -2900,7 +2882,7 @@ impl ChunkOrExpressionsParser {
             ::rusty_lr::ReduceType::Left,
         );
         builder.add_reduce_type(
-            ::rusty_lr::builder::Operator::Term(25usize),
+            ::rusty_lr::builder::Operator::Term(36usize),
             ::rusty_lr::ReduceType::Right,
         );
         builder.add_reduce_type(
@@ -2910,10 +2892,6 @@ impl ChunkOrExpressionsParser {
         builder.add_reduce_type(
             ::rusty_lr::builder::Operator::Term(17usize),
             ::rusty_lr::ReduceType::Left,
-        );
-        builder.add_reduce_type(
-            ::rusty_lr::builder::Operator::Term(36usize),
-            ::rusty_lr::ReduceType::Right,
         );
         builder.add_reduce_type(
             ::rusty_lr::builder::Operator::Term(9usize),
@@ -2979,33 +2957,34 @@ impl ChunkOrExpressionsParser {
             ::rusty_lr::builder::Operator::Term(19usize),
             ::rusty_lr::ReduceType::Left,
         );
-        builder.add_precedence(::rusty_lr::builder::Operator::Term(22usize), 3usize);
-        builder.add_precedence(::rusty_lr::builder::Operator::Term(14usize), 4usize);
-        builder.add_precedence(::rusty_lr::builder::Operator::Term(25usize), 0usize);
-        builder.add_precedence(::rusty_lr::builder::Operator::Term(36usize), 8usize);
-        builder.add_precedence(::rusty_lr::builder::Operator::Term(6usize), 9usize);
-        builder.add_precedence(::rusty_lr::builder::Operator::Term(17usize), 10usize);
-        builder.add_precedence(::rusty_lr::builder::Operator::Term(9usize), 10usize);
-        builder.add_precedence(::rusty_lr::builder::Operator::Term(20usize), 3usize);
-        builder.add_precedence(::rusty_lr::builder::Operator::Prec(2usize), 12usize);
-        builder.add_precedence(::rusty_lr::builder::Operator::Term(12usize), 6usize);
-        builder.add_precedence(::rusty_lr::builder::Operator::Term(23usize), 3usize);
+        builder.add_precedence(::rusty_lr::builder::Operator::Term(22usize), 2usize);
+        builder.add_precedence(::rusty_lr::builder::Operator::Term(36usize), 7usize);
+        builder.add_precedence(::rusty_lr::builder::Operator::Term(14usize), 3usize);
+        builder.add_precedence(::rusty_lr::builder::Operator::Term(6usize), 8usize);
+        builder.add_precedence(::rusty_lr::builder::Operator::Term(17usize), 9usize);
+        builder.add_precedence(::rusty_lr::builder::Operator::Prec(2usize), 11usize);
+        builder.add_precedence(::rusty_lr::builder::Operator::Term(9usize), 9usize);
+        builder.add_precedence(::rusty_lr::builder::Operator::Term(20usize), 2usize);
+        builder.add_precedence(::rusty_lr::builder::Operator::Prec(5usize), 11usize);
+        builder.add_precedence(::rusty_lr::builder::Operator::Term(12usize), 5usize);
+        builder.add_precedence(::rusty_lr::builder::Operator::Term(23usize), 2usize);
         builder.add_precedence(::rusty_lr::builder::Operator::Prec(0usize), 12usize);
-        builder.add_precedence(::rusty_lr::builder::Operator::Term(15usize), 7usize);
-        builder.add_precedence(::rusty_lr::builder::Operator::Prec(3usize), 12usize);
-        builder.add_precedence(::rusty_lr::builder::Operator::Term(18usize), 3usize);
-        builder.add_precedence(::rusty_lr::builder::Operator::Term(51usize), 1usize);
-        builder.add_precedence(::rusty_lr::builder::Operator::Term(7usize), 10usize);
-        builder.add_precedence(::rusty_lr::builder::Operator::Term(21usize), 3usize);
-        builder.add_precedence(::rusty_lr::builder::Operator::Term(10usize), 11usize);
-        builder.add_precedence(::rusty_lr::builder::Operator::Term(13usize), 5usize);
-        builder.add_precedence(::rusty_lr::builder::Operator::Prec(1usize), 12usize);
-        builder.add_precedence(::rusty_lr::builder::Operator::Term(16usize), 7usize);
-        builder.add_precedence(::rusty_lr::builder::Operator::Term(38usize), 2usize);
-        builder.add_precedence(::rusty_lr::builder::Operator::Term(5usize), 9usize);
-        builder.add_precedence(::rusty_lr::builder::Operator::Term(19usize), 3usize);
-        builder.add_precedence(::rusty_lr::builder::Operator::Term(8usize), 10usize);
-        builder.add_precedence(::rusty_lr::builder::Operator::Prec(4usize), 12usize);
+        builder.add_precedence(::rusty_lr::builder::Operator::Term(15usize), 6usize);
+        builder.add_precedence(::rusty_lr::builder::Operator::Prec(3usize), 11usize);
+        builder.add_precedence(::rusty_lr::builder::Operator::Term(25usize), 13usize);
+        builder.add_precedence(::rusty_lr::builder::Operator::Term(18usize), 2usize);
+        builder.add_precedence(::rusty_lr::builder::Operator::Term(51usize), 0usize);
+        builder.add_precedence(::rusty_lr::builder::Operator::Term(7usize), 9usize);
+        builder.add_precedence(::rusty_lr::builder::Operator::Term(21usize), 2usize);
+        builder.add_precedence(::rusty_lr::builder::Operator::Term(10usize), 10usize);
+        builder.add_precedence(::rusty_lr::builder::Operator::Term(13usize), 4usize);
+        builder.add_precedence(::rusty_lr::builder::Operator::Prec(1usize), 11usize);
+        builder.add_precedence(::rusty_lr::builder::Operator::Term(16usize), 6usize);
+        builder.add_precedence(::rusty_lr::builder::Operator::Term(38usize), 1usize);
+        builder.add_precedence(::rusty_lr::builder::Operator::Term(5usize), 8usize);
+        builder.add_precedence(::rusty_lr::builder::Operator::Term(19usize), 2usize);
+        builder.add_precedence(::rusty_lr::builder::Operator::Term(8usize), 9usize);
+        builder.add_precedence(::rusty_lr::builder::Operator::Prec(4usize), 11usize);
         builder.add_rule(
             ChunkOrExpressionsNonTerminals::ChunkOrExpressions,
             vec![::rusty_lr::Token::NonTerm(
@@ -3036,9 +3015,9 @@ impl ChunkOrExpressionsParser {
         builder.add_rule(
             ChunkOrExpressionsNonTerminals::Block,
             vec![
-                ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::_StatementStar31),
+                ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::_StatementStar30),
                 ::rusty_lr::Token::NonTerm(
-                    ChunkOrExpressionsNonTerminals::_ReturnStatementQuestion32,
+                    ChunkOrExpressionsNonTerminals::_ReturnStatementQuestion31,
                 ),
             ],
             None,
@@ -3143,8 +3122,8 @@ impl ChunkOrExpressionsParser {
                 ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::Exp),
                 ::rusty_lr::Token::Term(54usize),
                 ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::Block),
-                ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::_ElseIfStar34),
-                ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::__Group35Question36),
+                ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::_ElseIfStar33),
+                ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::__Group34Question35),
                 ::rusty_lr::Token::Term(43usize),
             ],
             None,
@@ -3160,7 +3139,7 @@ impl ChunkOrExpressionsParser {
                 ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::Exp),
                 ::rusty_lr::Token::Term(34usize),
                 ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::Exp),
-                ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::__Group37Question38),
+                ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::__Group36Question37),
                 ::rusty_lr::Token::Term(40usize),
                 ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::Block),
                 ::rusty_lr::Token::Term(43usize),
@@ -3212,7 +3191,7 @@ impl ChunkOrExpressionsParser {
             vec![
                 ::rusty_lr::Token::Term(49usize),
                 ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::AttNameList),
-                ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::__Group39Question40),
+                ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::__Group38Question39),
             ],
             None,
             None,
@@ -3235,7 +3214,7 @@ impl ChunkOrExpressionsParser {
             vec![
                 ::rusty_lr::Token::Term(53usize),
                 ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::ExpList0),
-                ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::_semicolonQuestion41),
+                ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::_semicolonQuestion40),
             ],
             None,
             None,
@@ -3472,42 +3451,42 @@ impl ChunkOrExpressionsParser {
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::Exp0,
+            ChunkOrExpressionsNonTerminals::Exp,
             vec![::rusty_lr::Token::Term(2usize)],
             None,
             None,
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::Exp0,
+            ChunkOrExpressionsNonTerminals::Exp,
             vec![::rusty_lr::Token::Term(3usize)],
             None,
             None,
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::Exp0,
+            ChunkOrExpressionsNonTerminals::Exp,
             vec![::rusty_lr::Token::Term(1usize)],
             None,
             None,
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::Exp0,
+            ChunkOrExpressionsNonTerminals::Exp,
             vec![::rusty_lr::Token::Term(4usize)],
             None,
             None,
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::Exp0,
+            ChunkOrExpressionsNonTerminals::Exp,
             vec![::rusty_lr::Token::Term(37usize)],
             None,
             None,
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::Exp0,
+            ChunkOrExpressionsNonTerminals::Exp,
             vec![::rusty_lr::Token::NonTerm(
                 ChunkOrExpressionsNonTerminals::FunctionDef,
             )],
@@ -3516,27 +3495,18 @@ impl ChunkOrExpressionsParser {
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::Exp0,
+            ChunkOrExpressionsNonTerminals::Exp,
             vec![::rusty_lr::Token::NonTerm(
                 ChunkOrExpressionsNonTerminals::PrefixExp,
             )],
             None,
-            None,
-            0usize,
-        );
-        builder.add_rule(
-            ChunkOrExpressionsNonTerminals::Exp0,
-            vec![::rusty_lr::Token::NonTerm(
-                ChunkOrExpressionsNonTerminals::TableConstructor,
-            )],
-            None,
-            None,
+            Some(::rusty_lr::builder::Operator::Prec(0usize)),
             0usize,
         );
         builder.add_rule(
             ChunkOrExpressionsNonTerminals::Exp,
             vec![::rusty_lr::Token::NonTerm(
-                ChunkOrExpressionsNonTerminals::Exp0,
+                ChunkOrExpressionsNonTerminals::TableConstructor,
             )],
             None,
             None,
@@ -3549,7 +3519,7 @@ impl ChunkOrExpressionsParser {
                 ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::Exp),
             ],
             None,
-            Some(::rusty_lr::builder::Operator::Prec(0usize)),
+            Some(::rusty_lr::builder::Operator::Prec(1usize)),
             0usize,
         );
         builder.add_rule(
@@ -3559,7 +3529,7 @@ impl ChunkOrExpressionsParser {
                 ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::Exp),
             ],
             None,
-            Some(::rusty_lr::builder::Operator::Prec(1usize)),
+            Some(::rusty_lr::builder::Operator::Prec(2usize)),
             0usize,
         );
         builder.add_rule(
@@ -3569,7 +3539,7 @@ impl ChunkOrExpressionsParser {
                 ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::Exp),
             ],
             None,
-            Some(::rusty_lr::builder::Operator::Prec(2usize)),
+            Some(::rusty_lr::builder::Operator::Prec(3usize)),
             0usize,
         );
         builder.add_rule(
@@ -3579,7 +3549,7 @@ impl ChunkOrExpressionsParser {
                 ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::Exp),
             ],
             None,
-            Some(::rusty_lr::builder::Operator::Prec(3usize)),
+            Some(::rusty_lr::builder::Operator::Prec(4usize)),
             0usize,
         );
         builder.add_rule(
@@ -3589,7 +3559,7 @@ impl ChunkOrExpressionsParser {
                 ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::Exp),
             ],
             None,
-            Some(::rusty_lr::builder::Operator::Prec(4usize)),
+            Some(::rusty_lr::builder::Operator::Prec(5usize)),
             0usize,
         );
         builder.add_rule(
@@ -3858,7 +3828,7 @@ impl ChunkOrExpressionsParser {
             ChunkOrExpressionsNonTerminals::FieldList,
             vec![
                 ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::FieldList1),
-                ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::_FieldSepQuestion42),
+                ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::_FieldSepQuestion41),
             ],
             None,
             None,
@@ -3932,7 +3902,7 @@ impl ChunkOrExpressionsParser {
             ChunkOrExpressionsNonTerminals::FuncBody,
             vec![
                 ::rusty_lr::Token::Term(25usize),
-                ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::_ParListQuestion43),
+                ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::_ParListQuestion42),
                 ::rusty_lr::Token::Term(26usize),
                 ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::Block),
                 ::rusty_lr::Token::Term(43usize),
@@ -3983,7 +3953,7 @@ impl ChunkOrExpressionsParser {
             ChunkOrExpressionsNonTerminals::ParList,
             vec![
                 ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::NameList),
-                ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::__Group44Question45),
+                ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::__Group43Question44),
             ],
             None,
             None,
@@ -3997,7 +3967,7 @@ impl ChunkOrExpressionsParser {
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::_StatementPlus30,
+            ChunkOrExpressionsNonTerminals::_StatementPlus29,
             vec![::rusty_lr::Token::NonTerm(
                 ChunkOrExpressionsNonTerminals::Statement,
             )],
@@ -4006,9 +3976,9 @@ impl ChunkOrExpressionsParser {
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::_StatementPlus30,
+            ChunkOrExpressionsNonTerminals::_StatementPlus29,
             vec![
-                ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::_StatementPlus30),
+                ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::_StatementPlus29),
                 ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::Statement),
             ],
             None,
@@ -4016,23 +3986,23 @@ impl ChunkOrExpressionsParser {
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::_StatementStar31,
+            ChunkOrExpressionsNonTerminals::_StatementStar30,
             vec![::rusty_lr::Token::NonTerm(
-                ChunkOrExpressionsNonTerminals::_StatementPlus30,
+                ChunkOrExpressionsNonTerminals::_StatementPlus29,
             )],
             None,
             None,
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::_StatementStar31,
+            ChunkOrExpressionsNonTerminals::_StatementStar30,
             vec![],
             None,
             None,
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::_ReturnStatementQuestion32,
+            ChunkOrExpressionsNonTerminals::_ReturnStatementQuestion31,
             vec![::rusty_lr::Token::NonTerm(
                 ChunkOrExpressionsNonTerminals::ReturnStatement,
             )],
@@ -4041,14 +4011,14 @@ impl ChunkOrExpressionsParser {
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::_ReturnStatementQuestion32,
+            ChunkOrExpressionsNonTerminals::_ReturnStatementQuestion31,
             vec![],
             None,
             None,
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::_ElseIfPlus33,
+            ChunkOrExpressionsNonTerminals::_ElseIfPlus32,
             vec![::rusty_lr::Token::NonTerm(
                 ChunkOrExpressionsNonTerminals::ElseIf,
             )],
@@ -4057,9 +4027,9 @@ impl ChunkOrExpressionsParser {
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::_ElseIfPlus33,
+            ChunkOrExpressionsNonTerminals::_ElseIfPlus32,
             vec![
-                ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::_ElseIfPlus33),
+                ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::_ElseIfPlus32),
                 ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::ElseIf),
             ],
             None,
@@ -4067,23 +4037,23 @@ impl ChunkOrExpressionsParser {
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::_ElseIfStar34,
+            ChunkOrExpressionsNonTerminals::_ElseIfStar33,
             vec![::rusty_lr::Token::NonTerm(
-                ChunkOrExpressionsNonTerminals::_ElseIfPlus33,
+                ChunkOrExpressionsNonTerminals::_ElseIfPlus32,
             )],
             None,
             None,
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::_ElseIfStar34,
+            ChunkOrExpressionsNonTerminals::_ElseIfStar33,
             vec![],
             None,
             None,
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::_Group35,
+            ChunkOrExpressionsNonTerminals::_Group34,
             vec![
                 ::rusty_lr::Token::Term(41usize),
                 ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::Block),
@@ -4093,23 +4063,23 @@ impl ChunkOrExpressionsParser {
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::__Group35Question36,
+            ChunkOrExpressionsNonTerminals::__Group34Question35,
             vec![::rusty_lr::Token::NonTerm(
-                ChunkOrExpressionsNonTerminals::_Group35,
+                ChunkOrExpressionsNonTerminals::_Group34,
             )],
             None,
             None,
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::__Group35Question36,
+            ChunkOrExpressionsNonTerminals::__Group34Question35,
             vec![],
             None,
             None,
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::_Group37,
+            ChunkOrExpressionsNonTerminals::_Group36,
             vec![
                 ::rusty_lr::Token::Term(34usize),
                 ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::Exp),
@@ -4119,23 +4089,23 @@ impl ChunkOrExpressionsParser {
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::__Group37Question38,
+            ChunkOrExpressionsNonTerminals::__Group36Question37,
             vec![::rusty_lr::Token::NonTerm(
-                ChunkOrExpressionsNonTerminals::_Group37,
+                ChunkOrExpressionsNonTerminals::_Group36,
             )],
             None,
             None,
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::__Group37Question38,
+            ChunkOrExpressionsNonTerminals::__Group36Question37,
             vec![],
             None,
             None,
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::_Group39,
+            ChunkOrExpressionsNonTerminals::_Group38,
             vec![
                 ::rusty_lr::Token::Term(24usize),
                 ::rusty_lr::Token::NonTerm(ChunkOrExpressionsNonTerminals::ExpList1),
@@ -4145,37 +4115,37 @@ impl ChunkOrExpressionsParser {
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::__Group39Question40,
+            ChunkOrExpressionsNonTerminals::__Group38Question39,
             vec![::rusty_lr::Token::NonTerm(
-                ChunkOrExpressionsNonTerminals::_Group39,
+                ChunkOrExpressionsNonTerminals::_Group38,
             )],
             None,
             None,
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::__Group39Question40,
+            ChunkOrExpressionsNonTerminals::__Group38Question39,
             vec![],
             None,
             None,
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::_semicolonQuestion41,
+            ChunkOrExpressionsNonTerminals::_semicolonQuestion40,
             vec![::rusty_lr::Token::Term(32usize)],
             None,
             None,
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::_semicolonQuestion41,
+            ChunkOrExpressionsNonTerminals::_semicolonQuestion40,
             vec![],
             None,
             None,
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::_FieldSepQuestion42,
+            ChunkOrExpressionsNonTerminals::_FieldSepQuestion41,
             vec![::rusty_lr::Token::NonTerm(
                 ChunkOrExpressionsNonTerminals::FieldSep,
             )],
@@ -4184,14 +4154,14 @@ impl ChunkOrExpressionsParser {
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::_FieldSepQuestion42,
+            ChunkOrExpressionsNonTerminals::_FieldSepQuestion41,
             vec![],
             None,
             None,
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::_ParListQuestion43,
+            ChunkOrExpressionsNonTerminals::_ParListQuestion42,
             vec![::rusty_lr::Token::NonTerm(
                 ChunkOrExpressionsNonTerminals::ParList,
             )],
@@ -4200,14 +4170,14 @@ impl ChunkOrExpressionsParser {
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::_ParListQuestion43,
+            ChunkOrExpressionsNonTerminals::_ParListQuestion42,
             vec![],
             None,
             None,
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::_Group44,
+            ChunkOrExpressionsNonTerminals::_Group43,
             vec![
                 ::rusty_lr::Token::Term(34usize),
                 ::rusty_lr::Token::Term(37usize),
@@ -4217,16 +4187,16 @@ impl ChunkOrExpressionsParser {
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::__Group44Question45,
+            ChunkOrExpressionsNonTerminals::__Group43Question44,
             vec![::rusty_lr::Token::NonTerm(
-                ChunkOrExpressionsNonTerminals::_Group44,
+                ChunkOrExpressionsNonTerminals::_Group43,
             )],
             None,
             None,
             0usize,
         );
         builder.add_rule(
-            ChunkOrExpressionsNonTerminals::__Group44Question45,
+            ChunkOrExpressionsNonTerminals::__Group43Question44,
             vec![],
             None,
             None,

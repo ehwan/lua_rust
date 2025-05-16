@@ -47,7 +47,6 @@ macro_rules! new_unary_node {
 %tokentype Token;
 %err ParseError;
 
-%shift lparen;
 
 %token ident Token::new_type(TokenType::Ident("".to_string()));
 
@@ -402,10 +401,23 @@ Attrib(Option<statement::Attrib>)
     | { None }
     ;
 
+%left or_;
+%left and_;
+%left less lessequal greater greaterequal tildeequal equalequal;
+%left pipe;
+%left tilde;
+%left ampersand;
+%left lessless greatergreater;
+%right dotdot;
+%left plus minus;
+%left asterisk slash slashslash percent;
+%right caret;
+%precedence UNOT UHASH UMINUS UPLUS UTILDE;
 
+%precedence PREFIX;
+%precedence lparen;
 
-
-Exp0(Expression)
+Exp(Expression)
     : numeric_literal {
         Expression::Numeric(
             numeric_literal.into()
@@ -430,28 +442,10 @@ Exp0(Expression)
     | FunctionDef {
         Expression::Function( FunctionDef )
     }
-    | PrefixExp
+    | PrefixExp %prec PREFIX
     | TableConstructor {
         Expression::Table( TableConstructor )
     }
-    ;
-
-
-%left or_;
-%left and_;
-%left less lessequal greater greaterequal tildeequal equalequal;
-%left pipe;
-%left tilde;
-%left ampersand;
-%left lessless greatergreater;
-%right dotdot;
-%left plus minus;
-%left asterisk slash slashslash percent;
-%right caret;
-%precedence UNOT UHASH UMINUS UPLUS UTILDE;
-
-Exp(Expression)
-    : Exp0
     | not_ Exp %prec UNOT {
         new_unary_node!(LogicalNot, not_, Exp)
     }
