@@ -11,7 +11,7 @@ categories = ["parsing"]
 
 [dependencies]
 lua_parser = { version = "0.9.0", path = "../parser" }
-codespan-reporting = { version = "0.11", optional = true }
+codespan-reporting = { version = "0.12", optional = true }
 
 [features]
 default = []

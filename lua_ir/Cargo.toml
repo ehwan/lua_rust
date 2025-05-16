@@ -13,7 +13,7 @@ categories = ["parsing"]
 lua_tokenizer = { version = "0.4.0", path = "../tokenizer" }
 lua_semantics = { version = "0.8.0", path = "../semantics" }
 lua_parser = { version = "0.9.1", path = "../parser" }
-codespan-reporting = { version = "0.11", optional = true }
+codespan-reporting = { version = "0.12", optional = true }
 rand = "0.8"
 indexmap = "2.6.0"
 

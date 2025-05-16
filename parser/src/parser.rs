@@ -13,6 +13,31 @@ use crate::SpannedString;
 use crate::ParseError;
 use crate::ChunkOrExpressions;
 
+macro_rules! new_binary_node {
+    ($variant:ident, $op:ident, $lhs:ident, $rhs:ident) => {{
+        let span = $lhs.span().merge_ordered(&$rhs.span());
+        let span_op = $op.span();
+        let binary_data = expression::ExprBinaryData::new($lhs, $rhs, span, span_op);
+        Expression::Binary(
+            expression::ExprBinary::$variant(
+                binary_data
+            )
+        )
+    }};
+}
+macro_rules! new_unary_node {
+    ($variant:ident, $op:ident, $lhs:ident) => {{
+        let span = $op.span().merge_ordered(&$lhs.span());
+        let span_op = $op.span();
+        let unary_data = expression::ExprUnaryData::new($lhs, span, span_op);
+        Expression::Unary(
+            expression::ExprUnary::$variant(
+                unary_data
+            )
+        )
+    }};
+}
+
 // @TODO Block span
 
 %%
@@ -379,9 +404,6 @@ Attrib(Option<statement::Attrib>)
 
 
 
-Exp(Expression)
-    : Exp12
-    ;
 
 Exp0(Expression)
     : numeric_literal {
@@ -415,316 +437,102 @@ Exp0(Expression)
     ;
 
 
+%left or_;
+%left and_;
+%left less lessequal greater greaterequal tildeequal equalequal;
+%left pipe;
+%left tilde;
+%left ampersand;
+%left lessless greatergreater;
+%right dotdot;
+%left plus minus;
+%left asterisk slash slashslash percent;
+%right caret;
+%precedence UNOT UHASH UMINUS UPLUS UTILDE;
 
-Exp1(Expression)
-    : Exp0 caret Exp2 {
-        let span = Exp0.span().merge_ordered(&Exp2.span());
-        let span_op = caret.span();
-        let binary_data = expression::ExprBinaryData::new(Exp0, Exp2, span, span_op);
-
-        Expression::Binary(
-            expression::ExprBinary::Pow(
-                binary_data
-            )
-        )
+Exp(Expression)
+    : Exp0
+    | not_ Exp %prec UNOT {
+        new_unary_node!(LogicalNot, not_, Exp)
     }
-    | Exp0
-    ;
-
-Exp2(Expression)
-    : not_ Exp2 {
-        let span = not_.span().merge_ordered(&Exp2.span());
-        let span_op = not_.span();
-        let unary_data = expression::ExprUnaryData::new(Exp2, span, span_op);
-        Expression::Unary(
-            expression::ExprUnary::LogicalNot(
-                unary_data
-            )
-        )
+    | hash Exp %prec UHASH {
+        new_unary_node!(Length, hash, Exp)
     }
-    | hash Exp2 {
-        let span = hash.span().merge_ordered(&Exp2.span());
-        let span_op = hash.span();
-        let unary_data = expression::ExprUnaryData::new(Exp2, span, span_op);
-        Expression::Unary(
-            expression::ExprUnary::Length(
-                unary_data
-            )
-        )
+    | minus Exp %prec UMINUS {
+        new_unary_node!(Minus, minus, Exp)
     }
-    | minus Exp2 {
-        let span = minus.span().merge_ordered(&Exp2.span());
-        let span_op = minus.span();
-        let unary_data = expression::ExprUnaryData::new(Exp2, span, span_op);
-        Expression::Unary(
-            expression::ExprUnary::Minus(
-                unary_data
-            )
-        )
+    | plus Exp %prec UPLUS {
+        new_unary_node!(Plus, plus, Exp)
     }
-    | plus Exp2 {
-        let span = plus.span().merge_ordered(&Exp2.span());
-        let span_op = plus.span();
-        let unary_data = expression::ExprUnaryData::new(Exp2, span, span_op);
-        Expression::Unary(
-            expression::ExprUnary::Plus(
-                unary_data
-            )
-        )
+    | tilde Exp %prec UTILDE {
+        new_unary_node!(BitwiseNot, tilde, Exp)
     }
-    | tilde Exp2 {
-        let span = tilde.span().merge_ordered(&Exp2.span());
-        let span_op = tilde.span();
-        let unary_data = expression::ExprUnaryData::new(Exp2, span, span_op);
-        Expression::Unary(
-            expression::ExprUnary::BitwiseNot(
-                unary_data
-            )
-        )
+    | lhs=Exp asterisk rhs=Exp {
+        new_binary_node!(Mul, asterisk, lhs, rhs)
     }
-    | Exp1
-    ;
-
-Exp3(Expression)
-    : Exp3 asterisk Exp2 {
-        let span = Exp3.span().merge_ordered(&Exp2.span());
-        let span_op = asterisk.span();
-        let binary_data = expression::ExprBinaryData::new(Exp3, Exp2, span, span_op);
-        Expression::Binary(
-            expression::ExprBinary::Mul(
-                binary_data
-            )
-        )
+    | lhs=Exp slash rhs=Exp {
+        new_binary_node!(Div, slash, lhs, rhs)
     }
-    | Exp3 slash Exp2 {
-        let span = Exp3.span().merge_ordered(&Exp2.span());
-        let span_op = slash.span();
-        let binary_data = expression::ExprBinaryData::new(Exp3, Exp2, span, span_op);
-        Expression::Binary(
-            expression::ExprBinary::Div(
-                binary_data
-            )
-        )
+    | lhs=Exp slashslash rhs=Exp {
+        new_binary_node!(FloorDiv, slashslash, lhs, rhs)
     }
-    | Exp3 slashslash Exp2 {
-        let span = Exp3.span().merge_ordered(&Exp2.span());
-        let span_op = slashslash.span();
-        let binary_data = expression::ExprBinaryData::new(Exp3, Exp2, span, span_op);
-        Expression::Binary(
-            expression::ExprBinary::FloorDiv(
-                binary_data
-            )
-        )
+    | lhs=Exp percent rhs=Exp {
+        new_binary_node!(Mod, percent, lhs, rhs)
     }
-    | Exp3 percent Exp2 {
-        let span = Exp3.span().merge_ordered(&Exp2.span());
-        let span_op = percent.span();
-        let binary_data = expression::ExprBinaryData::new(Exp3, Exp2, span, span_op);
-        Expression::Binary(
-            expression::ExprBinary::Mod(
-                binary_data
-            )
-        )
+    | lhs=Exp plus rhs=Exp {
+        new_binary_node!(Add, plus, lhs, rhs)
     }
-    | Exp2
-    ;
-
-Exp4(Expression)
-    : Exp4 plus Exp3 {
-        let span = Exp4.span().merge_ordered(&Exp3.span());
-        let span_op = plus.span();
-        let binary_data = expression::ExprBinaryData::new(Exp4, Exp3, span, span_op);
-        Expression::Binary(
-            expression::ExprBinary::Add(
-                binary_data
-            )
-        )
+    | lhs=Exp minus rhs=Exp {
+        new_binary_node!(Sub, minus, lhs, rhs)
     }
-    | Exp4 minus Exp3 {
-        let span = Exp4.span().merge_ordered(&Exp3.span());
-        let span_op = minus.span();
-        let binary_data = expression::ExprBinaryData::new(Exp4, Exp3, span, span_op);
-        Expression::Binary(
-            expression::ExprBinary::Sub(
-                binary_data
-            )
-        )
-    }
-    | Exp3
-    ;
-
-Exp5(Expression)
     // right associative for concat '..'
-    : Exp4 dotdot Exp5 {
-        let span = Exp4.span().merge_ordered(&Exp5.span());
-        let span_op = dotdot.span();
-        let binary_data = expression::ExprBinaryData::new(Exp4, Exp5, span, span_op);
-        Expression::Binary(
-            expression::ExprBinary::Concat(
-                binary_data
-            )
-        )
+    | lhs=Exp dotdot rhs=Exp {
+        new_binary_node!(Concat, dotdot, lhs, rhs)
     }
-    | Exp4
+    | lhs=Exp lessless rhs=Exp {
+        new_binary_node!(ShiftLeft, lessless, lhs, rhs)
+    }
+    | lhs=Exp greatergreater rhs=Exp {
+        new_binary_node!(ShiftRight, greatergreater, lhs, rhs)
+    }
+    | lhs=Exp ampersand rhs=Exp {
+        new_binary_node!(BitwiseAnd, ampersand, lhs, rhs)
+    }
+    | lhs=Exp tilde rhs=Exp {
+        new_binary_node!(BitwiseXor, tilde, lhs, rhs)
+    }
+    | lhs=Exp pipe rhs=Exp {
+        new_binary_node!(BitwiseOr, pipe, lhs, rhs)
+    }
+    | lhs=Exp less rhs=Exp {
+        new_binary_node!(LessThan, less, lhs, rhs)
+    }
+    | lhs=Exp lessequal rhs=Exp {
+        new_binary_node!(LessEqual, lessequal, lhs, rhs)
+    }
+    | lhs=Exp greater rhs=Exp {
+        new_binary_node!(GreaterThan, greater, lhs, rhs)
+    }
+    | lhs=Exp greaterequal rhs=Exp {
+        new_binary_node!(GreaterEqual, greaterequal, lhs, rhs)
+    }
+    | lhs=Exp tildeequal rhs=Exp {
+        new_binary_node!(NotEqual, tildeequal, lhs, rhs)
+    }
+    | lhs=Exp equalequal rhs=Exp {
+        new_binary_node!(Equal, equalequal, lhs, rhs)
+    }
+    | lhs=Exp and_ rhs=Exp {
+        new_binary_node!(LogicalAnd, and_, lhs, rhs)
+    }
+    | lhs=Exp or_ rhs=Exp {
+        new_binary_node!(LogicalOr, or_, lhs, rhs)
+    }
+    | lhs=Exp caret rhs=Exp {
+        new_binary_node!(Pow, caret, lhs, rhs)
+    }
     ;
 
-Exp6(Expression)
-    : Exp6 lessless Exp5 {
-        let span = Exp6.span().merge_ordered(&Exp5.span());
-        let span_op = lessless.span();
-        let binary_data = expression::ExprBinaryData::new(Exp6, Exp5, span, span_op);
-        Expression::Binary(
-            expression::ExprBinary::ShiftLeft(
-                binary_data
-            )
-        )
-    }
-    | Exp6 greatergreater Exp5 {
-        let span = Exp6.span().merge_ordered(&Exp5.span());
-        let span_op = greatergreater.span();
-        let binary_data = expression::ExprBinaryData::new(Exp6, Exp5, span, span_op);
-        Expression::Binary(
-            expression::ExprBinary::ShiftRight(
-                binary_data
-            )
-        )
-    }
-    | Exp5
-    ;
-
-Exp7(Expression)
-    : Exp7 ampersand Exp6 {
-        let span = Exp7.span().merge_ordered(&Exp6.span());
-        let span_op = ampersand.span();
-        let binary_data = expression::ExprBinaryData::new(Exp7, Exp6, span, span_op);
-        Expression::Binary(
-            expression::ExprBinary::BitwiseAnd(
-                binary_data
-            )
-        )
-    }
-    | Exp6
-    ;
-
-Exp8(Expression)
-    : Exp8 tilde Exp7 {
-        let span = Exp8.span().merge_ordered(&Exp7.span());
-        let span_op = tilde.span();
-        let binary_data = expression::ExprBinaryData::new(Exp8, Exp7, span, span_op);
-        Expression::Binary(
-            expression::ExprBinary::BitwiseXor(
-                binary_data
-            )
-        )
-    }
-    | Exp7
-    ;
-
-Exp9(Expression)
-    : Exp9 pipe Exp8 {
-        let span = Exp9.span().merge_ordered(&Exp8.span());
-        let span_op = pipe.span();
-        let binary_data = expression::ExprBinaryData::new(Exp9, Exp8, span, span_op);
-        Expression::Binary(
-            expression::ExprBinary::BitwiseOr(
-                binary_data
-            )
-        )
-    }
-    | Exp8
-    ;
-
-Exp10(Expression)
-    : Exp10 less Exp9 {
-        let span = Exp10.span().merge_ordered(&Exp9.span());
-        let span_op = less.span();
-        let binary_data = expression::ExprBinaryData::new(Exp10, Exp9, span, span_op);
-        Expression::Binary(
-            expression::ExprBinary::LessThan(
-                binary_data
-            )
-        )
-    }
-    | Exp10 lessequal Exp9 {
-        let span = Exp10.span().merge_ordered(&Exp9.span());
-        let span_op = lessequal.span();
-        let binary_data = expression::ExprBinaryData::new(Exp10, Exp9, span, span_op);
-        Expression::Binary(
-            expression::ExprBinary::LessEqual(
-                binary_data
-            )
-        )
-    }
-    | Exp10 greater Exp9 {
-        let span = Exp10.span().merge_ordered(&Exp9.span());
-        let span_op = greater.span();
-        let binary_data = expression::ExprBinaryData::new(Exp10, Exp9, span, span_op);
-        Expression::Binary(
-            expression::ExprBinary::GreaterThan(
-                binary_data
-            )
-        )
-    }
-    | Exp10 greaterequal Exp9 {
-        let span = Exp10.span().merge_ordered(&Exp9.span());
-        let span_op = greaterequal.span();
-        let binary_data = expression::ExprBinaryData::new(Exp10, Exp9, span, span_op);
-        Expression::Binary(
-            expression::ExprBinary::GreaterEqual(
-                binary_data
-            )
-        )
-    }
-    | Exp10 tildeequal Exp9 {
-        let span = Exp10.span().merge_ordered(&Exp9.span());
-        let span_op = tildeequal.span();
-        let binary_data = expression::ExprBinaryData::new(Exp10, Exp9, span, span_op);
-        Expression::Binary(
-            expression::ExprBinary::NotEqual(
-                binary_data
-            )
-        )
-    }
-    | Exp10 equalequal Exp9 {
-        let span = Exp10.span().merge_ordered(&Exp9.span());
-        let span_op = equalequal.span();
-        let binary_data = expression::ExprBinaryData::new(Exp10, Exp9, span, span_op);
-        Expression::Binary(
-            expression::ExprBinary::Equal(
-                binary_data
-            )
-        )
-    }
-    | Exp9
-    ;
-
-Exp11(Expression)
-    : Exp11 and_ Exp10 {
-        let span = Exp11.span().merge_ordered(&Exp10.span());
-        let span_op = and_.span();
-        let binary_data = expression::ExprBinaryData::new(Exp11, Exp10, span, span_op);
-        Expression::Binary(
-            expression::ExprBinary::LogicalAnd(
-                binary_data
-            )
-        )
-    }
-    | Exp10
-    ;
-
-Exp12(Expression)
-    : Exp12 or_ Exp11 {
-        let span = Exp12.span().merge_ordered(&Exp11.span());
-        let span_op = or_.span();
-        let binary_data = expression::ExprBinaryData::new(Exp12, Exp11, span, span_op);
-        Expression::Binary(
-            expression::ExprBinary::LogicalOr(
-                binary_data
-            )
-        )
-    }
-    | Exp11
-    ;
 
 TableConstructor(expression::ExprTable)
     : lbrace FieldList rbrace {

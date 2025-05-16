@@ -10,7 +10,7 @@ keywords = ["parser", "lua", "glr"]
 categories = ["parsing"]
 
 [dependencies]
-codespan-reporting = { version = "0.11", optional = true }
+codespan-reporting = { version = "0.12", optional = true }
 
 [features]
 default = []
