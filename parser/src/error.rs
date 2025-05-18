@@ -56,7 +56,7 @@ pub struct InvalidToken {
     /// the token that caused the error
     pub token: Option<Token>,
     /// expected tokens
-    pub expected: Vec<Token>,
+    pub expected: Vec<&'static str>,
     /// expected nonterminal tokens
     pub expected_nonterm: Vec<parser_expanded::ChunkOrExpressionsNonTerminals>,
 }

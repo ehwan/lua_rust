@@ -116,7 +116,7 @@ pub fn parse_bytes(source: &[u8]) -> Result<Block, ParseError> {
             Err(err) => {
                 if err.reduce_errors.is_empty() {
                     let token = err.term;
-                    let expected = context.expected(&parser).cloned().collect::<Vec<_>>();
+                    let expected = context.expected(&parser).collect::<Vec<_>>();
                     let expected_nonterm = context
                         .expected_nonterm(&parser)
                         .cloned()
@@ -141,7 +141,7 @@ pub fn parse_bytes(source: &[u8]) -> Result<Block, ParseError> {
     match context.feed(&parser, eof_token, &mut ()) {
         Ok(_) => {}
         Err(_) => {
-            let expected = context.expected(&parser).cloned().collect::<Vec<_>>();
+            let expected = context.expected(&parser).collect::<Vec<_>>();
             let expected_nonterm = context
                 .expected_nonterm(&parser)
                 .cloned()

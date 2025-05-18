@@ -1,6 +1,5 @@
 // This file must be explicitly converted to a `parser_expanded.rs` by `rustylr`
 
-use lua_tokenizer::IntOrFloat;
 use lua_tokenizer::Token;
 use lua_tokenizer::TokenType;
 
@@ -38,6 +37,10 @@ macro_rules! new_unary_node {
     }};
 }
 
+fn filter( token: &Token ) -> &TokenType {
+    &token.token_type
+}
+
 // @TODO Block span
 
 %%
@@ -46,69 +49,70 @@ macro_rules! new_unary_node {
 %lalr;
 %tokentype Token;
 %err ParseError;
+%filter filter;
 
 
-%token ident Token::new_type(TokenType::Ident("".to_string()));
+%token ident TokenType::Ident(_);
 
-%token string_literal Token::new_type(TokenType::String(vec![]));
-%token numeric_literal Token::new_type(TokenType::Numeric(IntOrFloat::Int(0)));
-%token nil Token::new_type(TokenType::Nil);
-%token bool_ Token::new_type(TokenType::Bool(false));
+%token string_literal TokenType::String(_);
+%token numeric_literal TokenType::Numeric(_);
+%token nil TokenType::Nil;
+%token bool_ TokenType::Bool(_);
 
-%token plus Token::new_type(TokenType::Plus);
-%token minus Token::new_type(TokenType::Minus);
-%token asterisk Token::new_type(TokenType::Asterisk);
-%token slash Token::new_type(TokenType::Slash);
-%token percent Token::new_type(TokenType::Percent);
-%token caret Token::new_type(TokenType::Caret);
-%token hash Token::new_type(TokenType::Hash);
-%token ampersand Token::new_type(TokenType::Ampersand);
-%token tilde Token::new_type(TokenType::Tilde);
-%token pipe Token::new_type(TokenType::Pipe);
-%token lessless Token::new_type(TokenType::LessLess);
-%token greatergreater Token::new_type(TokenType::GreaterGreater);
-%token slashslash Token::new_type(TokenType::SlashSlash);
-%token equalequal Token::new_type(TokenType::EqualEqual);
-%token tildeequal Token::new_type(TokenType::TildeEqual);
-%token lessequal Token::new_type(TokenType::LessEqual);
-%token greaterequal Token::new_type(TokenType::GreaterEqual);
-%token less Token::new_type(TokenType::Less);
-%token greater Token::new_type(TokenType::Greater);
-%token equal Token::new_type(TokenType::Equal);
-%token lparen Token::new_type(TokenType::LParen);
-%token rparen Token::new_type(TokenType::RParen);
-%token lbrace Token::new_type(TokenType::LBrace);
-%token rbrace Token::new_type(TokenType::RBrace);
-%token lbracket Token::new_type(TokenType::LBracket);
-%token rbracket Token::new_type(TokenType::RBracket);
-%token coloncolon Token::new_type(TokenType::ColonColon);
-%token semicolon Token::new_type(TokenType::Semicolon);
-%token colon Token::new_type(TokenType::Colon);
-%token comma Token::new_type(TokenType::Comma);
-%token dot Token::new_type(TokenType::Dot);
-%token dotdot Token::new_type(TokenType::DotDot);
-%token dotdotdot Token::new_type(TokenType::DotDotDot);
+%token plus TokenType::Plus;
+%token minus TokenType::Minus;
+%token asterisk TokenType::Asterisk;
+%token slash TokenType::Slash;
+%token percent TokenType::Percent;
+%token caret TokenType::Caret;
+%token hash TokenType::Hash;
+%token ampersand TokenType::Ampersand;
+%token tilde TokenType::Tilde;
+%token pipe TokenType::Pipe;
+%token lessless TokenType::LessLess;
+%token greatergreater TokenType::GreaterGreater;
+%token slashslash TokenType::SlashSlash;
+%token equalequal TokenType::EqualEqual;
+%token tildeequal TokenType::TildeEqual;
+%token lessequal TokenType::LessEqual;
+%token greaterequal TokenType::GreaterEqual;
+%token less TokenType::Less;
+%token greater TokenType::Greater;
+%token equal TokenType::Equal;
+%token lparen TokenType::LParen;
+%token rparen TokenType::RParen;
+%token lbrace TokenType::LBrace;
+%token rbrace TokenType::RBrace;
+%token lbracket TokenType::LBracket;
+%token rbracket TokenType::RBracket;
+%token coloncolon TokenType::ColonColon;
+%token semicolon TokenType::Semicolon;
+%token colon TokenType::Colon;
+%token comma TokenType::Comma;
+%token dot TokenType::Dot;
+%token dotdot TokenType::DotDot;
+%token dotdotdot TokenType::DotDotDot;
 
-%token and_ Token::new_type(TokenType::And);
-%token break_ Token::new_type(TokenType::Break);
-%token do_ Token::new_type(TokenType::Do);
-%token else_ Token::new_type(TokenType::Else);
-%token elseif_ Token::new_type(TokenType::Elseif);
-%token end_ Token::new_type(TokenType::End);
-%token for_ Token::new_type(TokenType::For);
-%token function_ Token::new_type(TokenType::Function);
-%token goto_ Token::new_type(TokenType::Goto);
-%token if_ Token::new_type(TokenType::If);
-%token in_ Token::new_type(TokenType::In);
-%token local_ Token::new_type(TokenType::Local);
-%token not_ Token::new_type(TokenType::Not);
-%token or_ Token::new_type(TokenType::Or);
-%token repeat_ Token::new_type(TokenType::Repeat);
-%token return_ Token::new_type(TokenType::Return);
-%token then_ Token::new_type(TokenType::Then);
-%token until_ Token::new_type(TokenType::Until);
-%token while_ Token::new_type(TokenType::While);
-%eof Token::new_type(TokenType::Eof);
+%token and_ TokenType::And;
+%token break_ TokenType::Break;
+%token do_ TokenType::Do;
+%token else_ TokenType::Else;
+%token elseif_ TokenType::Elseif;
+%token end_ TokenType::End;
+%token for_ TokenType::For;
+%token function_ TokenType::Function;
+%token goto_ TokenType::Goto;
+%token if_ TokenType::If;
+%token in_ TokenType::In;
+%token local_ TokenType::Local;
+%token not_ TokenType::Not;
+%token or_ TokenType::Or;
+%token repeat_ TokenType::Repeat;
+%token return_ TokenType::Return;
+%token then_ TokenType::Then;
+%token until_ TokenType::Until;
+%token while_ TokenType::While;
+%eof TokenType::Eof;
 
 %start ChunkOrExpressions;
 
@@ -415,7 +419,7 @@ Attrib(Option<statement::Attrib>)
 %precedence UNOT UHASH UMINUS UPLUS UTILDE;
 
 %precedence PREFIX;
-%precedence lparen;
+// %precedence lparen;
 
 Exp(Expression)
     : numeric_literal {
