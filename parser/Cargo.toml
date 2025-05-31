@@ -10,7 +10,7 @@ keywords = ["parser", "lua", "glr"]
 categories = ["parsing"]
 
 [dependencies]
-rusty_lr = { version = "3.17.0", features = [] }
+rusty_lr = { version = "3.18.0", features = [] }
 lua_tokenizer = { version = "0.4.0", path = "../tokenizer" }
 codespan-reporting = { version = "0.12", optional = true }
 
