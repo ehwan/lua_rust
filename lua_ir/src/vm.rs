@@ -130,10 +130,7 @@ impl LuaEnv {
 
         let mut matched_stmt = None;
         let mut matched_expr = None;
-        for m in std::mem::take(&mut self.parser_context)
-            .unwrap()
-            .accept_all()
-        {
+        for m in std::mem::take(&mut self.parser_context).unwrap().accept() {
             match m {
                 lua_parser::ChunkOrExpressions::Chunk(chunk) => {
                     if matched_stmt.is_some() {
@@ -249,10 +246,7 @@ impl LuaEnv {
         }
 
         let mut matched_stmt = None;
-        for m in std::mem::take(&mut self.parser_context)
-            .unwrap()
-            .accept_all()
-        {
+        for m in std::mem::take(&mut self.parser_context).unwrap().accept() {
             match m {
                 lua_parser::ChunkOrExpressions::Chunk(chunk) => {
                     if matched_stmt.is_some() {

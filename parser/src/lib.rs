@@ -82,7 +82,6 @@ pub use statement::StmtWhile;
 pub use lua_tokenizer::Tokenizer;
 
 pub use parser::ChunkOrExpressionsContext as Context;
-pub use parser::ChunkOrExpressionsInvalidTerminalError as InvalidTerminalError;
 pub use parser::ChunkOrExpressionsParser as Parser;
 
 /// for interpreter to handle both chunk and expression
@@ -113,9 +112,8 @@ pub fn parse_bytes(source: &[u8]) -> Result<Block, ParseError> {
 
         match context.feed(&parser, token, &mut ()) {
             Ok(_) => {}
-            Err(err) => {
-                if err.reduce_errors.is_empty() {
-                    let token = err.term;
+            Err(err) => match err {
+                parser::ChunkOrExpressionsParseError::NoAction(token) => {
                     let expected = context.expected(&parser).collect::<Vec<_>>();
                     let expected_nonterm = context
                         .expected_nonterm(&parser)
@@ -127,10 +125,11 @@ pub fn parse_bytes(source: &[u8]) -> Result<Block, ParseError> {
                         expected_nonterm,
                     };
                     return Err(ParseError::InvalidToken(error));
-                } else {
-                    return Err(err.reduce_errors.into_iter().next().unwrap());
                 }
-            }
+                parser::ChunkOrExpressionsParseError::ReduceAction(reduce_actions) => {
+                    return Err(reduce_actions.into_iter().next().unwrap());
+                }
+            },
         }
     }
     // feed eof
@@ -157,7 +156,7 @@ pub fn parse_bytes(source: &[u8]) -> Result<Block, ParseError> {
 
     let mut block = None;
 
-    for matched in context.accept_all() {
+    for matched in context.accept() {
         match matched {
             ChunkOrExpressions::Chunk(block_) => {
                 if block.is_some() {
