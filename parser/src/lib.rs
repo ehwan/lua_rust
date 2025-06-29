@@ -115,10 +115,7 @@ pub fn parse_bytes(source: &[u8]) -> Result<Block, ParseError> {
             Err(err) => match err {
                 parser::ChunkOrExpressionsParseError::NoAction(token) => {
                     let expected = context.expected(&parser).collect::<Vec<_>>();
-                    let expected_nonterm = context
-                        .expected_nonterm(&parser)
-                        .cloned()
-                        .collect::<Vec<_>>();
+                    let expected_nonterm = context.expected_nonterm(&parser).collect::<Vec<_>>();
                     let error = InvalidToken {
                         token: Some(token),
                         expected,
@@ -141,10 +138,7 @@ pub fn parse_bytes(source: &[u8]) -> Result<Block, ParseError> {
         Ok(_) => {}
         Err(_) => {
             let expected = context.expected(&parser).collect::<Vec<_>>();
-            let expected_nonterm = context
-                .expected_nonterm(&parser)
-                .cloned()
-                .collect::<Vec<_>>();
+            let expected_nonterm = context.expected_nonterm(&parser).collect::<Vec<_>>();
             let error = InvalidToken {
                 token: None,
                 expected,
