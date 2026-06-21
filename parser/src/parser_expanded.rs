@@ -34,7 +34,7 @@ macro_rules! new_unary_node {
 ====================================Grammar=====================================
 
 # of terminal classes: 58
-# of states: 221
+# of states: 223
 
 0: ChunkOrExpressions -> Block
 1: ChunkOrExpressions -> ExpList1
@@ -114,51 +114,52 @@ macro_rules! new_unary_node {
 75: Exp -> Exp and_ Exp
 76: Exp -> Exp or_ Exp
 77: Exp -> Exp caret Exp
-78: TableConstructor -> lbrace $sep(Field, FieldSep, *) rbrace
-79: Field -> lbracket Exp rbracket equal Exp
-80: Field -> ident equal Exp
-81: Field -> Exp
-82: FieldSep -> comma
-83: FieldSep -> semicolon
-84: FunctionDef -> function_ FuncBody
-85: FuncBody -> lparen ParList? rparen Block end_
-86: FuncName1 -> FuncName1 dot ident
-87: FuncName1 -> ident
-88: FuncName -> FuncName1 colon ident
-89: FuncName -> FuncName1
-90: ParList -> NameList (comma, dotdotdot)?
-91: ParList -> dotdotdot
-92: Statement+ -> Statement
-93: Statement+ -> Statement+ Statement
-94: Statement* -> Statement+
-95: Statement* -> 
-96: ReturnStatement? -> ReturnStatement
-97: ReturnStatement? -> 
-98: ElseIf+ -> ElseIf
-99: ElseIf+ -> ElseIf+ ElseIf
-100: ElseIf* -> ElseIf+
-101: ElseIf* -> 
-102: (else_, Block) -> else_ Block
-103: (else_, Block)? -> (else_, Block)
-104: (else_, Block)? -> 
-105: (comma, Exp) -> comma Exp
-106: (comma, Exp)? -> (comma, Exp)
-107: (comma, Exp)? -> 
-108: (equal, ExpList1) -> equal ExpList1
-109: (equal, ExpList1)? -> (equal, ExpList1)
-110: (equal, ExpList1)? -> 
-111: semicolon? -> semicolon
-112: semicolon? -> 
-113: $sep(Field, FieldSep, +) -> Field
-114: $sep(Field, FieldSep, +) -> $sep(Field, FieldSep, +) FieldSep Field
-115: $sep(Field, FieldSep, *) -> $sep(Field, FieldSep, +)
-116: $sep(Field, FieldSep, *) -> 
-117: ParList? -> ParList
-118: ParList? -> 
-119: (comma, dotdotdot) -> comma dotdotdot
-120: (comma, dotdotdot)? -> (comma, dotdotdot)
-121: (comma, dotdotdot)? -> 
-122: Augmented -> ChunkOrExpressions eof
+78: TableConstructor -> lbrace FieldList rbrace
+79: FieldList -> FieldList1
+80: FieldList -> FieldList1 comma
+81: FieldList -> FieldList1 semicolon
+82: FieldList -> 
+83: FieldList1 -> FieldList1 comma Field
+84: FieldList1 -> FieldList1 semicolon Field
+85: FieldList1 -> Field
+86: Field -> lbracket Exp rbracket equal Exp
+87: Field -> ident equal Exp
+88: Field -> Exp
+89: FunctionDef -> function_ FuncBody
+90: FuncBody -> lparen ParList? rparen Block end_
+91: FuncName1 -> FuncName1 dot ident
+92: FuncName1 -> ident
+93: FuncName -> FuncName1 colon ident
+94: FuncName -> FuncName1
+95: ParList -> NameList (comma, dotdotdot)?
+96: ParList -> dotdotdot
+97: Statement+ -> Statement
+98: Statement+ -> Statement+ Statement
+99: Statement* -> Statement+
+100: Statement* -> 
+101: ReturnStatement? -> ReturnStatement
+102: ReturnStatement? -> 
+103: ElseIf+ -> ElseIf
+104: ElseIf+ -> ElseIf+ ElseIf
+105: ElseIf* -> ElseIf+
+106: ElseIf* -> 
+107: (else_, Block) -> else_ Block
+108: (else_, Block)? -> (else_, Block)
+109: (else_, Block)? -> 
+110: (comma, Exp) -> comma Exp
+111: (comma, Exp)? -> (comma, Exp)
+112: (comma, Exp)? -> 
+113: (equal, ExpList1) -> equal ExpList1
+114: (equal, ExpList1)? -> (equal, ExpList1)
+115: (equal, ExpList1)? -> 
+116: semicolon? -> semicolon
+117: semicolon? -> 
+118: ParList? -> ParList
+119: ParList? -> 
+120: (comma, dotdotdot) -> comma dotdotdot
+121: (comma, dotdotdot)? -> (comma, dotdotdot)
+122: (comma, dotdotdot)? -> 
+123: Augmented -> ChunkOrExpressions eof
 
 */
 // =============================Generated Codes Begin==============================
@@ -570,8 +571,9 @@ pub enum ChunkOrExpressionsNonTerminals {
     Attrib,
     Exp,
     TableConstructor,
+    FieldList,
+    FieldList1,
     Field,
-    FieldSep,
     FunctionDef,
     FuncBody,
     FuncName1,
@@ -589,19 +591,17 @@ pub enum ChunkOrExpressionsNonTerminals {
     _Group36,
     __Group36Question37,
     _semicolonQuestion38,
-    _FieldSepPlus39,
-    _FieldSepStar40,
-    _ParListQuestion41,
-    _Group42,
-    __Group42Question43,
+    _ParListQuestion39,
+    _Group40,
+    __Group40Question41,
     Augmented,
 }
 impl ChunkOrExpressionsNonTerminals {
     #[inline]
     pub fn from_usize(value: usize) -> Self {
         debug_assert!(
-            value < 43usize, "Non-terminal index {} is out of bounds (max {})", value,
-            43usize
+            value < 42usize, "Non-terminal index {} is out of bounds (max {})", value,
+            42usize
         );
         unsafe { ::std::mem::transmute(value) }
     }
@@ -639,8 +639,9 @@ impl ::rusty_lr::parser::nonterminal::NonTerminal for ChunkOrExpressionsNonTermi
             ChunkOrExpressionsNonTerminals::Attrib => "Attrib",
             ChunkOrExpressionsNonTerminals::Exp => "Exp",
             ChunkOrExpressionsNonTerminals::TableConstructor => "TableConstructor",
+            ChunkOrExpressionsNonTerminals::FieldList => "FieldList",
+            ChunkOrExpressionsNonTerminals::FieldList1 => "FieldList1",
             ChunkOrExpressionsNonTerminals::Field => "Field",
-            ChunkOrExpressionsNonTerminals::FieldSep => "FieldSep",
             ChunkOrExpressionsNonTerminals::FunctionDef => "FunctionDef",
             ChunkOrExpressionsNonTerminals::FuncBody => "FuncBody",
             ChunkOrExpressionsNonTerminals::FuncName1 => "FuncName1",
@@ -660,11 +661,9 @@ impl ::rusty_lr::parser::nonterminal::NonTerminal for ChunkOrExpressionsNonTermi
             ChunkOrExpressionsNonTerminals::_Group36 => "(equal, ExpList1)",
             ChunkOrExpressionsNonTerminals::__Group36Question37 => "(equal, ExpList1)?",
             ChunkOrExpressionsNonTerminals::_semicolonQuestion38 => "semicolon?",
-            ChunkOrExpressionsNonTerminals::_FieldSepPlus39 => "$sep(Field, FieldSep, +)",
-            ChunkOrExpressionsNonTerminals::_FieldSepStar40 => "$sep(Field, FieldSep, *)",
-            ChunkOrExpressionsNonTerminals::_ParListQuestion41 => "ParList?",
-            ChunkOrExpressionsNonTerminals::_Group42 => "(comma, dotdotdot)",
-            ChunkOrExpressionsNonTerminals::__Group42Question43 => "(comma, dotdotdot)?",
+            ChunkOrExpressionsNonTerminals::_ParListQuestion39 => "ParList?",
+            ChunkOrExpressionsNonTerminals::_Group40 => "(comma, dotdotdot)",
+            ChunkOrExpressionsNonTerminals::__Group40Question41 => "(comma, dotdotdot)?",
             ChunkOrExpressionsNonTerminals::Augmented => "Augmented",
         }
     }
@@ -688,8 +687,9 @@ impl ::rusty_lr::parser::nonterminal::NonTerminal for ChunkOrExpressionsNonTermi
             ChunkOrExpressionsNonTerminals::Attrib => None,
             ChunkOrExpressionsNonTerminals::Exp => None,
             ChunkOrExpressionsNonTerminals::TableConstructor => None,
+            ChunkOrExpressionsNonTerminals::FieldList => None,
+            ChunkOrExpressionsNonTerminals::FieldList1 => None,
             ChunkOrExpressionsNonTerminals::Field => None,
-            ChunkOrExpressionsNonTerminals::FieldSep => None,
             ChunkOrExpressionsNonTerminals::FunctionDef => None,
             ChunkOrExpressionsNonTerminals::FuncBody => None,
             ChunkOrExpressionsNonTerminals::FuncName1 => None,
@@ -731,19 +731,13 @@ impl ::rusty_lr::parser::nonterminal::NonTerminal for ChunkOrExpressionsNonTermi
             ChunkOrExpressionsNonTerminals::_semicolonQuestion38 => {
                 Some(::rusty_lr::parser::nonterminal::NonTerminalType::Optional)
             }
-            ChunkOrExpressionsNonTerminals::_FieldSepPlus39 => {
-                Some(::rusty_lr::parser::nonterminal::NonTerminalType::PlusLeft)
-            }
-            ChunkOrExpressionsNonTerminals::_FieldSepStar40 => {
-                Some(::rusty_lr::parser::nonterminal::NonTerminalType::Star)
-            }
-            ChunkOrExpressionsNonTerminals::_ParListQuestion41 => {
+            ChunkOrExpressionsNonTerminals::_ParListQuestion39 => {
                 Some(::rusty_lr::parser::nonterminal::NonTerminalType::Optional)
             }
-            ChunkOrExpressionsNonTerminals::_Group42 => {
+            ChunkOrExpressionsNonTerminals::_Group40 => {
                 Some(::rusty_lr::parser::nonterminal::NonTerminalType::Group)
             }
-            ChunkOrExpressionsNonTerminals::__Group42Question43 => {
+            ChunkOrExpressionsNonTerminals::__Group40Question41 => {
                 Some(::rusty_lr::parser::nonterminal::NonTerminalType::Optional)
             }
             ChunkOrExpressionsNonTerminals::Augmented => {
@@ -775,18 +769,18 @@ pub enum ChunkOrExpressionsData {
     __variant12(Vec<statement::AttName>),
     __variant13(Option<statement::Attrib>),
     __variant14(expression::ExprTable),
-    __variant15(expression::TableField),
-    __variant16(expression::ExprFunction),
-    __variant17(statement::FunctionName),
-    __variant18(expression::ParameterList),
-    __variant19(Vec<Statement>),
-    __variant20(Option<statement::ReturnStatement>),
-    __variant21(Vec<statement::StmtElseIf>),
-    __variant22(Option<statement::Block>),
-    __variant23(Option<Expression>),
-    __variant24(Option<Vec<Expression>>),
-    __variant25(Option<Token>),
-    __variant26(Vec<expression::TableField>),
+    __variant15(Vec<expression::TableField>),
+    __variant16(expression::TableField),
+    __variant17(expression::ExprFunction),
+    __variant18(statement::FunctionName),
+    __variant19(expression::ParameterList),
+    __variant20(Vec<Statement>),
+    __variant21(Option<statement::ReturnStatement>),
+    __variant22(Vec<statement::StmtElseIf>),
+    __variant23(Option<statement::Block>),
+    __variant24(Option<Expression>),
+    __variant25(Option<Vec<Expression>>),
+    __variant26(Option<Token>),
     __variant27(Option<expression::ParameterList>),
     Empty,
 }
@@ -889,20 +883,20 @@ impl ChunkOrExpressionsDataStack {
         {
             debug_assert!(
                 matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
-                0usize), Some(& ChunkOrExpressionsData::__variant20(_)))
+                0usize), Some(& ChunkOrExpressionsData::__variant21(_)))
             );
             debug_assert!(
                 matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
-                1usize), Some(& ChunkOrExpressionsData::__variant19(_)))
+                1usize), Some(& ChunkOrExpressionsData::__variant20(_)))
             );
         }
         __location_stack.truncate(__location_stack.len() - 2);
         let mut ReturnStatement = match __data_stack.__stack.pop().unwrap() {
-            ChunkOrExpressionsData::__variant20(val) => val,
+            ChunkOrExpressionsData::__variant21(val) => val,
             _ => unreachable!(),
         };
         let mut Statement = match __data_stack.__stack.pop().unwrap() {
-            ChunkOrExpressionsData::__variant19(val) => val,
+            ChunkOrExpressionsData::__variant20(val) => val,
             _ => unreachable!(),
         };
         let __res = {
@@ -1361,11 +1355,11 @@ impl ChunkOrExpressionsDataStack {
             );
             debug_assert!(
                 matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
-                1usize), Some(& ChunkOrExpressionsData::__variant22(_)))
+                1usize), Some(& ChunkOrExpressionsData::__variant23(_)))
             );
             debug_assert!(
                 matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
-                2usize), Some(& ChunkOrExpressionsData::__variant21(_)))
+                2usize), Some(& ChunkOrExpressionsData::__variant22(_)))
             );
             debug_assert!(
                 matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
@@ -1390,11 +1384,11 @@ impl ChunkOrExpressionsDataStack {
             _ => unreachable!(),
         };
         let mut else_ = match __data_stack.__stack.pop().unwrap() {
-            ChunkOrExpressionsData::__variant22(val) => val,
+            ChunkOrExpressionsData::__variant23(val) => val,
             _ => unreachable!(),
         };
         let mut elseifs = match __data_stack.__stack.pop().unwrap() {
-            ChunkOrExpressionsData::__variant21(val) => val,
+            ChunkOrExpressionsData::__variant22(val) => val,
             _ => unreachable!(),
         };
         let mut Block = match __data_stack.__stack.pop().unwrap() {
@@ -1448,7 +1442,7 @@ impl ChunkOrExpressionsDataStack {
             );
             debug_assert!(
                 matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
-                3usize), Some(& ChunkOrExpressionsData::__variant23(_)))
+                3usize), Some(& ChunkOrExpressionsData::__variant24(_)))
             );
             debug_assert!(
                 matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
@@ -1486,7 +1480,7 @@ impl ChunkOrExpressionsDataStack {
         };
         __data_stack.__stack.pop();
         let mut step = match __data_stack.__stack.pop().unwrap() {
-            ChunkOrExpressionsData::__variant23(val) => val,
+            ChunkOrExpressionsData::__variant24(val) => val,
             _ => unreachable!(),
         };
         let mut end = match __data_stack.__stack.pop().unwrap() {
@@ -1625,11 +1619,11 @@ impl ChunkOrExpressionsDataStack {
         {
             debug_assert!(
                 matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
-                0usize), Some(& ChunkOrExpressionsData::__variant16(_)))
+                0usize), Some(& ChunkOrExpressionsData::__variant17(_)))
             );
             debug_assert!(
                 matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
-                1usize), Some(& ChunkOrExpressionsData::__variant17(_)))
+                1usize), Some(& ChunkOrExpressionsData::__variant18(_)))
             );
             debug_assert!(
                 matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
@@ -1638,11 +1632,11 @@ impl ChunkOrExpressionsDataStack {
         }
         __location_stack.truncate(__location_stack.len() - 3);
         let mut FuncBody = match __data_stack.__stack.pop().unwrap() {
-            ChunkOrExpressionsData::__variant16(val) => val,
+            ChunkOrExpressionsData::__variant17(val) => val,
             _ => unreachable!(),
         };
         let mut FuncName = match __data_stack.__stack.pop().unwrap() {
-            ChunkOrExpressionsData::__variant17(val) => val,
+            ChunkOrExpressionsData::__variant18(val) => val,
             _ => unreachable!(),
         };
         let mut function_ = match __data_stack.__stack.pop().unwrap() {
@@ -1677,7 +1671,7 @@ impl ChunkOrExpressionsDataStack {
         {
             debug_assert!(
                 matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
-                0usize), Some(& ChunkOrExpressionsData::__variant16(_)))
+                0usize), Some(& ChunkOrExpressionsData::__variant17(_)))
             );
             debug_assert!(
                 matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
@@ -1694,7 +1688,7 @@ impl ChunkOrExpressionsDataStack {
         }
         __location_stack.truncate(__location_stack.len() - 4);
         let mut FuncBody = match __data_stack.__stack.pop().unwrap() {
-            ChunkOrExpressionsData::__variant16(val) => val,
+            ChunkOrExpressionsData::__variant17(val) => val,
             _ => unreachable!(),
         };
         let mut ident = match __data_stack.__stack.pop().unwrap() {
@@ -1734,7 +1728,7 @@ impl ChunkOrExpressionsDataStack {
         {
             debug_assert!(
                 matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
-                0usize), Some(& ChunkOrExpressionsData::__variant24(_)))
+                0usize), Some(& ChunkOrExpressionsData::__variant25(_)))
             );
             debug_assert!(
                 matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
@@ -1747,7 +1741,7 @@ impl ChunkOrExpressionsDataStack {
         }
         __location_stack.truncate(__location_stack.len() - 3);
         let mut rhs_list = match __data_stack.__stack.pop().unwrap() {
-            ChunkOrExpressionsData::__variant24(val) => val,
+            ChunkOrExpressionsData::__variant25(val) => val,
             _ => unreachable!(),
         };
         let mut AttNameList = match __data_stack.__stack.pop().unwrap() {
@@ -1856,7 +1850,7 @@ impl ChunkOrExpressionsDataStack {
         {
             debug_assert!(
                 matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
-                0usize), Some(& ChunkOrExpressionsData::__variant25(_)))
+                0usize), Some(& ChunkOrExpressionsData::__variant26(_)))
             );
             debug_assert!(
                 matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
@@ -1869,7 +1863,7 @@ impl ChunkOrExpressionsDataStack {
         }
         __location_stack.truncate(__location_stack.len() - 3);
         let mut semicolon = match __data_stack.__stack.pop().unwrap() {
-            ChunkOrExpressionsData::__variant25(val) => val,
+            ChunkOrExpressionsData::__variant26(val) => val,
             _ => unreachable!(),
         };
         let mut ExpList0 = match __data_stack.__stack.pop().unwrap() {
@@ -3006,12 +3000,12 @@ impl ChunkOrExpressionsDataStack {
         {
             debug_assert!(
                 matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
-                0usize), Some(& ChunkOrExpressionsData::__variant16(_)))
+                0usize), Some(& ChunkOrExpressionsData::__variant17(_)))
             );
         }
         __location_stack.pop();
         let mut FunctionDef = match __data_stack.__stack.pop().unwrap() {
-            ChunkOrExpressionsData::__variant16(val) => val,
+            ChunkOrExpressionsData::__variant17(val) => val,
             _ => unreachable!(),
         };
         let __res = { Expression::Function(FunctionDef) };
@@ -4266,7 +4260,7 @@ impl ChunkOrExpressionsDataStack {
         }
         Ok(())
     }
-    ///TableConstructor -> lbrace $sep(Field, FieldSep, *) rbrace
+    ///TableConstructor -> lbrace FieldList rbrace
     #[inline]
     fn reduce_TableConstructor_0(
         __data_stack: &mut Self,
@@ -4285,7 +4279,7 @@ impl ChunkOrExpressionsDataStack {
             );
             debug_assert!(
                 matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
-                1usize), Some(& ChunkOrExpressionsData::__variant26(_)))
+                1usize), Some(& ChunkOrExpressionsData::__variant15(_)))
             );
             debug_assert!(
                 matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
@@ -4298,7 +4292,7 @@ impl ChunkOrExpressionsDataStack {
             _ => unreachable!(),
         };
         let mut FieldList = match __data_stack.__stack.pop().unwrap() {
-            ChunkOrExpressionsData::__variant26(val) => val,
+            ChunkOrExpressionsData::__variant15(val) => val,
             _ => unreachable!(),
         };
         let mut lbrace = match __data_stack.__stack.pop().unwrap() {
@@ -4311,6 +4305,254 @@ impl ChunkOrExpressionsDataStack {
         };
         if __push_data {
             __data_stack.__stack.push(ChunkOrExpressionsData::__variant14(__res));
+        } else {
+            __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
+        }
+        Ok(())
+    }
+    ///FieldList -> FieldList1
+    #[inline]
+    fn reduce_FieldList_0(
+        __data_stack: &mut Self,
+        __location_stack: &mut Vec<::rusty_lr::DefaultLocation>,
+        __push_data: bool,
+        shift: &mut bool,
+        lookahead: &::rusty_lr::TerminalSymbol<Token>,
+        data: &mut (),
+        __rustylr_location0: &mut ::rusty_lr::DefaultLocation,
+    ) -> Result<(), ParseError> {
+        #[cfg(debug_assertions)]
+        {
+            debug_assert!(
+                matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
+                0usize), Some(& ChunkOrExpressionsData::__variant15(_)))
+            );
+        }
+        __location_stack.pop();
+        let mut FieldList1 = match __data_stack.__stack.pop().unwrap() {
+            ChunkOrExpressionsData::__variant15(val) => val,
+            _ => unreachable!(),
+        };
+        let __res = FieldList1;
+        if __push_data {
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant15(__res));
+        } else {
+            __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
+        }
+        Ok(())
+    }
+    ///FieldList -> FieldList1 comma
+    #[inline]
+    fn reduce_FieldList_1(
+        __data_stack: &mut Self,
+        __location_stack: &mut Vec<::rusty_lr::DefaultLocation>,
+        __push_data: bool,
+        shift: &mut bool,
+        lookahead: &::rusty_lr::TerminalSymbol<Token>,
+        data: &mut (),
+        __rustylr_location0: &mut ::rusty_lr::DefaultLocation,
+    ) -> Result<(), ParseError> {
+        #[cfg(debug_assertions)]
+        {
+            debug_assert!(
+                matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
+                0usize), Some(& ChunkOrExpressionsData::Empty))
+            );
+            debug_assert!(
+                matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
+                1usize), Some(& ChunkOrExpressionsData::__variant15(_)))
+            );
+        }
+        __location_stack.truncate(__location_stack.len() - 2);
+        __data_stack.__stack.pop();
+        let mut FieldList1 = match __data_stack.__stack.pop().unwrap() {
+            ChunkOrExpressionsData::__variant15(val) => val,
+            _ => unreachable!(),
+        };
+        let __res = FieldList1;
+        if __push_data {
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant15(__res));
+        } else {
+            __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
+        }
+        Ok(())
+    }
+    ///FieldList -> FieldList1 semicolon
+    #[inline]
+    fn reduce_FieldList_2(
+        __data_stack: &mut Self,
+        __location_stack: &mut Vec<::rusty_lr::DefaultLocation>,
+        __push_data: bool,
+        shift: &mut bool,
+        lookahead: &::rusty_lr::TerminalSymbol<Token>,
+        data: &mut (),
+        __rustylr_location0: &mut ::rusty_lr::DefaultLocation,
+    ) -> Result<(), ParseError> {
+        #[cfg(debug_assertions)]
+        {
+            debug_assert!(
+                matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
+                0usize), Some(& ChunkOrExpressionsData::__terminals(_)))
+            );
+            debug_assert!(
+                matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
+                1usize), Some(& ChunkOrExpressionsData::__variant15(_)))
+            );
+        }
+        __location_stack.truncate(__location_stack.len() - 2);
+        __data_stack.__stack.pop();
+        let mut FieldList1 = match __data_stack.__stack.pop().unwrap() {
+            ChunkOrExpressionsData::__variant15(val) => val,
+            _ => unreachable!(),
+        };
+        let __res = FieldList1;
+        if __push_data {
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant15(__res));
+        } else {
+            __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
+        }
+        Ok(())
+    }
+    ///FieldList ->
+    #[inline]
+    fn reduce_FieldList_3(
+        __data_stack: &mut Self,
+        __location_stack: &mut Vec<::rusty_lr::DefaultLocation>,
+        __push_data: bool,
+        shift: &mut bool,
+        lookahead: &::rusty_lr::TerminalSymbol<Token>,
+        data: &mut (),
+        __rustylr_location0: &mut ::rusty_lr::DefaultLocation,
+    ) -> Result<(), ParseError> {
+        #[cfg(debug_assertions)] {}
+        let __res = { vec![] };
+        if __push_data {
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant15(__res));
+        } else {
+            __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
+        }
+        Ok(())
+    }
+    ///FieldList1 -> FieldList1 comma Field
+    #[inline]
+    fn reduce_FieldList1_0(
+        __data_stack: &mut Self,
+        __location_stack: &mut Vec<::rusty_lr::DefaultLocation>,
+        __push_data: bool,
+        shift: &mut bool,
+        lookahead: &::rusty_lr::TerminalSymbol<Token>,
+        data: &mut (),
+        __rustylr_location0: &mut ::rusty_lr::DefaultLocation,
+    ) -> Result<(), ParseError> {
+        #[cfg(debug_assertions)]
+        {
+            debug_assert!(
+                matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
+                0usize), Some(& ChunkOrExpressionsData::__variant16(_)))
+            );
+            debug_assert!(
+                matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
+                1usize), Some(& ChunkOrExpressionsData::Empty))
+            );
+            debug_assert!(
+                matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
+                2usize), Some(& ChunkOrExpressionsData::__variant15(_)))
+            );
+        }
+        __location_stack.truncate(__location_stack.len() - 3);
+        let mut Field = match __data_stack.__stack.pop().unwrap() {
+            ChunkOrExpressionsData::__variant16(val) => val,
+            _ => unreachable!(),
+        };
+        __data_stack.__stack.pop();
+        let mut FieldList1 = match __data_stack.__stack.pop().unwrap() {
+            ChunkOrExpressionsData::__variant15(val) => val,
+            _ => unreachable!(),
+        };
+        let __res = {
+            FieldList1.push(Field);
+            FieldList1
+        };
+        if __push_data {
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant15(__res));
+        } else {
+            __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
+        }
+        Ok(())
+    }
+    ///FieldList1 -> FieldList1 semicolon Field
+    #[inline]
+    fn reduce_FieldList1_1(
+        __data_stack: &mut Self,
+        __location_stack: &mut Vec<::rusty_lr::DefaultLocation>,
+        __push_data: bool,
+        shift: &mut bool,
+        lookahead: &::rusty_lr::TerminalSymbol<Token>,
+        data: &mut (),
+        __rustylr_location0: &mut ::rusty_lr::DefaultLocation,
+    ) -> Result<(), ParseError> {
+        #[cfg(debug_assertions)]
+        {
+            debug_assert!(
+                matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
+                0usize), Some(& ChunkOrExpressionsData::__variant16(_)))
+            );
+            debug_assert!(
+                matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
+                1usize), Some(& ChunkOrExpressionsData::__terminals(_)))
+            );
+            debug_assert!(
+                matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
+                2usize), Some(& ChunkOrExpressionsData::__variant15(_)))
+            );
+        }
+        __location_stack.truncate(__location_stack.len() - 3);
+        let mut Field = match __data_stack.__stack.pop().unwrap() {
+            ChunkOrExpressionsData::__variant16(val) => val,
+            _ => unreachable!(),
+        };
+        __data_stack.__stack.pop();
+        let mut FieldList1 = match __data_stack.__stack.pop().unwrap() {
+            ChunkOrExpressionsData::__variant15(val) => val,
+            _ => unreachable!(),
+        };
+        let __res = {
+            FieldList1.push(Field);
+            FieldList1
+        };
+        if __push_data {
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant15(__res));
+        } else {
+            __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
+        }
+        Ok(())
+    }
+    ///FieldList1 -> Field
+    #[inline]
+    fn reduce_FieldList1_2(
+        __data_stack: &mut Self,
+        __location_stack: &mut Vec<::rusty_lr::DefaultLocation>,
+        __push_data: bool,
+        shift: &mut bool,
+        lookahead: &::rusty_lr::TerminalSymbol<Token>,
+        data: &mut (),
+        __rustylr_location0: &mut ::rusty_lr::DefaultLocation,
+    ) -> Result<(), ParseError> {
+        #[cfg(debug_assertions)]
+        {
+            debug_assert!(
+                matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
+                0usize), Some(& ChunkOrExpressionsData::__variant16(_)))
+            );
+        }
+        __location_stack.pop();
+        let mut Field = match __data_stack.__stack.pop().unwrap() {
+            ChunkOrExpressionsData::__variant16(val) => val,
+            _ => unreachable!(),
+        };
+        let __res = { vec![Field] };
+        if __push_data {
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant15(__res));
         } else {
             __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
         }
@@ -4371,7 +4613,7 @@ impl ChunkOrExpressionsDataStack {
             )
         };
         if __push_data {
-            __data_stack.__stack.push(ChunkOrExpressionsData::__variant15(__res));
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant16(__res));
         } else {
             __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
         }
@@ -4420,7 +4662,7 @@ impl ChunkOrExpressionsDataStack {
             )
         };
         if __push_data {
-            __data_stack.__stack.push(ChunkOrExpressionsData::__variant15(__res));
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant16(__res));
         } else {
             __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
         }
@@ -4453,7 +4695,7 @@ impl ChunkOrExpressionsDataStack {
             expression::TableField::Value(expression::TableFieldValue::new(Exp))
         };
         if __push_data {
-            __data_stack.__stack.push(ChunkOrExpressionsData::__variant15(__res));
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant16(__res));
         } else {
             __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
         }
@@ -4474,7 +4716,7 @@ impl ChunkOrExpressionsDataStack {
         {
             debug_assert!(
                 matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
-                0usize), Some(& ChunkOrExpressionsData::__variant16(_)))
+                0usize), Some(& ChunkOrExpressionsData::__variant17(_)))
             );
             debug_assert!(
                 matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
@@ -4483,7 +4725,7 @@ impl ChunkOrExpressionsDataStack {
         }
         __location_stack.truncate(__location_stack.len() - 2);
         let mut FuncBody = match __data_stack.__stack.pop().unwrap() {
-            ChunkOrExpressionsData::__variant16(val) => val,
+            ChunkOrExpressionsData::__variant17(val) => val,
             _ => unreachable!(),
         };
         let mut function_ = match __data_stack.__stack.pop().unwrap() {
@@ -4496,7 +4738,7 @@ impl ChunkOrExpressionsDataStack {
             FuncBody
         };
         if __push_data {
-            __data_stack.__stack.push(ChunkOrExpressionsData::__variant16(__res));
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant17(__res));
         } else {
             __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
         }
@@ -4559,7 +4801,7 @@ impl ChunkOrExpressionsDataStack {
             expression::ExprFunction::new(ParList, Block, span)
         };
         if __push_data {
-            __data_stack.__stack.push(ChunkOrExpressionsData::__variant16(__res));
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant17(__res));
         } else {
             __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
         }
@@ -4684,7 +4926,7 @@ impl ChunkOrExpressionsDataStack {
             statement::FunctionName::new(FuncName1, Some(ident.into()), span)
         };
         if __push_data {
-            __data_stack.__stack.push(ChunkOrExpressionsData::__variant17(__res));
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant18(__res));
         } else {
             __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
         }
@@ -4722,7 +4964,7 @@ impl ChunkOrExpressionsDataStack {
             statement::FunctionName::new(FuncName1, None, span)
         };
         if __push_data {
-            __data_stack.__stack.push(ChunkOrExpressionsData::__variant17(__res));
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant18(__res));
         } else {
             __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
         }
@@ -4743,7 +4985,7 @@ impl ChunkOrExpressionsDataStack {
         {
             debug_assert!(
                 matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
-                0usize), Some(& ChunkOrExpressionsData::__variant25(_)))
+                0usize), Some(& ChunkOrExpressionsData::__variant26(_)))
             );
             debug_assert!(
                 matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
@@ -4752,7 +4994,7 @@ impl ChunkOrExpressionsDataStack {
         }
         __location_stack.truncate(__location_stack.len() - 2);
         let mut var = match __data_stack.__stack.pop().unwrap() {
-            ChunkOrExpressionsData::__variant25(val) => val,
+            ChunkOrExpressionsData::__variant26(val) => val,
             _ => unreachable!(),
         };
         let mut NameList = match __data_stack.__stack.pop().unwrap() {
@@ -4769,7 +5011,7 @@ impl ChunkOrExpressionsDataStack {
             }
         };
         if __push_data {
-            __data_stack.__stack.push(ChunkOrExpressionsData::__variant18(__res));
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant19(__res));
         } else {
             __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
         }
@@ -4802,7 +5044,7 @@ impl ChunkOrExpressionsDataStack {
             expression::ParameterList::new(Vec::new(), true, dotdotdot.span())
         };
         if __push_data {
-            __data_stack.__stack.push(ChunkOrExpressionsData::__variant18(__res));
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant19(__res));
         } else {
             __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
         }
@@ -4833,7 +5075,7 @@ impl ChunkOrExpressionsDataStack {
         };
         let __res = { vec![A] };
         if __push_data {
-            __data_stack.__stack.push(ChunkOrExpressionsData::__variant19(__res));
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant20(__res));
         } else {
             __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
         }
@@ -4858,7 +5100,7 @@ impl ChunkOrExpressionsDataStack {
             );
             debug_assert!(
                 matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
-                1usize), Some(& ChunkOrExpressionsData::__variant19(_)))
+                1usize), Some(& ChunkOrExpressionsData::__variant20(_)))
             );
         }
         __location_stack.truncate(__location_stack.len() - 2);
@@ -4867,7 +5109,7 @@ impl ChunkOrExpressionsDataStack {
             _ => unreachable!(),
         };
         let mut Ap = match __data_stack.__stack.pop().unwrap() {
-            ChunkOrExpressionsData::__variant19(val) => val,
+            ChunkOrExpressionsData::__variant20(val) => val,
             _ => unreachable!(),
         };
         let __res = {
@@ -4875,7 +5117,7 @@ impl ChunkOrExpressionsDataStack {
             Ap
         };
         if __push_data {
-            __data_stack.__stack.push(ChunkOrExpressionsData::__variant19(__res));
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant20(__res));
         } else {
             __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
         }
@@ -4896,17 +5138,17 @@ impl ChunkOrExpressionsDataStack {
         {
             debug_assert!(
                 matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
-                0usize), Some(& ChunkOrExpressionsData::__variant19(_)))
+                0usize), Some(& ChunkOrExpressionsData::__variant20(_)))
             );
         }
         __location_stack.pop();
         let mut __token0 = match __data_stack.__stack.pop().unwrap() {
-            ChunkOrExpressionsData::__variant19(val) => val,
+            ChunkOrExpressionsData::__variant20(val) => val,
             _ => unreachable!(),
         };
         let __res = __token0;
         if __push_data {
-            __data_stack.__stack.push(ChunkOrExpressionsData::__variant19(__res));
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant20(__res));
         } else {
             __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
         }
@@ -4926,7 +5168,7 @@ impl ChunkOrExpressionsDataStack {
         #[cfg(debug_assertions)] {}
         let __res = { vec![] };
         if __push_data {
-            __data_stack.__stack.push(ChunkOrExpressionsData::__variant19(__res));
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant20(__res));
         } else {
             __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
         }
@@ -4957,7 +5199,7 @@ impl ChunkOrExpressionsDataStack {
         };
         let __res = Some(A);
         if __push_data {
-            __data_stack.__stack.push(ChunkOrExpressionsData::__variant20(__res));
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant21(__res));
         } else {
             __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
         }
@@ -4977,7 +5219,7 @@ impl ChunkOrExpressionsDataStack {
         #[cfg(debug_assertions)] {}
         let __res = { None };
         if __push_data {
-            __data_stack.__stack.push(ChunkOrExpressionsData::__variant20(__res));
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant21(__res));
         } else {
             __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
         }
@@ -5008,7 +5250,7 @@ impl ChunkOrExpressionsDataStack {
         };
         let __res = { vec![A] };
         if __push_data {
-            __data_stack.__stack.push(ChunkOrExpressionsData::__variant21(__res));
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant22(__res));
         } else {
             __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
         }
@@ -5033,7 +5275,7 @@ impl ChunkOrExpressionsDataStack {
             );
             debug_assert!(
                 matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
-                1usize), Some(& ChunkOrExpressionsData::__variant21(_)))
+                1usize), Some(& ChunkOrExpressionsData::__variant22(_)))
             );
         }
         __location_stack.truncate(__location_stack.len() - 2);
@@ -5042,7 +5284,7 @@ impl ChunkOrExpressionsDataStack {
             _ => unreachable!(),
         };
         let mut Ap = match __data_stack.__stack.pop().unwrap() {
-            ChunkOrExpressionsData::__variant21(val) => val,
+            ChunkOrExpressionsData::__variant22(val) => val,
             _ => unreachable!(),
         };
         let __res = {
@@ -5050,7 +5292,7 @@ impl ChunkOrExpressionsDataStack {
             Ap
         };
         if __push_data {
-            __data_stack.__stack.push(ChunkOrExpressionsData::__variant21(__res));
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant22(__res));
         } else {
             __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
         }
@@ -5071,17 +5313,17 @@ impl ChunkOrExpressionsDataStack {
         {
             debug_assert!(
                 matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
-                0usize), Some(& ChunkOrExpressionsData::__variant21(_)))
+                0usize), Some(& ChunkOrExpressionsData::__variant22(_)))
             );
         }
         __location_stack.pop();
         let mut __token0 = match __data_stack.__stack.pop().unwrap() {
-            ChunkOrExpressionsData::__variant21(val) => val,
+            ChunkOrExpressionsData::__variant22(val) => val,
             _ => unreachable!(),
         };
         let __res = __token0;
         if __push_data {
-            __data_stack.__stack.push(ChunkOrExpressionsData::__variant21(__res));
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant22(__res));
         } else {
             __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
         }
@@ -5101,7 +5343,7 @@ impl ChunkOrExpressionsDataStack {
         #[cfg(debug_assertions)] {}
         let __res = { vec![] };
         if __push_data {
-            __data_stack.__stack.push(ChunkOrExpressionsData::__variant21(__res));
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant22(__res));
         } else {
             __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
         }
@@ -5168,7 +5410,7 @@ impl ChunkOrExpressionsDataStack {
         };
         let __res = Some(A);
         if __push_data {
-            __data_stack.__stack.push(ChunkOrExpressionsData::__variant22(__res));
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant23(__res));
         } else {
             __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
         }
@@ -5188,7 +5430,7 @@ impl ChunkOrExpressionsDataStack {
         #[cfg(debug_assertions)] {}
         let __res = { None };
         if __push_data {
-            __data_stack.__stack.push(ChunkOrExpressionsData::__variant22(__res));
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant23(__res));
         } else {
             __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
         }
@@ -5255,7 +5497,7 @@ impl ChunkOrExpressionsDataStack {
         };
         let __res = Some(A);
         if __push_data {
-            __data_stack.__stack.push(ChunkOrExpressionsData::__variant23(__res));
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant24(__res));
         } else {
             __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
         }
@@ -5275,7 +5517,7 @@ impl ChunkOrExpressionsDataStack {
         #[cfg(debug_assertions)] {}
         let __res = { None };
         if __push_data {
-            __data_stack.__stack.push(ChunkOrExpressionsData::__variant23(__res));
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant24(__res));
         } else {
             __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
         }
@@ -5342,7 +5584,7 @@ impl ChunkOrExpressionsDataStack {
         };
         let __res = Some(A);
         if __push_data {
-            __data_stack.__stack.push(ChunkOrExpressionsData::__variant24(__res));
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant25(__res));
         } else {
             __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
         }
@@ -5362,7 +5604,7 @@ impl ChunkOrExpressionsDataStack {
         #[cfg(debug_assertions)] {}
         let __res = { None };
         if __push_data {
-            __data_stack.__stack.push(ChunkOrExpressionsData::__variant24(__res));
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant25(__res));
         } else {
             __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
         }
@@ -5393,7 +5635,7 @@ impl ChunkOrExpressionsDataStack {
         };
         let __res = Some(A);
         if __push_data {
-            __data_stack.__stack.push(ChunkOrExpressionsData::__variant25(__res));
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant26(__res));
         } else {
             __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
         }
@@ -5413,135 +5655,6 @@ impl ChunkOrExpressionsDataStack {
         #[cfg(debug_assertions)] {}
         let __res = { None };
         if __push_data {
-            __data_stack.__stack.push(ChunkOrExpressionsData::__variant25(__res));
-        } else {
-            __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
-        }
-        Ok(())
-    }
-    ///$sep(Field, FieldSep, +) -> Field
-    #[inline]
-    fn reduce__FieldSepPlus39_0(
-        __data_stack: &mut Self,
-        __location_stack: &mut Vec<::rusty_lr::DefaultLocation>,
-        __push_data: bool,
-        shift: &mut bool,
-        lookahead: &::rusty_lr::TerminalSymbol<Token>,
-        data: &mut (),
-        __rustylr_location0: &mut ::rusty_lr::DefaultLocation,
-    ) -> Result<(), ParseError> {
-        #[cfg(debug_assertions)]
-        {
-            debug_assert!(
-                matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
-                0usize), Some(& ChunkOrExpressionsData::__variant15(_)))
-            );
-        }
-        __location_stack.pop();
-        let mut __token0 = match __data_stack.__stack.pop().unwrap() {
-            ChunkOrExpressionsData::__variant15(val) => val,
-            _ => unreachable!(),
-        };
-        let __res = { vec![__token0] };
-        if __push_data {
-            __data_stack.__stack.push(ChunkOrExpressionsData::__variant26(__res));
-        } else {
-            __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
-        }
-        Ok(())
-    }
-    ///$sep(Field, FieldSep, +) -> $sep(Field, FieldSep, +) FieldSep Field
-    #[inline]
-    fn reduce__FieldSepPlus39_1(
-        __data_stack: &mut Self,
-        __location_stack: &mut Vec<::rusty_lr::DefaultLocation>,
-        __push_data: bool,
-        shift: &mut bool,
-        lookahead: &::rusty_lr::TerminalSymbol<Token>,
-        data: &mut (),
-        __rustylr_location0: &mut ::rusty_lr::DefaultLocation,
-    ) -> Result<(), ParseError> {
-        #[cfg(debug_assertions)]
-        {
-            debug_assert!(
-                matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
-                0usize), Some(& ChunkOrExpressionsData::__variant15(_)))
-            );
-            debug_assert!(
-                matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
-                1usize), Some(& ChunkOrExpressionsData::Empty))
-            );
-            debug_assert!(
-                matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
-                2usize), Some(& ChunkOrExpressionsData::__variant26(_)))
-            );
-        }
-        __location_stack.truncate(__location_stack.len() - 3);
-        let mut __token1 = match __data_stack.__stack.pop().unwrap() {
-            ChunkOrExpressionsData::__variant15(val) => val,
-            _ => unreachable!(),
-        };
-        __data_stack.__stack.pop();
-        let mut __token0 = match __data_stack.__stack.pop().unwrap() {
-            ChunkOrExpressionsData::__variant26(val) => val,
-            _ => unreachable!(),
-        };
-        let __res = {
-            __token0.push(__token1);
-            __token0
-        };
-        if __push_data {
-            __data_stack.__stack.push(ChunkOrExpressionsData::__variant26(__res));
-        } else {
-            __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
-        }
-        Ok(())
-    }
-    ///$sep(Field, FieldSep, *) -> $sep(Field, FieldSep, +)
-    #[inline]
-    fn reduce__FieldSepStar40_0(
-        __data_stack: &mut Self,
-        __location_stack: &mut Vec<::rusty_lr::DefaultLocation>,
-        __push_data: bool,
-        shift: &mut bool,
-        lookahead: &::rusty_lr::TerminalSymbol<Token>,
-        data: &mut (),
-        __rustylr_location0: &mut ::rusty_lr::DefaultLocation,
-    ) -> Result<(), ParseError> {
-        #[cfg(debug_assertions)]
-        {
-            debug_assert!(
-                matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
-                0usize), Some(& ChunkOrExpressionsData::__variant26(_)))
-            );
-        }
-        __location_stack.pop();
-        let mut __token0 = match __data_stack.__stack.pop().unwrap() {
-            ChunkOrExpressionsData::__variant26(val) => val,
-            _ => unreachable!(),
-        };
-        let __res = __token0;
-        if __push_data {
-            __data_stack.__stack.push(ChunkOrExpressionsData::__variant26(__res));
-        } else {
-            __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
-        }
-        Ok(())
-    }
-    ///$sep(Field, FieldSep, *) ->
-    #[inline]
-    fn reduce__FieldSepStar40_1(
-        __data_stack: &mut Self,
-        __location_stack: &mut Vec<::rusty_lr::DefaultLocation>,
-        __push_data: bool,
-        shift: &mut bool,
-        lookahead: &::rusty_lr::TerminalSymbol<Token>,
-        data: &mut (),
-        __rustylr_location0: &mut ::rusty_lr::DefaultLocation,
-    ) -> Result<(), ParseError> {
-        #[cfg(debug_assertions)] {}
-        let __res = { vec![] };
-        if __push_data {
             __data_stack.__stack.push(ChunkOrExpressionsData::__variant26(__res));
         } else {
             __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
@@ -5550,7 +5663,7 @@ impl ChunkOrExpressionsDataStack {
     }
     ///ParList? -> ParList
     #[inline]
-    fn reduce__ParListQuestion41_0(
+    fn reduce__ParListQuestion39_0(
         __data_stack: &mut Self,
         __location_stack: &mut Vec<::rusty_lr::DefaultLocation>,
         __push_data: bool,
@@ -5563,12 +5676,12 @@ impl ChunkOrExpressionsDataStack {
         {
             debug_assert!(
                 matches!(__data_stack.__stack.get(__data_stack.__stack.len() - 1 -
-                0usize), Some(& ChunkOrExpressionsData::__variant18(_)))
+                0usize), Some(& ChunkOrExpressionsData::__variant19(_)))
             );
         }
         __location_stack.pop();
         let mut A = match __data_stack.__stack.pop().unwrap() {
-            ChunkOrExpressionsData::__variant18(val) => val,
+            ChunkOrExpressionsData::__variant19(val) => val,
             _ => unreachable!(),
         };
         let __res = Some(A);
@@ -5581,7 +5694,7 @@ impl ChunkOrExpressionsDataStack {
     }
     ///ParList? ->
     #[inline]
-    fn reduce__ParListQuestion41_1(
+    fn reduce__ParListQuestion39_1(
         __data_stack: &mut Self,
         __location_stack: &mut Vec<::rusty_lr::DefaultLocation>,
         __push_data: bool,
@@ -5601,7 +5714,7 @@ impl ChunkOrExpressionsDataStack {
     }
     ///(comma, dotdotdot) -> comma dotdotdot
     #[inline]
-    fn reduce__Group42_0(
+    fn reduce__Group40_0(
         __data_stack: &mut Self,
         __location_stack: &mut Vec<::rusty_lr::DefaultLocation>,
         __push_data: bool,
@@ -5637,7 +5750,7 @@ impl ChunkOrExpressionsDataStack {
     }
     ///(comma, dotdotdot)? -> (comma, dotdotdot)
     #[inline]
-    fn reduce___Group42Question43_0(
+    fn reduce___Group40Question41_0(
         __data_stack: &mut Self,
         __location_stack: &mut Vec<::rusty_lr::DefaultLocation>,
         __push_data: bool,
@@ -5660,7 +5773,7 @@ impl ChunkOrExpressionsDataStack {
         };
         let __res = Some(A);
         if __push_data {
-            __data_stack.__stack.push(ChunkOrExpressionsData::__variant25(__res));
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant26(__res));
         } else {
             __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
         }
@@ -5668,7 +5781,7 @@ impl ChunkOrExpressionsDataStack {
     }
     ///(comma, dotdotdot)? ->
     #[inline]
-    fn reduce___Group42Question43_1(
+    fn reduce___Group40Question41_1(
         __data_stack: &mut Self,
         __location_stack: &mut Vec<::rusty_lr::DefaultLocation>,
         __push_data: bool,
@@ -5680,7 +5793,7 @@ impl ChunkOrExpressionsDataStack {
         #[cfg(debug_assertions)] {}
         let __res = { None };
         if __push_data {
-            __data_stack.__stack.push(ChunkOrExpressionsData::__variant25(__res));
+            __data_stack.__stack.push(ChunkOrExpressionsData::__variant26(__res));
         } else {
             __data_stack.__stack.push(ChunkOrExpressionsData::Empty);
         }
@@ -6616,7 +6729,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             79usize => {
-                Self::reduce_Field_0(
+                Self::reduce_FieldList_0(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6627,7 +6740,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             80usize => {
-                Self::reduce_Field_1(
+                Self::reduce_FieldList_1(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6638,7 +6751,29 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             81usize => {
-                Self::reduce_Field_2(
+                Self::reduce_FieldList_2(
+                    data_stack,
+                    location_stack,
+                    push_data,
+                    shift,
+                    lookahead,
+                    user_data,
+                    location0,
+                )
+            }
+            82usize => {
+                Self::reduce_FieldList_3(
+                    data_stack,
+                    location_stack,
+                    push_data,
+                    shift,
+                    lookahead,
+                    user_data,
+                    location0,
+                )
+            }
+            83usize => {
+                Self::reduce_FieldList1_0(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6649,7 +6784,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             84usize => {
-                Self::reduce_FunctionDef_0(
+                Self::reduce_FieldList1_1(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6660,7 +6795,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             85usize => {
-                Self::reduce_FuncBody_0(
+                Self::reduce_FieldList1_2(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6671,7 +6806,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             86usize => {
-                Self::reduce_FuncName1_0(
+                Self::reduce_Field_0(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6682,7 +6817,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             87usize => {
-                Self::reduce_FuncName1_1(
+                Self::reduce_Field_1(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6693,7 +6828,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             88usize => {
-                Self::reduce_FuncName_0(
+                Self::reduce_Field_2(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6704,7 +6839,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             89usize => {
-                Self::reduce_FuncName_1(
+                Self::reduce_FunctionDef_0(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6715,7 +6850,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             90usize => {
-                Self::reduce_ParList_0(
+                Self::reduce_FuncBody_0(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6726,7 +6861,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             91usize => {
-                Self::reduce_ParList_1(
+                Self::reduce_FuncName1_0(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6737,7 +6872,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             92usize => {
-                Self::reduce__StatementPlus27_0(
+                Self::reduce_FuncName1_1(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6748,7 +6883,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             93usize => {
-                Self::reduce__StatementPlus27_1(
+                Self::reduce_FuncName_0(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6759,7 +6894,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             94usize => {
-                Self::reduce__StatementStar28_0(
+                Self::reduce_FuncName_1(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6770,7 +6905,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             95usize => {
-                Self::reduce__StatementStar28_1(
+                Self::reduce_ParList_0(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6781,7 +6916,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             96usize => {
-                Self::reduce__ReturnStatementQuestion29_0(
+                Self::reduce_ParList_1(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6792,7 +6927,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             97usize => {
-                Self::reduce__ReturnStatementQuestion29_1(
+                Self::reduce__StatementPlus27_0(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6803,7 +6938,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             98usize => {
-                Self::reduce__ElseIfPlus30_0(
+                Self::reduce__StatementPlus27_1(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6814,7 +6949,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             99usize => {
-                Self::reduce__ElseIfPlus30_1(
+                Self::reduce__StatementStar28_0(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6825,7 +6960,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             100usize => {
-                Self::reduce__ElseIfStar31_0(
+                Self::reduce__StatementStar28_1(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6836,7 +6971,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             101usize => {
-                Self::reduce__ElseIfStar31_1(
+                Self::reduce__ReturnStatementQuestion29_0(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6847,7 +6982,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             102usize => {
-                Self::reduce__Group32_0(
+                Self::reduce__ReturnStatementQuestion29_1(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6858,7 +6993,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             103usize => {
-                Self::reduce___Group32Question33_0(
+                Self::reduce__ElseIfPlus30_0(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6869,7 +7004,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             104usize => {
-                Self::reduce___Group32Question33_1(
+                Self::reduce__ElseIfPlus30_1(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6880,7 +7015,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             105usize => {
-                Self::reduce__Group34_0(
+                Self::reduce__ElseIfStar31_0(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6891,7 +7026,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             106usize => {
-                Self::reduce___Group34Question35_0(
+                Self::reduce__ElseIfStar31_1(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6902,7 +7037,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             107usize => {
-                Self::reduce___Group34Question35_1(
+                Self::reduce__Group32_0(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6913,7 +7048,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             108usize => {
-                Self::reduce__Group36_0(
+                Self::reduce___Group32Question33_0(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6924,7 +7059,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             109usize => {
-                Self::reduce___Group36Question37_0(
+                Self::reduce___Group32Question33_1(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6935,7 +7070,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             110usize => {
-                Self::reduce___Group36Question37_1(
+                Self::reduce__Group34_0(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6946,7 +7081,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             111usize => {
-                Self::reduce__semicolonQuestion38_0(
+                Self::reduce___Group34Question35_0(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6957,7 +7092,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             112usize => {
-                Self::reduce__semicolonQuestion38_1(
+                Self::reduce___Group34Question35_1(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6968,7 +7103,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             113usize => {
-                Self::reduce__FieldSepPlus39_0(
+                Self::reduce__Group36_0(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6979,7 +7114,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             114usize => {
-                Self::reduce__FieldSepPlus39_1(
+                Self::reduce___Group36Question37_0(
                     data_stack,
                     location_stack,
                     push_data,
@@ -6990,7 +7125,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             115usize => {
-                Self::reduce__FieldSepStar40_0(
+                Self::reduce___Group36Question37_1(
                     data_stack,
                     location_stack,
                     push_data,
@@ -7001,7 +7136,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             116usize => {
-                Self::reduce__FieldSepStar40_1(
+                Self::reduce__semicolonQuestion38_0(
                     data_stack,
                     location_stack,
                     push_data,
@@ -7012,7 +7147,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             117usize => {
-                Self::reduce__ParListQuestion41_0(
+                Self::reduce__semicolonQuestion38_1(
                     data_stack,
                     location_stack,
                     push_data,
@@ -7023,7 +7158,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             118usize => {
-                Self::reduce__ParListQuestion41_1(
+                Self::reduce__ParListQuestion39_0(
                     data_stack,
                     location_stack,
                     push_data,
@@ -7034,7 +7169,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             119usize => {
-                Self::reduce__Group42_0(
+                Self::reduce__ParListQuestion39_1(
                     data_stack,
                     location_stack,
                     push_data,
@@ -7045,7 +7180,7 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             120usize => {
-                Self::reduce___Group42Question43_0(
+                Self::reduce__Group40_0(
                     data_stack,
                     location_stack,
                     push_data,
@@ -7056,7 +7191,18 @@ impl ::rusty_lr::parser::data_stack::DataStack for ChunkOrExpressionsDataStack {
                 )
             }
             121usize => {
-                Self::reduce___Group42Question43_1(
+                Self::reduce___Group40Question41_0(
+                    data_stack,
+                    location_stack,
+                    push_data,
+                    shift,
+                    lookahead,
+                    user_data,
+                    location0,
+                )
+            }
+            122usize => {
+                Self::reduce___Group40Question41_1(
                     data_stack,
                     location_stack,
                     push_data,
@@ -7099,24 +7245,24 @@ impl ::rusty_lr::parser::Parser for ChunkOrExpressionsParser {
                     6, 6, 6, 7, 7, 8, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 14, 14, 15,
                     15, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16,
                     16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16,
-                    16, 17, 18, 18, 18, 19, 19, 20, 21, 22, 22, 23, 23, 24, 24, 25, 25,
-                    26, 26, 27, 27, 28, 28, 29, 29, 30, 31, 31, 32, 33, 33, 34, 35, 35,
-                    36, 36, 37, 37, 38, 38, 39, 39, 40, 41, 41, 42,
+                    16, 17, 18, 18, 18, 18, 19, 19, 19, 20, 20, 20, 21, 22, 23, 23, 24,
+                    24, 25, 25, 26, 26, 27, 27, 28, 28, 29, 29, 30, 30, 31, 32, 32, 33,
+                    34, 34, 35, 36, 36, 37, 37, 38, 38, 39, 40, 40, 41,
                 ];
                 static RULE_LENGTHS: &[u32] = &[
                     1, 1, 2, 1, 3, 1, 3, 1, 2, 3, 5, 4, 7, 10, 7, 3, 4, 3, 4, 3, 1, 4, 3,
                     1, 1, 3, 2, 4, 3, 1, 1, 3, 1, 3, 1, 1, 0, 3, 1, 2, 3, 1, 3, 0, 1, 1,
                     1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-                    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 5, 3, 1, 1, 1, 2, 5, 3, 1, 3, 1, 2, 1,
-                    1, 2, 1, 0, 1, 0, 1, 2, 1, 0, 2, 1, 0, 2, 1, 0, 2, 1, 0, 1, 0, 1, 3,
-                    1, 0, 1, 0, 2, 1, 0, 2,
+                    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 1, 2, 2, 0, 3, 3, 1, 5, 3, 1, 2, 5, 3,
+                    1, 3, 1, 2, 1, 1, 2, 1, 0, 1, 0, 1, 2, 1, 0, 2, 1, 0, 2, 1, 0, 2, 1,
+                    0, 1, 0, 1, 0, 2, 1, 0, 2,
                 ];
                 static SHIFT_TERM_DATA: &[u32] = &[
                     2147516416, 2147549185, 2147581954, 2147614723, 2147647492,
                     2147680261, 2147713030, 2147745803, 2147778573, 2147811353,
                     2147844123, 2150105119, 2150203424, 2147942437, 2150236199,
-                    2150268968, 2150301740, 2154561581, 2150662190, 2150727727,
-                    2150989873, 2148401202, 2151383092, 2151415864, 2147516416,
+                    2150268968, 2150301740, 2154627117, 2150662190, 2150727727,
+                    2151055409, 2148401202, 2151448628, 2151481400, 2147516416,
                     2147549185, 2147581954, 2147614723, 2147647492, 2147680261,
                     2147713030, 2147745803, 2147778573, 2147811353, 2147844123,
                     2147942437, 2147975213, 2148401202, 2147516416, 2147549185,
@@ -7140,11 +7286,11 @@ impl ::rusty_lr::parser::Parser for ChunkOrExpressionsParser {
                     2148040704, 2148073509, 655394, 2148171776, 2148204581, 2148368410,
                     2147516416, 2147811353, 2150105119, 2150203424, 2150236199,
                     2150268968, 2150301740, 2150400045, 2150662190, 2150727727,
-                    2150989873, 2151383092, 2151415864, 2147516416, 2147549185,
+                    2151055409, 2151448628, 2151481400, 2147516416, 2147549185,
                     2147581954, 2147614723, 2147647492, 2147680261, 2147713030,
                     2147745803, 2147778573, 2147811353, 2147844123, 2147942437,
                     2147975213, 2148401202, 2148466689, 2148499481, 2147844123,
-                    2151809053, 4522017, 4653091, 2147516416, 2147549185, 2147581954,
+                    2151874589, 4587553, 4718627, 2147516416, 2147549185, 2147581954,
                     2147614723, 2147647492, 2147680261, 2147713030, 2147745803,
                     2147778573, 2147811353, 2147844123, 2147942437, 2147975213,
                     2148401202, 2148597765, 2149056518, 2148663303, 2148859912,
@@ -7253,7 +7399,7 @@ impl ::rusty_lr::parser::Parser for ChunkOrExpressionsParser {
                     2147811353, 2147844123, 2147942437, 2147975213, 2148401202,
                     2150137856, 2150170655, 2147516416, 2147811353, 2150105119,
                     2150203424, 2150236199, 2150268968, 2150301740, 2150400045,
-                    2150662190, 2150727727, 2150989873, 2151383092, 2151415864,
+                    2150662190, 2150727727, 2151055409, 2151448628, 2151481400,
                     2150334464, 2150367256, 2147516416, 2147549185, 2147581954,
                     2147614723, 2147647492, 2147680261, 2147713030, 2147745803,
                     2147778573, 2147811353, 2147844123, 2147942437, 2147975213,
@@ -7265,21 +7411,24 @@ impl ::rusty_lr::parser::Parser for ChunkOrExpressionsParser {
                     2148925449, 2148728842, 2149122060, 2149384205, 2149449742,
                     2149187599, 2149318672, 2148990993, 2149515282, 2149580819,
                     2149646356, 2149711893, 2149777430, 2149842967, 2149253156,
-                    2149941286, 2150006835, 2150858784, 3375138, 2147876864, 2147549185,
-                    2147581954, 2147614723, 2147647492, 2147680261, 2147713030,
-                    2147745803, 2147778573, 2147811353, 2147844123, 2150072349,
-                    2147942437, 2147975213, 2148401202, 2150957084, 2151022592,
-                    2151186477, 2151055382, 2151088128, 2151120919, 2151219200,
-                    2148007961, 2151350296, 6225954, 2147516416, 2147549185, 2147581954,
+                    2149941286, 2150006835, 2150826012, 2150891552, 3473442, 2147876864,
+                    2147549185, 2147581954, 2147614723, 2147647492, 2147680261,
+                    2147713030, 2147745803, 2147778573, 2147811353, 2147844123,
+                    2150072349, 2147942437, 2147975213, 2148401202, 2147876864,
+                    2147549185, 2147581954, 2147614723, 2147647492, 2147680261,
+                    2147713030, 2147745803, 2147778573, 2147811353, 2147844123,
+                    2150072349, 2147942437, 2147975213, 2148401202, 2151088128,
+                    2151252013, 2151120918, 2151153664, 2151186455, 2151284736,
+                    2148007961, 2151415832, 6291490, 2147516416, 2147549185, 2147581954,
                     2147614723, 2147647492, 2147680261, 2147713030, 2147745803,
                     2147778573, 2147811353, 2147844123, 2147942437, 2147975213,
                     2148401202, 2147516416, 2147811353, 2150105119, 2150203424,
                     2150236199, 2150268968, 2150301740, 2150400045, 2150662190,
-                    2150727727, 2150989873, 2151383092, 2151415864, 2147516416,
+                    2150727727, 2151055409, 2151448628, 2151481400, 2147516416,
                     2147549185, 2147581954, 2147614723, 2147647492, 2147680261,
                     2147713030, 2147745803, 2147778573, 2147811353, 2147844123,
-                    2147942437, 2147975213, 2148401202, 2151481387, 2148466689,
-                    2148499481, 2147844123, 2151809053, 4522017, 4653091, 4161570,
+                    2147942437, 2147975213, 2148401202, 2151546923, 2148466689,
+                    2148499481, 2147844123, 2151874589, 4587553, 4718627, 4227106,
                     2147516416, 2147549185, 2147581954, 2147614723, 2147647492,
                     2147680261, 2147713030, 2147745803, 2147778573, 2147811353,
                     2147844123, 2147942437, 2147975213, 2148401202, 2148597765,
@@ -7287,43 +7436,36 @@ impl ::rusty_lr::parser::Parser for ChunkOrExpressionsParser {
                     2149122060, 2149384205, 2149449742, 2149187599, 2149318672,
                     2148990993, 2149515282, 2149580819, 2149646356, 2149711893,
                     2149777430, 2149842967, 2149253156, 2149941286, 2150006835,
-                    2151743514, 2148597765, 2149056518, 2148663303, 2148859912,
+                    2151809050, 2148597765, 2149056518, 2148663303, 2148859912,
                     2148925449, 2148728842, 2149122060, 2149384205, 2149449742,
                     2149187599, 2149318672, 2148990993, 2149515282, 2149580819,
                     2149646356, 2149711893, 2149777430, 2149842967, 2149253156,
                     2149941286, 2150006835, 2147516416, 2147549185, 2147581954,
                     2147614723, 2147647492, 2147680261, 2147713030, 2147745803,
                     2147778573, 2147811353, 2147844123, 2147942437, 2147975213,
-                    2148401202, 2151907352, 4816930, 2147516416, 2147549185, 2147581954,
+                    2148401202, 2151972888, 4882466, 2147516416, 2147549185, 2147581954,
                     2147614723, 2147647492, 2147680261, 2147713030, 2147745803,
                     2147778573, 2147811353, 2147844123, 2147942437, 2147975213,
                     2148401202, 2148597765, 2149056518, 2148663303, 2148859912,
                     2148925449, 2148728842, 2149122060, 2149384205, 2149449742,
                     2149187599, 2149318672, 2148990993, 2149515282, 2149580819,
-                    2149646356, 2149711893, 2149777430, 2149842967, 2151972894,
-                    2149253156, 2149941286, 2150006835, 2152038400, 2148466689,
-                    2148499481, 2147844123, 2152169472, 4161570, 2147516416, 2147811353,
+                    2149646356, 2149711893, 2149777430, 2149842967, 2152038430,
+                    2149253156, 2149941286, 2150006835, 2152103936, 2148466689,
+                    2148499481, 2147844123, 2152235008, 4227106, 2147516416, 2147811353,
                     2147516416, 2147811353, 2150105119, 2150203424, 2150236199,
                     2150268968, 2150301740, 2150400045, 2150662190, 2150727727,
-                    2150989873, 2151383092, 2151415864, 2152464437, 2147516416,
+                    2151055409, 2151448628, 2151481400, 2152529973, 2147516416,
                     2147549185, 2147581954, 2147614723, 2147647492, 2147680261,
                     2147713030, 2147745803, 2147778573, 2147811353, 2147844123,
-                    2147942437, 2147975213, 2148401202, 2152693792, 2148597765,
+                    2147942437, 2147975213, 2148401202, 2152759328, 2148597765,
                     2149056518, 2148663303, 2148859912, 2148925449, 2148728842,
                     2149122060, 2149384205, 2149449742, 2149187599, 2149318672,
                     2148990993, 2149515282, 2149580819, 2149646356, 2149711893,
-                    2149777430, 2149842967, 2149253156, 2149941286, 2152857640,
+                    2149777430, 2149842967, 2149253156, 2149941286, 2152923176,
                     2150006835, 2147516416, 2147811353, 2150105119, 2150203424,
                     2150236199, 2150268968, 2150301740, 2150400045, 2150662190,
-                    2150727727, 2150989873, 2151383092, 2151415864, 2152923179,
-                    2152988715, 2148597765, 2149056518, 2148663303, 2148859912,
-                    2148925449, 2148728842, 2149122060, 2149384205, 2149449742,
-                    2149187599, 2149318672, 2148990993, 2149515282, 2149580819,
-                    2149646356, 2149711893, 2149777430, 2149842967, 5570594, 2149253156,
-                    2149941286, 2150006835, 2147516416, 2147549185, 2147581954,
-                    2147614723, 2147647492, 2147680261, 2147713030, 2147745803,
-                    2147778573, 2147811353, 2147844123, 2147942437, 2147975213,
-                    2148401202, 2148597765, 2149056518, 2148663303, 2148859912,
+                    2150727727, 2151055409, 2151448628, 2151481400, 2152988715,
+                    2153054251, 2148597765, 2149056518, 2148663303, 2148859912,
                     2148925449, 2148728842, 2149122060, 2149384205, 2149449742,
                     2149187599, 2149318672, 2148990993, 2149515282, 2149580819,
                     2149646356, 2149711893, 2149777430, 2149842967, 5636130, 2149253156,
@@ -7333,24 +7475,31 @@ impl ::rusty_lr::parser::Parser for ChunkOrExpressionsParser {
                     2148401202, 2148597765, 2149056518, 2148663303, 2148859912,
                     2148925449, 2148728842, 2149122060, 2149384205, 2149449742,
                     2149187599, 2149318672, 2148990993, 2149515282, 2149580819,
+                    2149646356, 2149711893, 2149777430, 2149842967, 5701666, 2149253156,
+                    2149941286, 2150006835, 2147516416, 2147549185, 2147581954,
+                    2147614723, 2147647492, 2147680261, 2147713030, 2147745803,
+                    2147778573, 2147811353, 2147844123, 2147942437, 2147975213,
+                    2148401202, 2148597765, 2149056518, 2148663303, 2148859912,
+                    2148925449, 2148728842, 2149122060, 2149384205, 2149449742,
+                    2149187599, 2149318672, 2148990993, 2149515282, 2149580819,
                     2149646356, 2149711893, 2149777430, 2149842967, 2149253156,
-                    2149941286, 2150006835, 2153250856, 2147516416, 2147811353,
+                    2149941286, 2150006835, 2153316392, 2147516416, 2147811353,
                     2150105119, 2150203424, 2150236199, 2150268968, 2150301740,
-                    2150400045, 2150662190, 2150727727, 2150989873, 2151383092,
-                    2151415864, 2153316395, 5898274, 5931056, 2148171776, 2147516416,
+                    2150400045, 2150662190, 2150727727, 2151055409, 2151448628,
+                    2151481400, 2153381931, 5963810, 5996592, 2148171776, 2147516416,
                     2147549185, 2147581954, 2147614723, 2147647492, 2147680261,
                     2147713030, 2147745803, 2147778573, 2147811353, 2147844123,
-                    2147942437, 2147975213, 2148401202, 4161570, 2153480232, 2147516416,
+                    2147942437, 2147975213, 2148401202, 4227106, 2153545768, 2147516416,
                     2147811353, 2150105119, 2150203424, 2150236199, 2150268968,
-                    2150301740, 2150400045, 2150662190, 2150727727, 2150989873,
-                    2151383092, 2151415864, 2153545771, 2148597765, 2149056518,
+                    2150301740, 2150400045, 2150662190, 2150727727, 2151055409,
+                    2151448628, 2151481400, 2153611307, 2148597765, 2149056518,
                     2148663303, 2148859912, 2148925449, 2148728842, 2149122060,
                     2149384205, 2149449742, 2149187599, 2149318672, 2148990993,
                     2149515282, 2149580819, 2149646356, 2149711893, 2149777430,
-                    2149842967, 2149253156, 2149941286, 2150006835, 2153644086,
+                    2149842967, 2149253156, 2149941286, 2150006835, 2153709622,
                     2147516416, 2147811353, 2150105119, 2150203424, 2150236199,
                     2150268968, 2150301740, 2150400045, 2150662190, 2150727727,
-                    2150989873, 2151383092, 2151415864, 4161570, 2151022592, 6389815,
+                    2151055409, 2151448628, 2151481400, 4227106, 2151088128, 6455351,
                     2147516416, 2147549185, 2147581954, 2147614723, 2147647492,
                     2147680261, 2147713030, 2147745803, 2147778573, 2147811353,
                     2147844123, 2147942437, 2147975213, 2148401202, 2148597765,
@@ -7358,24 +7507,24 @@ impl ::rusty_lr::parser::Parser for ChunkOrExpressionsParser {
                     2149122060, 2149384205, 2149449742, 2149187599, 2149318672,
                     2148990993, 2149515282, 2149580819, 2149646356, 2149711893,
                     2149777430, 2149842967, 2149253156, 2149941286, 2150006835,
-                    2153971754, 2147516416, 2147549185, 2147581954, 2147614723,
+                    2154037290, 2147516416, 2147549185, 2147581954, 2147614723,
                     2147647492, 2147680261, 2147713030, 2147745803, 2147778573,
                     2147811353, 2147844123, 2147942437, 2147975213, 2148401202,
                     2148597765, 2149056518, 2148663303, 2148859912, 2148925449,
                     2148728842, 2149122060, 2149384205, 2149449742, 2149187599,
                     2149318672, 2148990993, 2149515282, 2149580819, 2149646356,
                     2149711893, 2149777430, 2149842967, 2149253156, 2149941286,
-                    2150006835, 2154037302, 2147516416, 2147811353, 2150105119,
+                    2150006835, 2154102838, 2147516416, 2147811353, 2150105119,
                     2150203424, 2150236199, 2150268968, 2150301740, 2150400045,
-                    2150662190, 2150727727, 2150989873, 2151383092, 2151415864,
-                    2153971754, 6750249, 2147516416, 2147811353, 2150105119, 2150203424,
+                    2150662190, 2150727727, 2151055409, 2151448628, 2151481400,
+                    2154037290, 6815785, 2147516416, 2147811353, 2150105119, 2150203424,
                     2150236199, 2150268968, 2150301740, 2150400045, 2150662190,
-                    2150727727, 2150989873, 2151383092, 2151415864, 2154364971,
+                    2150727727, 2151055409, 2151448628, 2151481400, 2154430507,
                     2148597765, 2149056518, 2148663303, 2148859912, 2148925449,
                     2148728842, 2149122060, 2149384205, 2149449742, 2149187599,
                     2149318672, 2148990993, 2149515282, 2149580819, 2149646356,
-                    2149711893, 2149777430, 2149842967, 2154430494, 2149253156,
-                    2149941286, 2150006835, 2154463256, 2147516416, 2147549185,
+                    2149711893, 2149777430, 2149842967, 2154496030, 2149253156,
+                    2149941286, 2150006835, 2154528792, 2147516416, 2147549185,
                     2147581954, 2147614723, 2147647492, 2147680261, 2147713030,
                     2147745803, 2147778573, 2147811353, 2147844123, 2147942437,
                     2147975213, 2148401202, 2148597765, 2149056518, 2148663303,
@@ -7387,7 +7536,7 @@ impl ::rusty_lr::parser::Parser for ChunkOrExpressionsParser {
                     2149384205, 2149449742, 2149187599, 2149318672, 2148990993,
                     2149515282, 2149580819, 2149646356, 2149711893, 2149777430,
                     2149842967, 2149253156, 2149941286, 2150006835, 2150432768,
-                    2148007961, 2154627131, 4161570,
+                    2148007961, 2154692667, 4227106,
                 ];
                 static SHIFT_TERM_OFFSETS: &[u32] = &[
                     0, 24, 24, 24, 24, 24, 24, 38, 52, 66, 80, 94, 109, 110, 124, 124,
@@ -7397,102 +7546,104 @@ impl ::rusty_lr::parser::Parser for ChunkOrExpressionsParser {
                     403, 417, 428, 442, 454, 468, 481, 495, 508, 522, 535, 549, 562, 576,
                     589, 603, 616, 616, 630, 649, 663, 683, 697, 698, 699, 699, 699, 699,
                     712, 713, 714, 728, 729, 729, 731, 732, 732, 733, 733, 734, 735, 735,
-                    749, 770, 770, 772, 787, 787, 788, 788, 790, 791, 792, 793, 793, 793,
-                    794, 795, 795, 795, 797, 811, 824, 838, 839, 839, 839, 839, 845, 846,
-                    860, 881, 882, 882, 903, 917, 917, 919, 933, 955, 955, 956, 959, 959,
-                    959, 960, 960, 960, 960, 961, 963, 963, 976, 976, 977, 991, 991, 991,
-                    991, 991, 991, 992, 992, 992, 992, 992, 1014, 1027, 1028, 1028, 1029,
-                    1029, 1051, 1065, 1087, 1101, 1122, 1122, 1123, 1136, 1137, 1137,
-                    1139, 1140, 1154, 1156, 1169, 1170, 1170, 1170, 1192, 1205, 1206,
-                    1207, 1207, 1207, 1207, 1208, 1222, 1243, 1244, 1258, 1280, 1293,
-                    1293, 1293, 1294, 1294, 1295, 1308, 1308, 1308, 1309, 1309, 1331,
-                    1332, 1346, 1367, 1388, 1390, 1391, 1391, 1391, 1392,
+                    749, 770, 771, 771, 773, 788, 788, 803, 803, 803, 805, 806, 807, 808,
+                    808, 808, 809, 810, 810, 810, 812, 826, 839, 853, 854, 854, 854, 854,
+                    860, 861, 875, 896, 897, 897, 918, 932, 932, 934, 948, 970, 970, 971,
+                    974, 974, 974, 975, 975, 975, 975, 976, 978, 978, 991, 991, 992,
+                    1006, 1006, 1006, 1006, 1006, 1006, 1007, 1007, 1007, 1007, 1007,
+                    1029, 1042, 1043, 1043, 1044, 1044, 1066, 1080, 1102, 1116, 1137,
+                    1137, 1138, 1151, 1152, 1152, 1154, 1155, 1169, 1171, 1184, 1185,
+                    1185, 1185, 1207, 1220, 1221, 1222, 1222, 1222, 1222, 1223, 1237,
+                    1258, 1259, 1273, 1295, 1308, 1308, 1308, 1309, 1309, 1310, 1323,
+                    1323, 1323, 1324, 1324, 1346, 1347, 1361, 1382, 1403, 1405, 1406,
+                    1406, 1406, 1407,
                 ];
                 static SHIFT_NONTERM_DATA: &[u32] = &[
-                    2154594304, 2154659841, 2151514114, 2151546885, 2148433926,
-                    2151841799, 2151874569, 2154692618, 2151776272, 2148794385,
-                    2148827156, 2152366105, 2152431642, 2148433925, 2148433926,
-                    2148532231, 2152628240, 2148794385, 2148827156, 2148433925,
-                    2148433926, 2148532231, 2152595472, 2148794385, 2148827156,
-                    2148433925, 2148433926, 2148532231, 2152562704, 2148794385,
-                    2148827156, 2148433925, 2148433926, 2148532231, 2152529936,
-                    2148794385, 2148827156, 2148433925, 2148433926, 2148532231,
-                    2148565008, 2148794385, 2148827156, 2148433925, 2148433926,
-                    2148532231, 2150760464, 2148794385, 2150793234, 2148827156,
-                    2150826021, 2150924326, 2148433925, 2148433926, 2148532231,
-                    2154528784, 2148794385, 2148827156, 2152497173, 2148106252,
-                    2148302872, 2148335655, 2148237352, 2148270121, 2151448577,
-                    2151514114, 2151546885, 2151579654, 2151841799, 2151874569,
-                    2152366105, 2152431642, 2148433925, 2148433926, 2148532231,
-                    2152235024, 2148794385, 2148827156, 2152202248, 2152103953,
-                    2148433925, 2148433926, 2148532231, 2151612426, 2151710731,
-                    2151776272, 2148794385, 2148827156, 2148433925, 2148433926,
-                    2148532231, 2148630544, 2148794385, 2148827156, 2148433925,
-                    2148433926, 2148532231, 2148696080, 2148794385, 2148827156,
+                    2154659840, 2154725377, 2151579650, 2151612421, 2148433926,
+                    2151907335, 2151940105, 2154758154, 2151841808, 2148794385,
+                    2148827157, 2152431642, 2152497179, 2148433925, 2148433926,
+                    2148532231, 2152693776, 2148794385, 2148827157, 2148433925,
+                    2148433926, 2148532231, 2152661008, 2148794385, 2148827157,
+                    2148433925, 2148433926, 2148532231, 2152628240, 2148794385,
+                    2148827157, 2148433925, 2148433926, 2148532231, 2152595472,
+                    2148794385, 2148827157, 2148433925, 2148433926, 2148532231,
+                    2148565008, 2148794385, 2148827157, 2148433925, 2148433926,
+                    2148532231, 2150760464, 2148794385, 2150793234, 2150858771,
+                    2151022612, 2148827157, 2148433925, 2148433926, 2148532231,
+                    2154594320, 2148794385, 2148827157, 2152562710, 2148106252,
+                    2148302873, 2148335654, 2148237351, 2148270120, 2151514113,
+                    2151579650, 2151612421, 2151645190, 2151907335, 2151940105,
+                    2152431642, 2152497179, 2148433925, 2148433926, 2148532231,
+                    2152300560, 2148794385, 2148827157, 2152267784, 2152169489,
+                    2148433925, 2148433926, 2148532231, 2151677962, 2151776267,
+                    2151841808, 2148794385, 2148827157, 2148433925, 2148433926,
+                    2148532231, 2148630544, 2148794385, 2148827157, 2148433925,
+                    2148433926, 2148532231, 2148696080, 2148794385, 2148827157,
                     2148433925, 2148433926, 2148532231, 2148761616, 2148794385,
-                    2148827156, 2148433925, 2148433926, 2148532231, 2148892688,
-                    2148794385, 2148827156, 2148433925, 2148433926, 2148532231,
-                    2148958224, 2148794385, 2148827156, 2148433925, 2148433926,
-                    2148532231, 2149023760, 2148794385, 2148827156, 2148433925,
-                    2148433926, 2148532231, 2149089296, 2148794385, 2148827156,
+                    2148827157, 2148433925, 2148433926, 2148532231, 2148892688,
+                    2148794385, 2148827157, 2148433925, 2148433926, 2148532231,
+                    2148958224, 2148794385, 2148827157, 2148433925, 2148433926,
+                    2148532231, 2149023760, 2148794385, 2148827157, 2148433925,
+                    2148433926, 2148532231, 2149089296, 2148794385, 2148827157,
                     2148433925, 2148433926, 2148532231, 2149154832, 2148794385,
-                    2148827156, 2148433925, 2148433926, 2148532231, 2149220368,
-                    2148794385, 2148827156, 2148433925, 2148433926, 2148532231,
-                    2149285904, 2148794385, 2148827156, 2148433925, 2148433926,
-                    2148532231, 2149351440, 2148794385, 2148827156, 2148433925,
-                    2148433926, 2148532231, 2149416976, 2148794385, 2148827156,
+                    2148827157, 2148433925, 2148433926, 2148532231, 2149220368,
+                    2148794385, 2148827157, 2148433925, 2148433926, 2148532231,
+                    2149285904, 2148794385, 2148827157, 2148433925, 2148433926,
+                    2148532231, 2149351440, 2148794385, 2148827157, 2148433925,
+                    2148433926, 2148532231, 2149416976, 2148794385, 2148827157,
                     2148433925, 2148433926, 2148532231, 2149482512, 2148794385,
-                    2148827156, 2148433925, 2148433926, 2148532231, 2149548048,
-                    2148794385, 2148827156, 2148433925, 2148433926, 2148532231,
-                    2149613584, 2148794385, 2148827156, 2148433925, 2148433926,
-                    2148532231, 2149679120, 2148794385, 2148827156, 2148433925,
-                    2148433926, 2148532231, 2149744656, 2148794385, 2148827156,
+                    2148827157, 2148433925, 2148433926, 2148532231, 2149548048,
+                    2148794385, 2148827157, 2148433925, 2148433926, 2148532231,
+                    2149613584, 2148794385, 2148827157, 2148433925, 2148433926,
+                    2148532231, 2149679120, 2148794385, 2148827157, 2148433925,
+                    2148433926, 2148532231, 2149744656, 2148794385, 2148827157,
                     2148433925, 2148433926, 2148532231, 2149810192, 2148794385,
-                    2148827156, 2148433925, 2148433926, 2148532231, 2149875728,
-                    2148794385, 2148827156, 2148433925, 2148433926, 2148532231,
-                    2149974032, 2148794385, 2148827156, 2148433925, 2148433926,
-                    2148532231, 2150039568, 2148794385, 2148827156, 2148433925,
-                    2148433926, 2148532231, 2154397712, 2148794385, 2148827156,
-                    2152955905, 2151514114, 2151546885, 2151579654, 2151841799,
-                    2151874569, 2152366105, 2152431642, 2153349132, 2148433925,
-                    2148433926, 2148532231, 2153021456, 2148794385, 2148827156,
-                    2150465558, 2150629399, 2153578517, 2148433925, 2148433926,
-                    2148532231, 2153611280, 2148794385, 2148827156, 2150858771,
-                    2148433925, 2148433926, 2148532231, 2150760464, 2148794385,
-                    2150891538, 2148827156, 2151284749, 2151317518, 2151153679,
-                    2151251989, 2153775138, 2153807907, 2148433925, 2148433926,
-                    2148532231, 2153676810, 2151776272, 2148794385, 2148827156,
-                    2153840641, 2151514114, 2151546885, 2151579654, 2151841799,
-                    2151874569, 2152366105, 2152431642, 2148433925, 2148433926,
-                    2148532231, 2152824848, 2148794385, 2148827156, 2152202248,
-                    2152103953, 2148433925, 2148433926, 2148532231, 2151677968,
-                    2148794385, 2148827156, 2148433925, 2148433926, 2148532231,
-                    2151940112, 2148794385, 2148827156, 2148433925, 2148433926,
-                    2148532231, 2152267786, 2151776272, 2148794385, 2148827156,
-                    2152071176, 2152103953, 2152333317, 2151579654, 2148532231,
-                    2152398850, 2151546885, 2151579654, 2151841799, 2151874569,
-                    2152759300, 2152792091, 2148433925, 2148433926, 2148532231,
-                    2151612426, 2152661003, 2151776272, 2148794385, 2148827156,
-                    2152726564, 2152890369, 2151514114, 2151546885, 2151579654,
-                    2151841799, 2151874569, 2152366105, 2152431642, 2148433925,
-                    2148433926, 2148532231, 2153086992, 2148794385, 2148827156,
-                    2153185312, 2153218081, 2148433925, 2148433926, 2148532231,
-                    2153152528, 2148794385, 2148827156, 2153283585, 2151514114,
-                    2151546885, 2151579654, 2151841799, 2151874569, 2152366105,
-                    2152431642, 2148433925, 2148433926, 2148532231, 2153447434,
-                    2151776272, 2148794385, 2148827156, 2153512961, 2151514114,
-                    2151546885, 2151579654, 2151841799, 2151874569, 2152366105,
-                    2152431642, 2153938945, 2151514114, 2151546885, 2151579654,
-                    2151841799, 2151874569, 2152366105, 2152431642, 2153742349,
-                    2148433925, 2148433926, 2148532231, 2153906192, 2148794385,
-                    2148827156, 2154102787, 2154135580, 2154201117, 2148433925,
-                    2148433926, 2148532231, 2154004496, 2148794385, 2148827156,
-                    2154070017, 2151514114, 2151546885, 2151579654, 2151841799,
-                    2151874569, 2152366105, 2152431642, 2154168323, 2154299422,
-                    2154332191, 2154266625, 2151514114, 2151546885, 2151579654,
-                    2151841799, 2151874569, 2152366105, 2152431642, 2148433925,
-                    2148433926, 2148532231, 2154496016, 2148794385, 2148827156,
-                    2152497173, 2150465558, 2150629399,
+                    2148827157, 2148433925, 2148433926, 2148532231, 2149875728,
+                    2148794385, 2148827157, 2148433925, 2148433926, 2148532231,
+                    2149974032, 2148794385, 2148827157, 2148433925, 2148433926,
+                    2148532231, 2150039568, 2148794385, 2148827157, 2148433925,
+                    2148433926, 2148532231, 2154463248, 2148794385, 2148827157,
+                    2153021441, 2151579650, 2151612421, 2151645190, 2151907335,
+                    2151940105, 2152431642, 2152497179, 2153414668, 2148433925,
+                    2148433926, 2148532231, 2153086992, 2148794385, 2148827157,
+                    2150465559, 2150629400, 2153644054, 2148433925, 2148433926,
+                    2148532231, 2153676816, 2148794385, 2148827157, 2148433925,
+                    2148433926, 2148532231, 2150760464, 2148794385, 2150924308,
+                    2148827157, 2148433925, 2148433926, 2148532231, 2150760464,
+                    2148794385, 2150989844, 2148827157, 2151350285, 2151383054,
+                    2151219215, 2151317526, 2153840675, 2153873444, 2148433925,
+                    2148433926, 2148532231, 2153742346, 2151841808, 2148794385,
+                    2148827157, 2153906177, 2151579650, 2151612421, 2151645190,
+                    2151907335, 2151940105, 2152431642, 2152497179, 2148433925,
+                    2148433926, 2148532231, 2152890384, 2148794385, 2148827157,
+                    2152267784, 2152169489, 2148433925, 2148433926, 2148532231,
+                    2151743504, 2148794385, 2148827157, 2148433925, 2148433926,
+                    2148532231, 2152005648, 2148794385, 2148827157, 2148433925,
+                    2148433926, 2148532231, 2152333322, 2151841808, 2148794385,
+                    2148827157, 2152136712, 2152169489, 2152398853, 2151645190,
+                    2148532231, 2152464386, 2151612421, 2151645190, 2151907335,
+                    2151940105, 2152824836, 2152857628, 2148433925, 2148433926,
+                    2148532231, 2151677962, 2152726539, 2151841808, 2148794385,
+                    2148827157, 2152792101, 2152955905, 2151579650, 2151612421,
+                    2151645190, 2151907335, 2151940105, 2152431642, 2152497179,
+                    2148433925, 2148433926, 2148532231, 2153152528, 2148794385,
+                    2148827157, 2153250849, 2153283618, 2148433925, 2148433926,
+                    2148532231, 2153218064, 2148794385, 2148827157, 2153349121,
+                    2151579650, 2151612421, 2151645190, 2151907335, 2151940105,
+                    2152431642, 2152497179, 2148433925, 2148433926, 2148532231,
+                    2153512970, 2151841808, 2148794385, 2148827157, 2153578497,
+                    2151579650, 2151612421, 2151645190, 2151907335, 2151940105,
+                    2152431642, 2152497179, 2154004481, 2151579650, 2151612421,
+                    2151645190, 2151907335, 2151940105, 2152431642, 2152497179,
+                    2153807885, 2148433925, 2148433926, 2148532231, 2153971728,
+                    2148794385, 2148827157, 2154168323, 2154201117, 2154266654,
+                    2148433925, 2148433926, 2148532231, 2154070032, 2148794385,
+                    2148827157, 2154135553, 2151579650, 2151612421, 2151645190,
+                    2151907335, 2151940105, 2152431642, 2152497179, 2154233859,
+                    2154364959, 2154397728, 2154332161, 2151579650, 2151612421,
+                    2151645190, 2151907335, 2151940105, 2152431642, 2152497179,
+                    2148433925, 2148433926, 2148532231, 2154561552, 2148794385,
+                    2148827157, 2152562710, 2150465559, 2150629400,
                 ];
                 static SHIFT_NONTERM_OFFSETS: &[u32] = &[
                     0, 13, 13, 13, 13, 13, 13, 19, 25, 31, 37, 43, 52, 52, 58, 58, 59,
@@ -7501,19 +7652,19 @@ impl ::rusty_lr::parser::Parser for ChunkOrExpressionsParser {
                     124, 130, 130, 136, 136, 142, 142, 148, 148, 154, 154, 160, 160, 166,
                     166, 172, 172, 178, 178, 184, 184, 190, 190, 196, 196, 202, 202, 202,
                     208, 208, 214, 214, 220, 220, 220, 220, 220, 220, 228, 229, 229, 235,
-                    237, 237, 237, 237, 237, 237, 237, 238, 238, 238, 244, 244, 244, 245,
-                    252, 252, 252, 252, 254, 255, 255, 255, 255, 255, 255, 256, 256, 256,
-                    258, 265, 273, 279, 279, 279, 279, 279, 281, 281, 287, 287, 287, 287,
-                    287, 293, 293, 293, 300, 300, 300, 300, 302, 302, 302, 302, 302, 302,
-                    302, 302, 305, 305, 310, 310, 312, 320, 320, 320, 320, 320, 320, 321,
-                    321, 321, 321, 321, 321, 329, 329, 329, 329, 329, 329, 335, 337, 343,
-                    343, 343, 343, 351, 351, 351, 351, 351, 358, 358, 366, 366, 366, 366,
-                    366, 374, 374, 375, 375, 375, 375, 375, 381, 381, 384, 390, 390, 398,
-                    398, 398, 399, 399, 401, 409, 409, 409, 409, 409, 409, 409, 415, 415,
-                    415, 418, 418, 418, 418, 418,
+                    237, 237, 237, 237, 237, 237, 237, 238, 238, 238, 244, 244, 244, 244,
+                    244, 251, 251, 258, 258, 258, 260, 261, 261, 261, 261, 261, 261, 262,
+                    262, 262, 264, 271, 279, 285, 285, 285, 285, 285, 287, 287, 293, 293,
+                    293, 293, 293, 299, 299, 299, 306, 306, 306, 306, 308, 308, 308, 308,
+                    308, 308, 308, 308, 311, 311, 316, 316, 318, 326, 326, 326, 326, 326,
+                    326, 327, 327, 327, 327, 327, 327, 335, 335, 335, 335, 335, 335, 341,
+                    343, 349, 349, 349, 349, 357, 357, 357, 357, 357, 364, 364, 372, 372,
+                    372, 372, 372, 380, 380, 381, 381, 381, 381, 381, 387, 387, 390, 396,
+                    396, 404, 404, 404, 405, 405, 407, 415, 415, 415, 415, 415, 415, 415,
+                    421, 421, 421, 424, 424, 424, 424, 424,
                 ];
                 static REDUCE_DATA: &[u32] = &[
-                    53, 1, 95, 59, 1, 95, 0, 1, 20, 1, 1, 20, 5, 1, 20, 6, 1, 20, 7, 1,
+                    53, 1, 100, 59, 1, 100, 0, 1, 20, 1, 1, 20, 5, 1, 20, 6, 1, 20, 7, 1,
                     20, 8, 1, 20, 9, 1, 20, 10, 1, 20, 12, 1, 20, 13, 1, 20, 14, 1, 20,
                     15, 1, 20, 16, 1, 20, 17, 1, 20, 18, 1, 20, 19, 1, 20, 20, 1, 20, 21,
                     1, 20, 22, 1, 20, 23, 1, 20, 24, 1, 20, 25, 1, 20, 26, 1, 20, 27, 1,
@@ -7549,7 +7700,7 @@ impl ::rusty_lr::parser::Parser for ChunkOrExpressionsParser {
                     47, 31, 1, 47, 32, 1, 47, 34, 1, 47, 36, 1, 47, 38, 1, 47, 39, 1, 47,
                     40, 1, 47, 41, 1, 47, 42, 1, 47, 43, 1, 47, 44, 1, 47, 45, 1, 47, 46,
                     1, 47, 47, 1, 47, 49, 1, 47, 51, 1, 47, 52, 1, 47, 53, 1, 47, 54, 1,
-                    47, 55, 1, 47, 56, 1, 47, 59, 1, 47, 28, 1, 116, 1, 1, 20, 5, 1, 20,
+                    47, 55, 1, 47, 56, 1, 47, 59, 1, 47, 28, 1, 82, 1, 1, 20, 5, 1, 20,
                     6, 1, 20, 7, 1, 20, 8, 1, 20, 9, 1, 20, 10, 1, 20, 12, 1, 20, 13, 1,
                     20, 14, 1, 20, 15, 1, 20, 16, 1, 20, 17, 1, 20, 18, 1, 20, 19, 1, 20,
                     20, 1, 20, 21, 1, 20, 22, 1, 20, 23, 1, 20, 25, 1, 20, 27, 1, 20, 28,
@@ -7561,81 +7712,81 @@ impl ::rusty_lr::parser::Parser for ChunkOrExpressionsParser {
                     1, 48, 32, 1, 48, 34, 1, 48, 36, 1, 48, 38, 1, 48, 39, 1, 48, 40, 1,
                     48, 41, 1, 48, 42, 1, 48, 43, 1, 48, 44, 1, 48, 45, 1, 48, 46, 1, 48,
                     47, 1, 48, 49, 1, 48, 51, 1, 48, 52, 1, 48, 53, 1, 48, 54, 1, 48, 55,
-                    1, 48, 56, 1, 48, 59, 1, 48, 26, 1, 118, 26, 1, 38, 34, 1, 38, 26, 1,
-                    91, 26, 1, 121, 26, 1, 37, 34, 1, 37, 48, 1, 37, 26, 1, 119, 26, 1,
-                    120, 26, 1, 90, 26, 1, 117, 43, 1, 95, 53, 1, 95, 0, 1, 50, 5, 1, 50,
-                    6, 1, 50, 7, 1, 50, 8, 1, 50, 9, 1, 50, 10, 1, 50, 12, 1, 50, 13, 1,
-                    50, 14, 1, 50, 15, 1, 50, 16, 1, 50, 17, 1, 50, 18, 1, 50, 19, 1, 50,
-                    20, 1, 50, 21, 1, 50, 22, 1, 50, 23, 1, 50, 25, 1, 50, 26, 1, 50, 28,
-                    1, 50, 30, 1, 50, 31, 1, 50, 32, 1, 50, 34, 1, 50, 36, 1, 50, 38, 1,
-                    50, 39, 1, 50, 40, 1, 50, 41, 1, 50, 42, 1, 50, 43, 1, 50, 44, 1, 50,
-                    45, 1, 50, 46, 1, 50, 47, 1, 50, 49, 1, 50, 51, 1, 50, 52, 1, 50, 53,
-                    1, 50, 54, 1, 50, 55, 1, 50, 56, 1, 50, 59, 1, 50, 0, 1, 30, 1, 1,
-                    30, 5, 1, 30, 6, 1, 30, 7, 1, 30, 8, 1, 30, 9, 1, 30, 10, 1, 30, 12,
-                    1, 30, 13, 1, 30, 14, 1, 30, 15, 1, 30, 16, 1, 30, 17, 1, 30, 18, 1,
-                    30, 19, 1, 30, 20, 1, 30, 21, 1, 30, 22, 1, 30, 23, 1, 30, 25, 1, 30,
-                    26, 1, 30, 27, 1, 30, 28, 1, 30, 29, 1, 30, 30, 1, 30, 31, 1, 30, 32,
-                    1, 30, 33, 1, 30, 34, 1, 30, 35, 1, 30, 36, 1, 30, 38, 1, 30, 39, 1,
-                    30, 40, 1, 30, 41, 1, 30, 42, 1, 30, 43, 1, 30, 44, 1, 30, 45, 1, 30,
-                    46, 1, 30, 47, 1, 30, 49, 1, 30, 51, 1, 30, 52, 1, 30, 53, 1, 30, 54,
-                    1, 30, 55, 1, 30, 56, 1, 30, 59, 1, 30, 26, 1, 36, 0, 1, 24, 1, 1,
-                    24, 5, 1, 24, 6, 1, 24, 7, 1, 24, 8, 1, 24, 9, 1, 24, 10, 1, 24, 12,
-                    1, 24, 13, 1, 24, 14, 1, 24, 15, 1, 24, 16, 1, 24, 17, 1, 24, 18, 1,
-                    24, 19, 1, 24, 20, 1, 24, 21, 1, 24, 22, 1, 24, 23, 1, 24, 25, 1, 24,
-                    26, 1, 24, 27, 1, 24, 28, 1, 24, 29, 1, 24, 30, 1, 24, 31, 1, 24, 32,
-                    1, 24, 33, 1, 24, 34, 1, 24, 35, 1, 24, 36, 1, 24, 38, 1, 24, 39, 1,
-                    24, 40, 1, 24, 41, 1, 24, 42, 1, 24, 43, 1, 24, 44, 1, 24, 45, 1, 24,
-                    46, 1, 24, 47, 1, 24, 49, 1, 24, 51, 1, 24, 52, 1, 24, 53, 1, 24, 54,
-                    1, 24, 55, 1, 24, 56, 1, 24, 59, 1, 24, 0, 1, 61, 5, 1, 61, 6, 1, 61,
-                    12, 1, 61, 13, 1, 61, 14, 1, 61, 15, 1, 61, 16, 1, 61, 18, 1, 61, 19,
-                    1, 61, 20, 1, 61, 21, 1, 61, 22, 1, 61, 23, 1, 61, 25, 1, 61, 26, 1,
-                    61, 28, 1, 61, 30, 1, 61, 31, 1, 61, 32, 1, 61, 34, 1, 61, 36, 1, 61,
-                    38, 1, 61, 39, 1, 61, 40, 1, 61, 41, 1, 61, 42, 1, 61, 43, 1, 61, 44,
-                    1, 61, 45, 1, 61, 46, 1, 61, 47, 1, 61, 49, 1, 61, 51, 1, 61, 52, 1,
-                    61, 53, 1, 61, 54, 1, 61, 55, 1, 61, 56, 1, 61, 59, 1, 61, 0, 1, 57,
-                    5, 1, 57, 6, 1, 57, 7, 1, 57, 8, 1, 57, 9, 1, 57, 12, 1, 57, 13, 1,
-                    57, 14, 1, 57, 15, 1, 57, 16, 1, 57, 17, 1, 57, 18, 1, 57, 19, 1, 57,
-                    20, 1, 57, 21, 1, 57, 22, 1, 57, 23, 1, 57, 25, 1, 57, 26, 1, 57, 28,
-                    1, 57, 30, 1, 57, 31, 1, 57, 32, 1, 57, 34, 1, 57, 36, 1, 57, 38, 1,
-                    57, 39, 1, 57, 40, 1, 57, 41, 1, 57, 42, 1, 57, 43, 1, 57, 44, 1, 57,
-                    45, 1, 57, 46, 1, 57, 47, 1, 57, 49, 1, 57, 51, 1, 57, 52, 1, 57, 53,
-                    1, 57, 54, 1, 57, 55, 1, 57, 56, 1, 57, 59, 1, 57, 0, 1, 77, 5, 1,
-                    77, 6, 1, 77, 7, 1, 77, 8, 1, 77, 9, 1, 77, 12, 1, 77, 13, 1, 77, 14,
-                    1, 77, 15, 1, 77, 16, 1, 77, 17, 1, 77, 18, 1, 77, 19, 1, 77, 20, 1,
-                    77, 21, 1, 77, 22, 1, 77, 23, 1, 77, 25, 1, 77, 26, 1, 77, 28, 1, 77,
-                    30, 1, 77, 31, 1, 77, 32, 1, 77, 34, 1, 77, 36, 1, 77, 38, 1, 77, 39,
-                    1, 77, 40, 1, 77, 41, 1, 77, 42, 1, 77, 43, 1, 77, 44, 1, 77, 45, 1,
-                    77, 46, 1, 77, 47, 1, 77, 49, 1, 77, 51, 1, 77, 52, 1, 77, 53, 1, 77,
-                    54, 1, 77, 55, 1, 77, 56, 1, 77, 59, 1, 77, 0, 1, 51, 5, 1, 51, 6, 1,
-                    51, 7, 1, 51, 8, 1, 51, 9, 1, 51, 10, 1, 51, 12, 1, 51, 13, 1, 51,
-                    14, 1, 51, 15, 1, 51, 16, 1, 51, 17, 1, 51, 18, 1, 51, 19, 1, 51, 20,
-                    1, 51, 21, 1, 51, 22, 1, 51, 23, 1, 51, 25, 1, 51, 26, 1, 51, 28, 1,
-                    51, 30, 1, 51, 31, 1, 51, 32, 1, 51, 34, 1, 51, 36, 1, 51, 38, 1, 51,
-                    39, 1, 51, 40, 1, 51, 41, 1, 51, 42, 1, 51, 43, 1, 51, 44, 1, 51, 45,
-                    1, 51, 46, 1, 51, 47, 1, 51, 49, 1, 51, 51, 1, 51, 52, 1, 51, 53, 1,
-                    51, 54, 1, 51, 55, 1, 51, 56, 1, 51, 59, 1, 51, 0, 1, 49, 5, 1, 49,
-                    6, 1, 49, 7, 1, 49, 8, 1, 49, 9, 1, 49, 10, 1, 49, 12, 1, 49, 13, 1,
-                    49, 14, 1, 49, 15, 1, 49, 16, 1, 49, 17, 1, 49, 18, 1, 49, 19, 1, 49,
-                    20, 1, 49, 21, 1, 49, 22, 1, 49, 23, 1, 49, 25, 1, 49, 26, 1, 49, 28,
-                    1, 49, 30, 1, 49, 31, 1, 49, 32, 1, 49, 34, 1, 49, 36, 1, 49, 38, 1,
-                    49, 39, 1, 49, 40, 1, 49, 41, 1, 49, 42, 1, 49, 43, 1, 49, 44, 1, 49,
-                    45, 1, 49, 46, 1, 49, 47, 1, 49, 49, 1, 49, 51, 1, 49, 52, 1, 49, 53,
-                    1, 49, 54, 1, 49, 55, 1, 49, 56, 1, 49, 59, 1, 49, 0, 1, 58, 5, 1,
-                    58, 6, 1, 58, 7, 1, 58, 8, 1, 58, 9, 1, 58, 12, 1, 58, 13, 1, 58, 14,
-                    1, 58, 15, 1, 58, 16, 1, 58, 17, 1, 58, 18, 1, 58, 19, 1, 58, 20, 1,
-                    58, 21, 1, 58, 22, 1, 58, 23, 1, 58, 25, 1, 58, 26, 1, 58, 28, 1, 58,
-                    30, 1, 58, 31, 1, 58, 32, 1, 58, 34, 1, 58, 36, 1, 58, 38, 1, 58, 39,
-                    1, 58, 40, 1, 58, 41, 1, 58, 42, 1, 58, 43, 1, 58, 44, 1, 58, 45, 1,
-                    58, 46, 1, 58, 47, 1, 58, 49, 1, 58, 51, 1, 58, 52, 1, 58, 53, 1, 58,
-                    54, 1, 58, 55, 1, 58, 56, 1, 58, 59, 1, 58, 0, 1, 60, 5, 1, 60, 6, 1,
-                    60, 7, 1, 60, 8, 1, 60, 9, 1, 60, 12, 1, 60, 13, 1, 60, 14, 1, 60,
-                    15, 1, 60, 16, 1, 60, 17, 1, 60, 18, 1, 60, 19, 1, 60, 20, 1, 60, 21,
-                    1, 60, 22, 1, 60, 23, 1, 60, 25, 1, 60, 26, 1, 60, 28, 1, 60, 30, 1,
-                    60, 31, 1, 60, 32, 1, 60, 34, 1, 60, 36, 1, 60, 38, 1, 60, 39, 1, 60,
-                    40, 1, 60, 41, 1, 60, 42, 1, 60, 43, 1, 60, 44, 1, 60, 45, 1, 60, 46,
-                    1, 60, 47, 1, 60, 49, 1, 60, 51, 1, 60, 52, 1, 60, 53, 1, 60, 54, 1,
-                    60, 55, 1, 60, 56, 1, 60, 59, 1, 60, 0, 1, 59, 5, 1, 59, 6, 1, 59, 7,
-                    1, 59, 8, 1, 59, 9, 1, 59, 12, 1, 59, 13, 1, 59, 14, 1, 59, 15, 1,
+                    1, 48, 56, 1, 48, 59, 1, 48, 26, 1, 119, 26, 1, 38, 34, 1, 38, 26, 1,
+                    96, 26, 1, 122, 26, 1, 37, 34, 1, 37, 48, 1, 37, 26, 1, 120, 26, 1,
+                    121, 26, 1, 95, 26, 1, 118, 43, 1, 100, 53, 1, 100, 0, 1, 50, 5, 1,
+                    50, 6, 1, 50, 7, 1, 50, 8, 1, 50, 9, 1, 50, 10, 1, 50, 12, 1, 50, 13,
+                    1, 50, 14, 1, 50, 15, 1, 50, 16, 1, 50, 17, 1, 50, 18, 1, 50, 19, 1,
+                    50, 20, 1, 50, 21, 1, 50, 22, 1, 50, 23, 1, 50, 25, 1, 50, 26, 1, 50,
+                    28, 1, 50, 30, 1, 50, 31, 1, 50, 32, 1, 50, 34, 1, 50, 36, 1, 50, 38,
+                    1, 50, 39, 1, 50, 40, 1, 50, 41, 1, 50, 42, 1, 50, 43, 1, 50, 44, 1,
+                    50, 45, 1, 50, 46, 1, 50, 47, 1, 50, 49, 1, 50, 51, 1, 50, 52, 1, 50,
+                    53, 1, 50, 54, 1, 50, 55, 1, 50, 56, 1, 50, 59, 1, 50, 0, 1, 30, 1,
+                    1, 30, 5, 1, 30, 6, 1, 30, 7, 1, 30, 8, 1, 30, 9, 1, 30, 10, 1, 30,
+                    12, 1, 30, 13, 1, 30, 14, 1, 30, 15, 1, 30, 16, 1, 30, 17, 1, 30, 18,
+                    1, 30, 19, 1, 30, 20, 1, 30, 21, 1, 30, 22, 1, 30, 23, 1, 30, 25, 1,
+                    30, 26, 1, 30, 27, 1, 30, 28, 1, 30, 29, 1, 30, 30, 1, 30, 31, 1, 30,
+                    32, 1, 30, 33, 1, 30, 34, 1, 30, 35, 1, 30, 36, 1, 30, 38, 1, 30, 39,
+                    1, 30, 40, 1, 30, 41, 1, 30, 42, 1, 30, 43, 1, 30, 44, 1, 30, 45, 1,
+                    30, 46, 1, 30, 47, 1, 30, 49, 1, 30, 51, 1, 30, 52, 1, 30, 53, 1, 30,
+                    54, 1, 30, 55, 1, 30, 56, 1, 30, 59, 1, 30, 26, 1, 36, 0, 1, 24, 1,
+                    1, 24, 5, 1, 24, 6, 1, 24, 7, 1, 24, 8, 1, 24, 9, 1, 24, 10, 1, 24,
+                    12, 1, 24, 13, 1, 24, 14, 1, 24, 15, 1, 24, 16, 1, 24, 17, 1, 24, 18,
+                    1, 24, 19, 1, 24, 20, 1, 24, 21, 1, 24, 22, 1, 24, 23, 1, 24, 25, 1,
+                    24, 26, 1, 24, 27, 1, 24, 28, 1, 24, 29, 1, 24, 30, 1, 24, 31, 1, 24,
+                    32, 1, 24, 33, 1, 24, 34, 1, 24, 35, 1, 24, 36, 1, 24, 38, 1, 24, 39,
+                    1, 24, 40, 1, 24, 41, 1, 24, 42, 1, 24, 43, 1, 24, 44, 1, 24, 45, 1,
+                    24, 46, 1, 24, 47, 1, 24, 49, 1, 24, 51, 1, 24, 52, 1, 24, 53, 1, 24,
+                    54, 1, 24, 55, 1, 24, 56, 1, 24, 59, 1, 24, 0, 1, 61, 5, 1, 61, 6, 1,
+                    61, 12, 1, 61, 13, 1, 61, 14, 1, 61, 15, 1, 61, 16, 1, 61, 18, 1, 61,
+                    19, 1, 61, 20, 1, 61, 21, 1, 61, 22, 1, 61, 23, 1, 61, 25, 1, 61, 26,
+                    1, 61, 28, 1, 61, 30, 1, 61, 31, 1, 61, 32, 1, 61, 34, 1, 61, 36, 1,
+                    61, 38, 1, 61, 39, 1, 61, 40, 1, 61, 41, 1, 61, 42, 1, 61, 43, 1, 61,
+                    44, 1, 61, 45, 1, 61, 46, 1, 61, 47, 1, 61, 49, 1, 61, 51, 1, 61, 52,
+                    1, 61, 53, 1, 61, 54, 1, 61, 55, 1, 61, 56, 1, 61, 59, 1, 61, 0, 1,
+                    57, 5, 1, 57, 6, 1, 57, 7, 1, 57, 8, 1, 57, 9, 1, 57, 12, 1, 57, 13,
+                    1, 57, 14, 1, 57, 15, 1, 57, 16, 1, 57, 17, 1, 57, 18, 1, 57, 19, 1,
+                    57, 20, 1, 57, 21, 1, 57, 22, 1, 57, 23, 1, 57, 25, 1, 57, 26, 1, 57,
+                    28, 1, 57, 30, 1, 57, 31, 1, 57, 32, 1, 57, 34, 1, 57, 36, 1, 57, 38,
+                    1, 57, 39, 1, 57, 40, 1, 57, 41, 1, 57, 42, 1, 57, 43, 1, 57, 44, 1,
+                    57, 45, 1, 57, 46, 1, 57, 47, 1, 57, 49, 1, 57, 51, 1, 57, 52, 1, 57,
+                    53, 1, 57, 54, 1, 57, 55, 1, 57, 56, 1, 57, 59, 1, 57, 0, 1, 77, 5,
+                    1, 77, 6, 1, 77, 7, 1, 77, 8, 1, 77, 9, 1, 77, 12, 1, 77, 13, 1, 77,
+                    14, 1, 77, 15, 1, 77, 16, 1, 77, 17, 1, 77, 18, 1, 77, 19, 1, 77, 20,
+                    1, 77, 21, 1, 77, 22, 1, 77, 23, 1, 77, 25, 1, 77, 26, 1, 77, 28, 1,
+                    77, 30, 1, 77, 31, 1, 77, 32, 1, 77, 34, 1, 77, 36, 1, 77, 38, 1, 77,
+                    39, 1, 77, 40, 1, 77, 41, 1, 77, 42, 1, 77, 43, 1, 77, 44, 1, 77, 45,
+                    1, 77, 46, 1, 77, 47, 1, 77, 49, 1, 77, 51, 1, 77, 52, 1, 77, 53, 1,
+                    77, 54, 1, 77, 55, 1, 77, 56, 1, 77, 59, 1, 77, 0, 1, 51, 5, 1, 51,
+                    6, 1, 51, 7, 1, 51, 8, 1, 51, 9, 1, 51, 10, 1, 51, 12, 1, 51, 13, 1,
+                    51, 14, 1, 51, 15, 1, 51, 16, 1, 51, 17, 1, 51, 18, 1, 51, 19, 1, 51,
+                    20, 1, 51, 21, 1, 51, 22, 1, 51, 23, 1, 51, 25, 1, 51, 26, 1, 51, 28,
+                    1, 51, 30, 1, 51, 31, 1, 51, 32, 1, 51, 34, 1, 51, 36, 1, 51, 38, 1,
+                    51, 39, 1, 51, 40, 1, 51, 41, 1, 51, 42, 1, 51, 43, 1, 51, 44, 1, 51,
+                    45, 1, 51, 46, 1, 51, 47, 1, 51, 49, 1, 51, 51, 1, 51, 52, 1, 51, 53,
+                    1, 51, 54, 1, 51, 55, 1, 51, 56, 1, 51, 59, 1, 51, 0, 1, 49, 5, 1,
+                    49, 6, 1, 49, 7, 1, 49, 8, 1, 49, 9, 1, 49, 10, 1, 49, 12, 1, 49, 13,
+                    1, 49, 14, 1, 49, 15, 1, 49, 16, 1, 49, 17, 1, 49, 18, 1, 49, 19, 1,
+                    49, 20, 1, 49, 21, 1, 49, 22, 1, 49, 23, 1, 49, 25, 1, 49, 26, 1, 49,
+                    28, 1, 49, 30, 1, 49, 31, 1, 49, 32, 1, 49, 34, 1, 49, 36, 1, 49, 38,
+                    1, 49, 39, 1, 49, 40, 1, 49, 41, 1, 49, 42, 1, 49, 43, 1, 49, 44, 1,
+                    49, 45, 1, 49, 46, 1, 49, 47, 1, 49, 49, 1, 49, 51, 1, 49, 52, 1, 49,
+                    53, 1, 49, 54, 1, 49, 55, 1, 49, 56, 1, 49, 59, 1, 49, 0, 1, 58, 5,
+                    1, 58, 6, 1, 58, 7, 1, 58, 8, 1, 58, 9, 1, 58, 12, 1, 58, 13, 1, 58,
+                    14, 1, 58, 15, 1, 58, 16, 1, 58, 17, 1, 58, 18, 1, 58, 19, 1, 58, 20,
+                    1, 58, 21, 1, 58, 22, 1, 58, 23, 1, 58, 25, 1, 58, 26, 1, 58, 28, 1,
+                    58, 30, 1, 58, 31, 1, 58, 32, 1, 58, 34, 1, 58, 36, 1, 58, 38, 1, 58,
+                    39, 1, 58, 40, 1, 58, 41, 1, 58, 42, 1, 58, 43, 1, 58, 44, 1, 58, 45,
+                    1, 58, 46, 1, 58, 47, 1, 58, 49, 1, 58, 51, 1, 58, 52, 1, 58, 53, 1,
+                    58, 54, 1, 58, 55, 1, 58, 56, 1, 58, 59, 1, 58, 0, 1, 60, 5, 1, 60,
+                    6, 1, 60, 7, 1, 60, 8, 1, 60, 9, 1, 60, 12, 1, 60, 13, 1, 60, 14, 1,
+                    60, 15, 1, 60, 16, 1, 60, 17, 1, 60, 18, 1, 60, 19, 1, 60, 20, 1, 60,
+                    21, 1, 60, 22, 1, 60, 23, 1, 60, 25, 1, 60, 26, 1, 60, 28, 1, 60, 30,
+                    1, 60, 31, 1, 60, 32, 1, 60, 34, 1, 60, 36, 1, 60, 38, 1, 60, 39, 1,
+                    60, 40, 1, 60, 41, 1, 60, 42, 1, 60, 43, 1, 60, 44, 1, 60, 45, 1, 60,
+                    46, 1, 60, 47, 1, 60, 49, 1, 60, 51, 1, 60, 52, 1, 60, 53, 1, 60, 54,
+                    1, 60, 55, 1, 60, 56, 1, 60, 59, 1, 60, 0, 1, 59, 5, 1, 59, 6, 1, 59,
+                    7, 1, 59, 8, 1, 59, 9, 1, 59, 12, 1, 59, 13, 1, 59, 14, 1, 59, 15, 1,
                     59, 16, 1, 59, 17, 1, 59, 18, 1, 59, 19, 1, 59, 20, 1, 59, 21, 1, 59,
                     22, 1, 59, 23, 1, 59, 25, 1, 59, 26, 1, 59, 28, 1, 59, 30, 1, 59, 31,
                     1, 59, 32, 1, 59, 34, 1, 59, 36, 1, 59, 38, 1, 59, 39, 1, 59, 40, 1,
@@ -7735,215 +7886,216 @@ impl ::rusty_lr::parser::Parser for ChunkOrExpressionsParser {
                     3, 49, 1, 3, 52, 1, 3, 53, 1, 3, 55, 1, 3, 56, 1, 3, 59, 1, 3, 0, 1,
                     7, 25, 1, 7, 31, 1, 7, 32, 1, 7, 39, 1, 7, 40, 1, 7, 41, 1, 7, 42, 1,
                     7, 43, 1, 7, 44, 1, 7, 45, 1, 7, 46, 1, 7, 47, 1, 7, 49, 1, 7, 52, 1,
-                    7, 53, 1, 7, 55, 1, 7, 56, 1, 7, 59, 1, 7, 43, 1, 95, 53, 1, 95, 34,
-                    1, 38, 48, 1, 38, 25, 1, 87, 33, 1, 87, 35, 1, 87, 25, 1, 89, 25, 1,
-                    88, 25, 1, 86, 33, 1, 86, 35, 1, 86, 0, 1, 8, 25, 1, 8, 31, 1, 8, 32,
-                    1, 8, 39, 1, 8, 40, 1, 8, 41, 1, 8, 42, 1, 8, 43, 1, 8, 44, 1, 8, 45,
-                    1, 8, 46, 1, 8, 47, 1, 8, 49, 1, 8, 52, 1, 8, 53, 1, 8, 55, 1, 8, 56,
-                    1, 8, 59, 1, 8, 28, 1, 81, 32, 1, 81, 34, 1, 81, 28, 1, 113, 32, 1,
-                    113, 34, 1, 113, 28, 1, 115, 28, 1, 114, 32, 1, 114, 34, 1, 114, 0,
-                    1, 78, 1, 1, 78, 5, 1, 78, 6, 1, 78, 7, 1, 78, 8, 1, 78, 9, 1, 78,
-                    10, 1, 78, 12, 1, 78, 13, 1, 78, 14, 1, 78, 15, 1, 78, 16, 1, 78, 17,
-                    1, 78, 18, 1, 78, 19, 1, 78, 20, 1, 78, 21, 1, 78, 22, 1, 78, 23, 1,
-                    78, 25, 1, 78, 26, 1, 78, 27, 1, 78, 28, 1, 78, 29, 1, 78, 30, 1, 78,
-                    31, 1, 78, 32, 1, 78, 33, 1, 78, 34, 1, 78, 35, 1, 78, 36, 1, 78, 38,
-                    1, 78, 39, 1, 78, 40, 1, 78, 41, 1, 78, 42, 1, 78, 43, 1, 78, 44, 1,
-                    78, 45, 1, 78, 46, 1, 78, 47, 1, 78, 49, 1, 78, 51, 1, 78, 52, 1, 78,
-                    53, 1, 78, 54, 1, 78, 55, 1, 78, 56, 1, 78, 59, 1, 78, 0, 1, 43, 24,
-                    1, 43, 25, 1, 43, 31, 1, 43, 32, 1, 43, 34, 1, 43, 39, 1, 43, 40, 1,
-                    43, 41, 1, 43, 42, 1, 43, 43, 1, 43, 44, 1, 43, 45, 1, 43, 46, 1, 43,
-                    47, 1, 43, 49, 1, 43, 52, 1, 43, 53, 1, 43, 55, 1, 43, 56, 1, 43, 59,
-                    1, 43, 0, 1, 42, 24, 1, 42, 25, 1, 42, 31, 1, 42, 32, 1, 42, 34, 1,
-                    42, 39, 1, 42, 40, 1, 42, 41, 1, 42, 42, 1, 42, 43, 1, 42, 44, 1, 42,
-                    45, 1, 42, 46, 1, 42, 47, 1, 42, 49, 1, 42, 52, 1, 42, 53, 1, 42, 55,
-                    1, 42, 56, 1, 42, 59, 1, 42, 0, 1, 39, 24, 1, 39, 25, 1, 39, 31, 1,
-                    39, 32, 1, 39, 34, 1, 39, 39, 1, 39, 40, 1, 39, 41, 1, 39, 42, 1, 39,
-                    43, 1, 39, 44, 1, 39, 45, 1, 39, 46, 1, 39, 47, 1, 39, 49, 1, 39, 52,
-                    1, 39, 53, 1, 39, 55, 1, 39, 56, 1, 39, 59, 1, 39, 0, 1, 16, 25, 1,
-                    16, 31, 1, 16, 32, 1, 16, 39, 1, 16, 40, 1, 16, 41, 1, 16, 42, 1, 16,
-                    43, 1, 16, 44, 1, 16, 45, 1, 16, 46, 1, 16, 47, 1, 16, 49, 1, 16, 52,
-                    1, 16, 53, 1, 16, 55, 1, 16, 56, 1, 16, 59, 1, 16, 0, 1, 41, 24, 1,
-                    41, 25, 1, 41, 31, 1, 41, 32, 1, 41, 34, 1, 41, 39, 1, 41, 40, 1, 41,
-                    41, 1, 41, 42, 1, 41, 43, 1, 41, 44, 1, 41, 45, 1, 41, 46, 1, 41, 47,
-                    1, 41, 49, 1, 41, 52, 1, 41, 53, 1, 41, 55, 1, 41, 56, 1, 41, 59, 1,
-                    41, 0, 1, 110, 25, 1, 110, 31, 1, 110, 32, 1, 110, 39, 1, 110, 40, 1,
-                    110, 41, 1, 110, 42, 1, 110, 43, 1, 110, 44, 1, 110, 45, 1, 110, 46,
-                    1, 110, 47, 1, 110, 49, 1, 110, 52, 1, 110, 53, 1, 110, 55, 1, 110,
-                    56, 1, 110, 59, 1, 110, 53, 1, 95, 55, 1, 95, 0, 1, 85, 5, 1, 85, 6,
-                    1, 85, 7, 1, 85, 8, 1, 85, 9, 1, 85, 10, 1, 85, 12, 1, 85, 13, 1, 85,
-                    14, 1, 85, 15, 1, 85, 16, 1, 85, 17, 1, 85, 18, 1, 85, 19, 1, 85, 20,
-                    1, 85, 21, 1, 85, 22, 1, 85, 23, 1, 85, 25, 1, 85, 26, 1, 85, 28, 1,
-                    85, 30, 1, 85, 31, 1, 85, 32, 1, 85, 34, 1, 85, 36, 1, 85, 38, 1, 85,
-                    39, 1, 85, 40, 1, 85, 41, 1, 85, 42, 1, 85, 43, 1, 85, 44, 1, 85, 45,
-                    1, 85, 46, 1, 85, 47, 1, 85, 49, 1, 85, 51, 1, 85, 52, 1, 85, 53, 1,
-                    85, 54, 1, 85, 55, 1, 85, 56, 1, 85, 59, 1, 85, 0, 1, 92, 25, 1, 92,
-                    31, 1, 92, 32, 1, 92, 39, 1, 92, 40, 1, 92, 41, 1, 92, 42, 1, 92, 43,
-                    1, 92, 44, 1, 92, 45, 1, 92, 46, 1, 92, 47, 1, 92, 49, 1, 92, 52, 1,
-                    92, 53, 1, 92, 55, 1, 92, 56, 1, 92, 59, 1, 92, 1, 1, 23, 5, 1, 23,
-                    6, 1, 23, 7, 1, 23, 8, 1, 23, 9, 1, 23, 10, 1, 23, 12, 1, 23, 13, 1,
-                    23, 14, 1, 23, 15, 1, 23, 16, 1, 23, 17, 1, 23, 18, 1, 23, 19, 1, 23,
-                    20, 1, 23, 21, 1, 23, 22, 1, 23, 23, 1, 23, 24, 1, 32, 25, 1, 23, 27,
-                    1, 23, 29, 1, 23, 33, 1, 23, 34, 2, 23, 32, 35, 1, 23, 36, 1, 23, 38,
-                    1, 23, 51, 1, 23, 59, 1, 23, 26, 1, 35, 32, 1, 35, 41, 1, 35, 42, 1,
-                    35, 43, 1, 35, 55, 1, 35, 59, 1, 35, 0, 1, 33, 25, 1, 33, 26, 1, 33,
-                    31, 1, 33, 32, 1, 33, 34, 1, 33, 39, 1, 33, 40, 1, 33, 41, 1, 33, 42,
-                    1, 33, 43, 1, 33, 44, 1, 33, 45, 1, 33, 46, 1, 33, 47, 1, 33, 49, 1,
-                    33, 52, 1, 33, 53, 1, 33, 55, 1, 33, 56, 1, 33, 59, 1, 33, 0, 1, 28,
-                    1, 1, 28, 5, 1, 28, 6, 1, 28, 7, 1, 28, 8, 1, 28, 9, 1, 28, 10, 1,
-                    28, 12, 1, 28, 13, 1, 28, 14, 1, 28, 15, 1, 28, 16, 1, 28, 17, 1, 28,
-                    18, 1, 28, 19, 1, 28, 20, 1, 28, 21, 1, 28, 22, 1, 28, 23, 1, 28, 25,
-                    1, 28, 26, 1, 28, 27, 1, 28, 28, 1, 28, 29, 1, 28, 30, 1, 28, 31, 1,
-                    28, 32, 1, 28, 33, 1, 28, 34, 1, 28, 35, 1, 28, 36, 1, 28, 38, 1, 28,
-                    39, 1, 28, 40, 1, 28, 41, 1, 28, 42, 1, 28, 43, 1, 28, 44, 1, 28, 45,
-                    1, 28, 46, 1, 28, 47, 1, 28, 49, 1, 28, 51, 1, 28, 52, 1, 28, 53, 1,
-                    28, 54, 1, 28, 55, 1, 28, 56, 1, 28, 59, 1, 28, 0, 1, 34, 25, 1, 34,
-                    26, 1, 34, 31, 1, 34, 32, 1, 34, 34, 1, 34, 39, 1, 34, 40, 1, 34, 41,
-                    1, 34, 42, 1, 34, 43, 1, 34, 44, 1, 34, 45, 1, 34, 46, 1, 34, 47, 1,
-                    34, 49, 1, 34, 52, 1, 34, 53, 1, 34, 55, 1, 34, 56, 1, 34, 59, 1, 34,
-                    0, 1, 5, 1, 1, 24, 5, 1, 24, 6, 1, 24, 7, 1, 24, 8, 1, 24, 9, 1, 24,
-                    10, 1, 24, 12, 1, 24, 13, 1, 24, 14, 1, 24, 15, 1, 24, 16, 1, 24, 17,
-                    1, 24, 18, 1, 24, 19, 1, 24, 20, 1, 24, 21, 1, 24, 22, 1, 24, 23, 1,
-                    24, 25, 2, 5, 24, 27, 1, 24, 29, 1, 24, 31, 1, 5, 32, 1, 5, 33, 1,
-                    24, 34, 1, 24, 35, 1, 24, 36, 1, 24, 38, 1, 24, 39, 1, 5, 40, 1, 5,
-                    41, 1, 5, 42, 1, 5, 43, 1, 5, 44, 1, 5, 45, 1, 5, 46, 1, 5, 47, 1, 5,
-                    49, 1, 5, 51, 1, 24, 52, 1, 5, 53, 1, 5, 55, 1, 5, 56, 1, 5, 59, 2,
-                    5, 24, 0, 1, 21, 1, 1, 21, 5, 1, 21, 6, 1, 21, 7, 1, 21, 8, 1, 21, 9,
-                    1, 21, 10, 1, 21, 12, 1, 21, 13, 1, 21, 14, 1, 21, 15, 1, 21, 16, 1,
-                    21, 17, 1, 21, 18, 1, 21, 19, 1, 21, 20, 1, 21, 21, 1, 21, 22, 1, 21,
-                    23, 1, 21, 24, 1, 21, 25, 1, 21, 26, 1, 21, 27, 1, 21, 28, 1, 21, 29,
-                    1, 21, 30, 1, 21, 31, 1, 21, 32, 1, 21, 33, 1, 21, 34, 1, 21, 35, 1,
-                    21, 36, 1, 21, 38, 1, 21, 39, 1, 21, 40, 1, 21, 41, 1, 21, 42, 1, 21,
-                    43, 1, 21, 44, 1, 21, 45, 1, 21, 46, 1, 21, 47, 1, 21, 49, 1, 21, 51,
-                    1, 21, 52, 1, 21, 53, 1, 21, 54, 1, 21, 55, 1, 21, 56, 1, 21, 59, 1,
-                    21, 0, 1, 27, 1, 1, 27, 5, 1, 27, 6, 1, 27, 7, 1, 27, 8, 1, 27, 9, 1,
-                    27, 10, 1, 27, 12, 1, 27, 13, 1, 27, 14, 1, 27, 15, 1, 27, 16, 1, 27,
-                    17, 1, 27, 18, 1, 27, 19, 1, 27, 20, 1, 27, 21, 1, 27, 22, 1, 27, 23,
-                    1, 27, 25, 1, 27, 26, 1, 27, 27, 1, 27, 28, 1, 27, 29, 1, 27, 30, 1,
-                    27, 31, 1, 27, 32, 1, 27, 33, 1, 27, 34, 1, 27, 35, 1, 27, 36, 1, 27,
-                    38, 1, 27, 39, 1, 27, 40, 1, 27, 41, 1, 27, 42, 1, 27, 43, 1, 27, 44,
-                    1, 27, 45, 1, 27, 46, 1, 27, 47, 1, 27, 49, 1, 27, 51, 1, 27, 52, 1,
-                    27, 53, 1, 27, 54, 1, 27, 55, 1, 27, 56, 1, 27, 59, 1, 27, 0, 1, 29,
-                    1, 1, 29, 5, 1, 29, 6, 1, 29, 7, 1, 29, 8, 1, 29, 9, 1, 29, 10, 1,
-                    29, 12, 1, 29, 13, 1, 29, 14, 1, 29, 15, 1, 29, 16, 1, 29, 17, 1, 29,
-                    18, 1, 29, 19, 1, 29, 20, 1, 29, 21, 1, 29, 22, 1, 29, 23, 1, 29, 25,
-                    1, 29, 26, 1, 29, 27, 1, 29, 28, 1, 29, 29, 1, 29, 30, 1, 29, 31, 1,
-                    29, 32, 1, 29, 33, 1, 29, 34, 1, 29, 35, 1, 29, 36, 1, 29, 38, 1, 29,
-                    39, 1, 29, 40, 1, 29, 41, 1, 29, 42, 1, 29, 43, 1, 29, 44, 1, 29, 45,
-                    1, 29, 46, 1, 29, 47, 1, 29, 49, 1, 29, 51, 1, 29, 52, 1, 29, 53, 1,
-                    29, 54, 1, 29, 55, 1, 29, 56, 1, 29, 59, 1, 29, 0, 1, 22, 1, 1, 22,
-                    5, 1, 22, 6, 1, 22, 7, 1, 22, 8, 1, 22, 9, 1, 22, 10, 1, 22, 12, 1,
-                    22, 13, 1, 22, 14, 1, 22, 15, 1, 22, 16, 1, 22, 17, 1, 22, 18, 1, 22,
-                    19, 1, 22, 20, 1, 22, 21, 1, 22, 22, 1, 22, 23, 1, 22, 24, 1, 22, 25,
-                    1, 22, 26, 1, 22, 27, 1, 22, 28, 1, 22, 29, 1, 22, 30, 1, 22, 31, 1,
-                    22, 32, 1, 22, 33, 1, 22, 34, 1, 22, 35, 1, 22, 36, 1, 22, 38, 1, 22,
-                    39, 1, 22, 40, 1, 22, 41, 1, 22, 42, 1, 22, 43, 1, 22, 44, 1, 22, 45,
-                    1, 22, 46, 1, 22, 47, 1, 22, 49, 1, 22, 51, 1, 22, 52, 1, 22, 53, 1,
-                    22, 54, 1, 22, 55, 1, 22, 56, 1, 22, 59, 1, 22, 0, 1, 26, 1, 1, 26,
-                    5, 1, 26, 6, 1, 26, 7, 1, 26, 8, 1, 26, 9, 1, 26, 10, 1, 26, 12, 1,
-                    26, 13, 1, 26, 14, 1, 26, 15, 1, 26, 16, 1, 26, 17, 1, 26, 18, 1, 26,
-                    19, 1, 26, 20, 1, 26, 21, 1, 26, 22, 1, 26, 23, 1, 26, 25, 1, 26, 26,
-                    1, 26, 27, 1, 26, 28, 1, 26, 29, 1, 26, 30, 1, 26, 31, 1, 26, 32, 1,
-                    26, 33, 1, 26, 34, 1, 26, 35, 1, 26, 36, 1, 26, 38, 1, 26, 39, 1, 26,
-                    40, 1, 26, 41, 1, 26, 42, 1, 26, 43, 1, 26, 44, 1, 26, 45, 1, 26, 46,
-                    1, 26, 47, 1, 26, 49, 1, 26, 51, 1, 26, 52, 1, 26, 53, 1, 26, 54, 1,
-                    26, 55, 1, 26, 56, 1, 26, 59, 1, 26, 0, 1, 52, 5, 1, 52, 6, 1, 52, 7,
-                    1, 52, 8, 1, 52, 9, 1, 52, 10, 1, 52, 12, 1, 52, 13, 1, 52, 14, 1,
-                    52, 15, 1, 52, 16, 1, 52, 17, 1, 52, 18, 1, 52, 19, 1, 52, 20, 1, 52,
-                    21, 1, 52, 22, 1, 52, 23, 1, 52, 25, 1, 52, 26, 1, 52, 28, 1, 52, 30,
-                    1, 52, 31, 1, 52, 32, 1, 52, 34, 1, 52, 36, 1, 52, 38, 1, 52, 39, 1,
-                    52, 40, 1, 52, 41, 1, 52, 42, 1, 52, 43, 1, 52, 44, 1, 52, 45, 1, 52,
-                    46, 1, 52, 47, 1, 52, 49, 1, 52, 51, 1, 52, 52, 1, 52, 53, 1, 52, 54,
-                    1, 52, 55, 1, 52, 56, 1, 52, 59, 1, 52, 0, 1, 4, 25, 1, 4, 31, 1, 4,
-                    32, 1, 4, 39, 1, 4, 40, 1, 4, 41, 1, 4, 42, 1, 4, 43, 1, 4, 44, 1, 4,
-                    45, 1, 4, 46, 1, 4, 47, 1, 4, 49, 1, 4, 52, 1, 4, 53, 1, 4, 55, 1, 4,
-                    56, 1, 4, 59, 1, 4, 1, 1, 23, 24, 1, 31, 25, 1, 23, 27, 1, 23, 29, 1,
-                    23, 33, 1, 23, 34, 1, 31, 35, 1, 23, 41, 1, 94, 42, 1, 94, 43, 1, 94,
-                    53, 1, 94, 55, 1, 94, 59, 1, 94, 0, 1, 93, 25, 1, 93, 31, 1, 93, 32,
-                    1, 93, 39, 1, 93, 40, 1, 93, 41, 1, 93, 42, 1, 93, 43, 1, 93, 44, 1,
-                    93, 45, 1, 93, 46, 1, 93, 47, 1, 93, 49, 1, 93, 52, 1, 93, 53, 1, 93,
-                    55, 1, 93, 56, 1, 93, 59, 1, 93, 41, 1, 97, 42, 1, 97, 43, 1, 97, 55,
-                    1, 97, 59, 1, 97, 32, 1, 36, 41, 1, 36, 42, 1, 36, 43, 1, 36, 55, 1,
-                    36, 59, 1, 36, 0, 1, 84, 5, 1, 84, 6, 1, 84, 7, 1, 84, 8, 1, 84, 9,
-                    1, 84, 10, 1, 84, 12, 1, 84, 13, 1, 84, 14, 1, 84, 15, 1, 84, 16, 1,
-                    84, 17, 1, 84, 18, 1, 84, 19, 1, 84, 20, 1, 84, 21, 1, 84, 22, 1, 84,
-                    23, 1, 84, 25, 1, 84, 26, 1, 84, 28, 1, 84, 30, 1, 84, 31, 1, 84, 32,
-                    1, 84, 34, 1, 84, 36, 1, 84, 38, 1, 84, 39, 1, 84, 40, 1, 84, 41, 1,
-                    84, 42, 1, 84, 43, 1, 84, 44, 1, 84, 45, 1, 84, 46, 1, 84, 47, 1, 84,
-                    49, 1, 84, 51, 1, 84, 52, 1, 84, 53, 1, 84, 54, 1, 84, 55, 1, 84, 56,
-                    1, 84, 59, 1, 84, 0, 1, 56, 5, 1, 56, 6, 1, 56, 7, 1, 56, 8, 1, 56,
-                    9, 1, 56, 10, 1, 56, 12, 1, 56, 13, 1, 56, 14, 1, 56, 15, 1, 56, 16,
-                    1, 56, 17, 1, 56, 18, 1, 56, 19, 1, 56, 20, 1, 56, 21, 1, 56, 22, 1,
-                    56, 23, 1, 56, 25, 1, 56, 26, 1, 56, 28, 1, 56, 30, 1, 56, 31, 1, 56,
-                    32, 1, 56, 34, 1, 56, 36, 1, 56, 38, 1, 56, 39, 1, 56, 40, 1, 56, 41,
-                    1, 56, 42, 1, 56, 43, 1, 56, 44, 1, 56, 45, 1, 56, 46, 1, 56, 47, 1,
-                    56, 49, 1, 56, 51, 1, 56, 52, 1, 56, 53, 1, 56, 54, 1, 56, 55, 1, 56,
-                    56, 1, 56, 59, 1, 56, 0, 1, 53, 5, 1, 53, 6, 1, 53, 7, 1, 53, 8, 1,
-                    53, 9, 1, 53, 10, 1, 53, 12, 1, 53, 13, 1, 53, 14, 1, 53, 15, 1, 53,
-                    16, 1, 53, 17, 1, 53, 18, 1, 53, 19, 1, 53, 20, 1, 53, 21, 1, 53, 22,
-                    1, 53, 23, 1, 53, 25, 1, 53, 26, 1, 53, 28, 1, 53, 30, 1, 53, 31, 1,
-                    53, 32, 1, 53, 34, 1, 53, 36, 1, 53, 38, 1, 53, 39, 1, 53, 40, 1, 53,
-                    41, 1, 53, 42, 1, 53, 43, 1, 53, 44, 1, 53, 45, 1, 53, 46, 1, 53, 47,
-                    1, 53, 49, 1, 53, 51, 1, 53, 52, 1, 53, 53, 1, 53, 54, 1, 53, 55, 1,
-                    53, 56, 1, 53, 59, 1, 53, 0, 1, 54, 5, 1, 54, 6, 1, 54, 7, 1, 54, 8,
-                    1, 54, 9, 1, 54, 10, 1, 54, 12, 1, 54, 13, 1, 54, 14, 1, 54, 15, 1,
-                    54, 16, 1, 54, 17, 1, 54, 18, 1, 54, 19, 1, 54, 20, 1, 54, 21, 1, 54,
-                    22, 1, 54, 23, 1, 54, 25, 1, 54, 26, 1, 54, 28, 1, 54, 30, 1, 54, 31,
-                    1, 54, 32, 1, 54, 34, 1, 54, 36, 1, 54, 38, 1, 54, 39, 1, 54, 40, 1,
-                    54, 41, 1, 54, 42, 1, 54, 43, 1, 54, 44, 1, 54, 45, 1, 54, 46, 1, 54,
-                    47, 1, 54, 49, 1, 54, 51, 1, 54, 52, 1, 54, 53, 1, 54, 54, 1, 54, 55,
-                    1, 54, 56, 1, 54, 59, 1, 54, 0, 1, 55, 5, 1, 55, 6, 1, 55, 7, 1, 55,
-                    8, 1, 55, 9, 1, 55, 10, 1, 55, 12, 1, 55, 13, 1, 55, 14, 1, 55, 15,
-                    1, 55, 16, 1, 55, 17, 1, 55, 18, 1, 55, 19, 1, 55, 20, 1, 55, 21, 1,
-                    55, 22, 1, 55, 23, 1, 55, 25, 1, 55, 26, 1, 55, 28, 1, 55, 30, 1, 55,
-                    31, 1, 55, 32, 1, 55, 34, 1, 55, 36, 1, 55, 38, 1, 55, 39, 1, 55, 40,
-                    1, 55, 41, 1, 55, 42, 1, 55, 43, 1, 55, 44, 1, 55, 45, 1, 55, 46, 1,
-                    55, 47, 1, 55, 49, 1, 55, 51, 1, 55, 52, 1, 55, 53, 1, 55, 54, 1, 55,
-                    55, 1, 55, 56, 1, 55, 59, 1, 55, 41, 1, 112, 42, 1, 112, 43, 1, 112,
-                    55, 1, 112, 59, 1, 112, 41, 1, 111, 42, 1, 111, 43, 1, 111, 55, 1,
-                    111, 59, 1, 111, 41, 1, 19, 42, 1, 19, 43, 1, 19, 55, 1, 19, 59, 1,
-                    19, 41, 1, 96, 42, 1, 96, 43, 1, 96, 55, 1, 96, 59, 1, 96, 41, 1, 2,
-                    42, 1, 2, 43, 1, 2, 55, 1, 2, 59, 1, 2, 43, 1, 95, 53, 1, 95, 0, 1,
+                    7, 53, 1, 7, 55, 1, 7, 56, 1, 7, 59, 1, 7, 43, 1, 100, 53, 1, 100,
+                    34, 1, 38, 48, 1, 38, 25, 1, 92, 33, 1, 92, 35, 1, 92, 25, 1, 94, 25,
+                    1, 93, 25, 1, 91, 33, 1, 91, 35, 1, 91, 0, 1, 8, 25, 1, 8, 31, 1, 8,
+                    32, 1, 8, 39, 1, 8, 40, 1, 8, 41, 1, 8, 42, 1, 8, 43, 1, 8, 44, 1, 8,
+                    45, 1, 8, 46, 1, 8, 47, 1, 8, 49, 1, 8, 52, 1, 8, 53, 1, 8, 55, 1, 8,
+                    56, 1, 8, 59, 1, 8, 28, 1, 88, 32, 1, 88, 34, 1, 88, 0, 1, 78, 1, 1,
+                    78, 5, 1, 78, 6, 1, 78, 7, 1, 78, 8, 1, 78, 9, 1, 78, 10, 1, 78, 12,
+                    1, 78, 13, 1, 78, 14, 1, 78, 15, 1, 78, 16, 1, 78, 17, 1, 78, 18, 1,
+                    78, 19, 1, 78, 20, 1, 78, 21, 1, 78, 22, 1, 78, 23, 1, 78, 25, 1, 78,
+                    26, 1, 78, 27, 1, 78, 28, 1, 78, 29, 1, 78, 30, 1, 78, 31, 1, 78, 32,
+                    1, 78, 33, 1, 78, 34, 1, 78, 35, 1, 78, 36, 1, 78, 38, 1, 78, 39, 1,
+                    78, 40, 1, 78, 41, 1, 78, 42, 1, 78, 43, 1, 78, 44, 1, 78, 45, 1, 78,
+                    46, 1, 78, 47, 1, 78, 49, 1, 78, 51, 1, 78, 52, 1, 78, 53, 1, 78, 54,
+                    1, 78, 55, 1, 78, 56, 1, 78, 59, 1, 78, 28, 1, 79, 28, 1, 81, 28, 1,
+                    84, 32, 1, 84, 34, 1, 84, 28, 1, 80, 28, 1, 83, 32, 1, 83, 34, 1, 83,
+                    28, 1, 85, 32, 1, 85, 34, 1, 85, 0, 1, 43, 24, 1, 43, 25, 1, 43, 31,
+                    1, 43, 32, 1, 43, 34, 1, 43, 39, 1, 43, 40, 1, 43, 41, 1, 43, 42, 1,
+                    43, 43, 1, 43, 44, 1, 43, 45, 1, 43, 46, 1, 43, 47, 1, 43, 49, 1, 43,
+                    52, 1, 43, 53, 1, 43, 55, 1, 43, 56, 1, 43, 59, 1, 43, 0, 1, 42, 24,
+                    1, 42, 25, 1, 42, 31, 1, 42, 32, 1, 42, 34, 1, 42, 39, 1, 42, 40, 1,
+                    42, 41, 1, 42, 42, 1, 42, 43, 1, 42, 44, 1, 42, 45, 1, 42, 46, 1, 42,
+                    47, 1, 42, 49, 1, 42, 52, 1, 42, 53, 1, 42, 55, 1, 42, 56, 1, 42, 59,
+                    1, 42, 0, 1, 39, 24, 1, 39, 25, 1, 39, 31, 1, 39, 32, 1, 39, 34, 1,
+                    39, 39, 1, 39, 40, 1, 39, 41, 1, 39, 42, 1, 39, 43, 1, 39, 44, 1, 39,
+                    45, 1, 39, 46, 1, 39, 47, 1, 39, 49, 1, 39, 52, 1, 39, 53, 1, 39, 55,
+                    1, 39, 56, 1, 39, 59, 1, 39, 0, 1, 16, 25, 1, 16, 31, 1, 16, 32, 1,
+                    16, 39, 1, 16, 40, 1, 16, 41, 1, 16, 42, 1, 16, 43, 1, 16, 44, 1, 16,
+                    45, 1, 16, 46, 1, 16, 47, 1, 16, 49, 1, 16, 52, 1, 16, 53, 1, 16, 55,
+                    1, 16, 56, 1, 16, 59, 1, 16, 0, 1, 41, 24, 1, 41, 25, 1, 41, 31, 1,
+                    41, 32, 1, 41, 34, 1, 41, 39, 1, 41, 40, 1, 41, 41, 1, 41, 42, 1, 41,
+                    43, 1, 41, 44, 1, 41, 45, 1, 41, 46, 1, 41, 47, 1, 41, 49, 1, 41, 52,
+                    1, 41, 53, 1, 41, 55, 1, 41, 56, 1, 41, 59, 1, 41, 0, 1, 115, 25, 1,
+                    115, 31, 1, 115, 32, 1, 115, 39, 1, 115, 40, 1, 115, 41, 1, 115, 42,
+                    1, 115, 43, 1, 115, 44, 1, 115, 45, 1, 115, 46, 1, 115, 47, 1, 115,
+                    49, 1, 115, 52, 1, 115, 53, 1, 115, 55, 1, 115, 56, 1, 115, 59, 1,
+                    115, 53, 1, 100, 55, 1, 100, 0, 1, 90, 5, 1, 90, 6, 1, 90, 7, 1, 90,
+                    8, 1, 90, 9, 1, 90, 10, 1, 90, 12, 1, 90, 13, 1, 90, 14, 1, 90, 15,
+                    1, 90, 16, 1, 90, 17, 1, 90, 18, 1, 90, 19, 1, 90, 20, 1, 90, 21, 1,
+                    90, 22, 1, 90, 23, 1, 90, 25, 1, 90, 26, 1, 90, 28, 1, 90, 30, 1, 90,
+                    31, 1, 90, 32, 1, 90, 34, 1, 90, 36, 1, 90, 38, 1, 90, 39, 1, 90, 40,
+                    1, 90, 41, 1, 90, 42, 1, 90, 43, 1, 90, 44, 1, 90, 45, 1, 90, 46, 1,
+                    90, 47, 1, 90, 49, 1, 90, 51, 1, 90, 52, 1, 90, 53, 1, 90, 54, 1, 90,
+                    55, 1, 90, 56, 1, 90, 59, 1, 90, 0, 1, 97, 25, 1, 97, 31, 1, 97, 32,
+                    1, 97, 39, 1, 97, 40, 1, 97, 41, 1, 97, 42, 1, 97, 43, 1, 97, 44, 1,
+                    97, 45, 1, 97, 46, 1, 97, 47, 1, 97, 49, 1, 97, 52, 1, 97, 53, 1, 97,
+                    55, 1, 97, 56, 1, 97, 59, 1, 97, 1, 1, 23, 5, 1, 23, 6, 1, 23, 7, 1,
+                    23, 8, 1, 23, 9, 1, 23, 10, 1, 23, 12, 1, 23, 13, 1, 23, 14, 1, 23,
+                    15, 1, 23, 16, 1, 23, 17, 1, 23, 18, 1, 23, 19, 1, 23, 20, 1, 23, 21,
+                    1, 23, 22, 1, 23, 23, 1, 23, 24, 1, 32, 25, 1, 23, 27, 1, 23, 29, 1,
+                    23, 33, 1, 23, 34, 2, 23, 32, 35, 1, 23, 36, 1, 23, 38, 1, 23, 51, 1,
+                    23, 59, 1, 23, 26, 1, 35, 32, 1, 35, 41, 1, 35, 42, 1, 35, 43, 1, 35,
+                    55, 1, 35, 59, 1, 35, 0, 1, 33, 25, 1, 33, 26, 1, 33, 31, 1, 33, 32,
+                    1, 33, 34, 1, 33, 39, 1, 33, 40, 1, 33, 41, 1, 33, 42, 1, 33, 43, 1,
+                    33, 44, 1, 33, 45, 1, 33, 46, 1, 33, 47, 1, 33, 49, 1, 33, 52, 1, 33,
+                    53, 1, 33, 55, 1, 33, 56, 1, 33, 59, 1, 33, 0, 1, 28, 1, 1, 28, 5, 1,
+                    28, 6, 1, 28, 7, 1, 28, 8, 1, 28, 9, 1, 28, 10, 1, 28, 12, 1, 28, 13,
+                    1, 28, 14, 1, 28, 15, 1, 28, 16, 1, 28, 17, 1, 28, 18, 1, 28, 19, 1,
+                    28, 20, 1, 28, 21, 1, 28, 22, 1, 28, 23, 1, 28, 25, 1, 28, 26, 1, 28,
+                    27, 1, 28, 28, 1, 28, 29, 1, 28, 30, 1, 28, 31, 1, 28, 32, 1, 28, 33,
+                    1, 28, 34, 1, 28, 35, 1, 28, 36, 1, 28, 38, 1, 28, 39, 1, 28, 40, 1,
+                    28, 41, 1, 28, 42, 1, 28, 43, 1, 28, 44, 1, 28, 45, 1, 28, 46, 1, 28,
+                    47, 1, 28, 49, 1, 28, 51, 1, 28, 52, 1, 28, 53, 1, 28, 54, 1, 28, 55,
+                    1, 28, 56, 1, 28, 59, 1, 28, 0, 1, 34, 25, 1, 34, 26, 1, 34, 31, 1,
+                    34, 32, 1, 34, 34, 1, 34, 39, 1, 34, 40, 1, 34, 41, 1, 34, 42, 1, 34,
+                    43, 1, 34, 44, 1, 34, 45, 1, 34, 46, 1, 34, 47, 1, 34, 49, 1, 34, 52,
+                    1, 34, 53, 1, 34, 55, 1, 34, 56, 1, 34, 59, 1, 34, 0, 1, 5, 1, 1, 24,
+                    5, 1, 24, 6, 1, 24, 7, 1, 24, 8, 1, 24, 9, 1, 24, 10, 1, 24, 12, 1,
+                    24, 13, 1, 24, 14, 1, 24, 15, 1, 24, 16, 1, 24, 17, 1, 24, 18, 1, 24,
+                    19, 1, 24, 20, 1, 24, 21, 1, 24, 22, 1, 24, 23, 1, 24, 25, 2, 5, 24,
+                    27, 1, 24, 29, 1, 24, 31, 1, 5, 32, 1, 5, 33, 1, 24, 34, 1, 24, 35,
+                    1, 24, 36, 1, 24, 38, 1, 24, 39, 1, 5, 40, 1, 5, 41, 1, 5, 42, 1, 5,
+                    43, 1, 5, 44, 1, 5, 45, 1, 5, 46, 1, 5, 47, 1, 5, 49, 1, 5, 51, 1,
+                    24, 52, 1, 5, 53, 1, 5, 55, 1, 5, 56, 1, 5, 59, 2, 5, 24, 0, 1, 21,
+                    1, 1, 21, 5, 1, 21, 6, 1, 21, 7, 1, 21, 8, 1, 21, 9, 1, 21, 10, 1,
+                    21, 12, 1, 21, 13, 1, 21, 14, 1, 21, 15, 1, 21, 16, 1, 21, 17, 1, 21,
+                    18, 1, 21, 19, 1, 21, 20, 1, 21, 21, 1, 21, 22, 1, 21, 23, 1, 21, 24,
+                    1, 21, 25, 1, 21, 26, 1, 21, 27, 1, 21, 28, 1, 21, 29, 1, 21, 30, 1,
+                    21, 31, 1, 21, 32, 1, 21, 33, 1, 21, 34, 1, 21, 35, 1, 21, 36, 1, 21,
+                    38, 1, 21, 39, 1, 21, 40, 1, 21, 41, 1, 21, 42, 1, 21, 43, 1, 21, 44,
+                    1, 21, 45, 1, 21, 46, 1, 21, 47, 1, 21, 49, 1, 21, 51, 1, 21, 52, 1,
+                    21, 53, 1, 21, 54, 1, 21, 55, 1, 21, 56, 1, 21, 59, 1, 21, 0, 1, 27,
+                    1, 1, 27, 5, 1, 27, 6, 1, 27, 7, 1, 27, 8, 1, 27, 9, 1, 27, 10, 1,
+                    27, 12, 1, 27, 13, 1, 27, 14, 1, 27, 15, 1, 27, 16, 1, 27, 17, 1, 27,
+                    18, 1, 27, 19, 1, 27, 20, 1, 27, 21, 1, 27, 22, 1, 27, 23, 1, 27, 25,
+                    1, 27, 26, 1, 27, 27, 1, 27, 28, 1, 27, 29, 1, 27, 30, 1, 27, 31, 1,
+                    27, 32, 1, 27, 33, 1, 27, 34, 1, 27, 35, 1, 27, 36, 1, 27, 38, 1, 27,
+                    39, 1, 27, 40, 1, 27, 41, 1, 27, 42, 1, 27, 43, 1, 27, 44, 1, 27, 45,
+                    1, 27, 46, 1, 27, 47, 1, 27, 49, 1, 27, 51, 1, 27, 52, 1, 27, 53, 1,
+                    27, 54, 1, 27, 55, 1, 27, 56, 1, 27, 59, 1, 27, 0, 1, 29, 1, 1, 29,
+                    5, 1, 29, 6, 1, 29, 7, 1, 29, 8, 1, 29, 9, 1, 29, 10, 1, 29, 12, 1,
+                    29, 13, 1, 29, 14, 1, 29, 15, 1, 29, 16, 1, 29, 17, 1, 29, 18, 1, 29,
+                    19, 1, 29, 20, 1, 29, 21, 1, 29, 22, 1, 29, 23, 1, 29, 25, 1, 29, 26,
+                    1, 29, 27, 1, 29, 28, 1, 29, 29, 1, 29, 30, 1, 29, 31, 1, 29, 32, 1,
+                    29, 33, 1, 29, 34, 1, 29, 35, 1, 29, 36, 1, 29, 38, 1, 29, 39, 1, 29,
+                    40, 1, 29, 41, 1, 29, 42, 1, 29, 43, 1, 29, 44, 1, 29, 45, 1, 29, 46,
+                    1, 29, 47, 1, 29, 49, 1, 29, 51, 1, 29, 52, 1, 29, 53, 1, 29, 54, 1,
+                    29, 55, 1, 29, 56, 1, 29, 59, 1, 29, 0, 1, 22, 1, 1, 22, 5, 1, 22, 6,
+                    1, 22, 7, 1, 22, 8, 1, 22, 9, 1, 22, 10, 1, 22, 12, 1, 22, 13, 1, 22,
+                    14, 1, 22, 15, 1, 22, 16, 1, 22, 17, 1, 22, 18, 1, 22, 19, 1, 22, 20,
+                    1, 22, 21, 1, 22, 22, 1, 22, 23, 1, 22, 24, 1, 22, 25, 1, 22, 26, 1,
+                    22, 27, 1, 22, 28, 1, 22, 29, 1, 22, 30, 1, 22, 31, 1, 22, 32, 1, 22,
+                    33, 1, 22, 34, 1, 22, 35, 1, 22, 36, 1, 22, 38, 1, 22, 39, 1, 22, 40,
+                    1, 22, 41, 1, 22, 42, 1, 22, 43, 1, 22, 44, 1, 22, 45, 1, 22, 46, 1,
+                    22, 47, 1, 22, 49, 1, 22, 51, 1, 22, 52, 1, 22, 53, 1, 22, 54, 1, 22,
+                    55, 1, 22, 56, 1, 22, 59, 1, 22, 0, 1, 26, 1, 1, 26, 5, 1, 26, 6, 1,
+                    26, 7, 1, 26, 8, 1, 26, 9, 1, 26, 10, 1, 26, 12, 1, 26, 13, 1, 26,
+                    14, 1, 26, 15, 1, 26, 16, 1, 26, 17, 1, 26, 18, 1, 26, 19, 1, 26, 20,
+                    1, 26, 21, 1, 26, 22, 1, 26, 23, 1, 26, 25, 1, 26, 26, 1, 26, 27, 1,
+                    26, 28, 1, 26, 29, 1, 26, 30, 1, 26, 31, 1, 26, 32, 1, 26, 33, 1, 26,
+                    34, 1, 26, 35, 1, 26, 36, 1, 26, 38, 1, 26, 39, 1, 26, 40, 1, 26, 41,
+                    1, 26, 42, 1, 26, 43, 1, 26, 44, 1, 26, 45, 1, 26, 46, 1, 26, 47, 1,
+                    26, 49, 1, 26, 51, 1, 26, 52, 1, 26, 53, 1, 26, 54, 1, 26, 55, 1, 26,
+                    56, 1, 26, 59, 1, 26, 0, 1, 52, 5, 1, 52, 6, 1, 52, 7, 1, 52, 8, 1,
+                    52, 9, 1, 52, 10, 1, 52, 12, 1, 52, 13, 1, 52, 14, 1, 52, 15, 1, 52,
+                    16, 1, 52, 17, 1, 52, 18, 1, 52, 19, 1, 52, 20, 1, 52, 21, 1, 52, 22,
+                    1, 52, 23, 1, 52, 25, 1, 52, 26, 1, 52, 28, 1, 52, 30, 1, 52, 31, 1,
+                    52, 32, 1, 52, 34, 1, 52, 36, 1, 52, 38, 1, 52, 39, 1, 52, 40, 1, 52,
+                    41, 1, 52, 42, 1, 52, 43, 1, 52, 44, 1, 52, 45, 1, 52, 46, 1, 52, 47,
+                    1, 52, 49, 1, 52, 51, 1, 52, 52, 1, 52, 53, 1, 52, 54, 1, 52, 55, 1,
+                    52, 56, 1, 52, 59, 1, 52, 0, 1, 4, 25, 1, 4, 31, 1, 4, 32, 1, 4, 39,
+                    1, 4, 40, 1, 4, 41, 1, 4, 42, 1, 4, 43, 1, 4, 44, 1, 4, 45, 1, 4, 46,
+                    1, 4, 47, 1, 4, 49, 1, 4, 52, 1, 4, 53, 1, 4, 55, 1, 4, 56, 1, 4, 59,
+                    1, 4, 1, 1, 23, 24, 1, 31, 25, 1, 23, 27, 1, 23, 29, 1, 23, 33, 1,
+                    23, 34, 1, 31, 35, 1, 23, 41, 1, 99, 42, 1, 99, 43, 1, 99, 53, 1, 99,
+                    55, 1, 99, 59, 1, 99, 0, 1, 98, 25, 1, 98, 31, 1, 98, 32, 1, 98, 39,
+                    1, 98, 40, 1, 98, 41, 1, 98, 42, 1, 98, 43, 1, 98, 44, 1, 98, 45, 1,
+                    98, 46, 1, 98, 47, 1, 98, 49, 1, 98, 52, 1, 98, 53, 1, 98, 55, 1, 98,
+                    56, 1, 98, 59, 1, 98, 41, 1, 102, 42, 1, 102, 43, 1, 102, 55, 1, 102,
+                    59, 1, 102, 32, 1, 36, 41, 1, 36, 42, 1, 36, 43, 1, 36, 55, 1, 36,
+                    59, 1, 36, 0, 1, 89, 5, 1, 89, 6, 1, 89, 7, 1, 89, 8, 1, 89, 9, 1,
+                    89, 10, 1, 89, 12, 1, 89, 13, 1, 89, 14, 1, 89, 15, 1, 89, 16, 1, 89,
+                    17, 1, 89, 18, 1, 89, 19, 1, 89, 20, 1, 89, 21, 1, 89, 22, 1, 89, 23,
+                    1, 89, 25, 1, 89, 26, 1, 89, 28, 1, 89, 30, 1, 89, 31, 1, 89, 32, 1,
+                    89, 34, 1, 89, 36, 1, 89, 38, 1, 89, 39, 1, 89, 40, 1, 89, 41, 1, 89,
+                    42, 1, 89, 43, 1, 89, 44, 1, 89, 45, 1, 89, 46, 1, 89, 47, 1, 89, 49,
+                    1, 89, 51, 1, 89, 52, 1, 89, 53, 1, 89, 54, 1, 89, 55, 1, 89, 56, 1,
+                    89, 59, 1, 89, 0, 1, 56, 5, 1, 56, 6, 1, 56, 7, 1, 56, 8, 1, 56, 9,
+                    1, 56, 10, 1, 56, 12, 1, 56, 13, 1, 56, 14, 1, 56, 15, 1, 56, 16, 1,
+                    56, 17, 1, 56, 18, 1, 56, 19, 1, 56, 20, 1, 56, 21, 1, 56, 22, 1, 56,
+                    23, 1, 56, 25, 1, 56, 26, 1, 56, 28, 1, 56, 30, 1, 56, 31, 1, 56, 32,
+                    1, 56, 34, 1, 56, 36, 1, 56, 38, 1, 56, 39, 1, 56, 40, 1, 56, 41, 1,
+                    56, 42, 1, 56, 43, 1, 56, 44, 1, 56, 45, 1, 56, 46, 1, 56, 47, 1, 56,
+                    49, 1, 56, 51, 1, 56, 52, 1, 56, 53, 1, 56, 54, 1, 56, 55, 1, 56, 56,
+                    1, 56, 59, 1, 56, 0, 1, 53, 5, 1, 53, 6, 1, 53, 7, 1, 53, 8, 1, 53,
+                    9, 1, 53, 10, 1, 53, 12, 1, 53, 13, 1, 53, 14, 1, 53, 15, 1, 53, 16,
+                    1, 53, 17, 1, 53, 18, 1, 53, 19, 1, 53, 20, 1, 53, 21, 1, 53, 22, 1,
+                    53, 23, 1, 53, 25, 1, 53, 26, 1, 53, 28, 1, 53, 30, 1, 53, 31, 1, 53,
+                    32, 1, 53, 34, 1, 53, 36, 1, 53, 38, 1, 53, 39, 1, 53, 40, 1, 53, 41,
+                    1, 53, 42, 1, 53, 43, 1, 53, 44, 1, 53, 45, 1, 53, 46, 1, 53, 47, 1,
+                    53, 49, 1, 53, 51, 1, 53, 52, 1, 53, 53, 1, 53, 54, 1, 53, 55, 1, 53,
+                    56, 1, 53, 59, 1, 53, 0, 1, 54, 5, 1, 54, 6, 1, 54, 7, 1, 54, 8, 1,
+                    54, 9, 1, 54, 10, 1, 54, 12, 1, 54, 13, 1, 54, 14, 1, 54, 15, 1, 54,
+                    16, 1, 54, 17, 1, 54, 18, 1, 54, 19, 1, 54, 20, 1, 54, 21, 1, 54, 22,
+                    1, 54, 23, 1, 54, 25, 1, 54, 26, 1, 54, 28, 1, 54, 30, 1, 54, 31, 1,
+                    54, 32, 1, 54, 34, 1, 54, 36, 1, 54, 38, 1, 54, 39, 1, 54, 40, 1, 54,
+                    41, 1, 54, 42, 1, 54, 43, 1, 54, 44, 1, 54, 45, 1, 54, 46, 1, 54, 47,
+                    1, 54, 49, 1, 54, 51, 1, 54, 52, 1, 54, 53, 1, 54, 54, 1, 54, 55, 1,
+                    54, 56, 1, 54, 59, 1, 54, 0, 1, 55, 5, 1, 55, 6, 1, 55, 7, 1, 55, 8,
+                    1, 55, 9, 1, 55, 10, 1, 55, 12, 1, 55, 13, 1, 55, 14, 1, 55, 15, 1,
+                    55, 16, 1, 55, 17, 1, 55, 18, 1, 55, 19, 1, 55, 20, 1, 55, 21, 1, 55,
+                    22, 1, 55, 23, 1, 55, 25, 1, 55, 26, 1, 55, 28, 1, 55, 30, 1, 55, 31,
+                    1, 55, 32, 1, 55, 34, 1, 55, 36, 1, 55, 38, 1, 55, 39, 1, 55, 40, 1,
+                    55, 41, 1, 55, 42, 1, 55, 43, 1, 55, 44, 1, 55, 45, 1, 55, 46, 1, 55,
+                    47, 1, 55, 49, 1, 55, 51, 1, 55, 52, 1, 55, 53, 1, 55, 54, 1, 55, 55,
+                    1, 55, 56, 1, 55, 59, 1, 55, 41, 1, 117, 42, 1, 117, 43, 1, 117, 55,
+                    1, 117, 59, 1, 117, 41, 1, 116, 42, 1, 116, 43, 1, 116, 55, 1, 116,
+                    59, 1, 116, 41, 1, 19, 42, 1, 19, 43, 1, 19, 55, 1, 19, 59, 1, 19,
+                    41, 1, 101, 42, 1, 101, 43, 1, 101, 55, 1, 101, 59, 1, 101, 41, 1, 2,
+                    42, 1, 2, 43, 1, 2, 55, 1, 2, 59, 1, 2, 43, 1, 100, 53, 1, 100, 0, 1,
                     10, 25, 1, 10, 31, 1, 10, 32, 1, 10, 39, 1, 10, 40, 1, 10, 41, 1, 10,
                     42, 1, 10, 43, 1, 10, 44, 1, 10, 45, 1, 10, 46, 1, 10, 47, 1, 10, 49,
                     1, 10, 52, 1, 10, 53, 1, 10, 55, 1, 10, 56, 1, 10, 59, 1, 10, 0, 1,
                     9, 25, 1, 9, 31, 1, 9, 32, 1, 9, 39, 1, 9, 40, 1, 9, 41, 1, 9, 42, 1,
                     9, 43, 1, 9, 44, 1, 9, 45, 1, 9, 46, 1, 9, 47, 1, 9, 49, 1, 9, 52, 1,
-                    9, 53, 1, 9, 55, 1, 9, 56, 1, 9, 59, 1, 9, 40, 1, 107, 40, 1, 105,
-                    40, 1, 106, 43, 1, 95, 53, 1, 95, 0, 1, 13, 25, 1, 13, 31, 1, 13, 32,
-                    1, 13, 39, 1, 13, 40, 1, 13, 41, 1, 13, 42, 1, 13, 43, 1, 13, 44, 1,
-                    13, 45, 1, 13, 46, 1, 13, 47, 1, 13, 49, 1, 13, 52, 1, 13, 53, 1, 13,
-                    55, 1, 13, 56, 1, 13, 59, 1, 13, 43, 1, 95, 53, 1, 95, 0, 1, 14, 25,
-                    1, 14, 31, 1, 14, 32, 1, 14, 39, 1, 14, 40, 1, 14, 41, 1, 14, 42, 1,
-                    14, 43, 1, 14, 44, 1, 14, 45, 1, 14, 46, 1, 14, 47, 1, 14, 49, 1, 14,
-                    52, 1, 14, 53, 1, 14, 55, 1, 14, 56, 1, 14, 59, 1, 14, 0, 1, 15, 25,
-                    1, 15, 31, 1, 15, 32, 1, 15, 39, 1, 15, 40, 1, 15, 41, 1, 15, 42, 1,
-                    15, 43, 1, 15, 44, 1, 15, 45, 1, 15, 46, 1, 15, 47, 1, 15, 49, 1, 15,
-                    52, 1, 15, 53, 1, 15, 55, 1, 15, 56, 1, 15, 59, 1, 15, 41, 1, 95, 42,
-                    1, 95, 43, 1, 95, 53, 1, 95, 0, 1, 108, 25, 1, 108, 31, 1, 108, 32,
-                    1, 108, 39, 1, 108, 40, 1, 108, 41, 1, 108, 42, 1, 108, 43, 1, 108,
-                    44, 1, 108, 45, 1, 108, 46, 1, 108, 47, 1, 108, 49, 1, 108, 52, 1,
-                    108, 53, 1, 108, 55, 1, 108, 56, 1, 108, 59, 1, 108, 0, 1, 40, 24, 1,
-                    40, 25, 1, 40, 31, 1, 40, 32, 1, 40, 34, 1, 40, 39, 1, 40, 40, 1, 40,
-                    41, 1, 40, 42, 1, 40, 43, 1, 40, 44, 1, 40, 45, 1, 40, 46, 1, 40, 47,
-                    1, 40, 49, 1, 40, 52, 1, 40, 53, 1, 40, 55, 1, 40, 56, 1, 40, 59, 1,
-                    40, 0, 1, 109, 25, 1, 109, 31, 1, 109, 32, 1, 109, 39, 1, 109, 40, 1,
-                    109, 41, 1, 109, 42, 1, 109, 43, 1, 109, 44, 1, 109, 45, 1, 109, 46,
-                    1, 109, 47, 1, 109, 49, 1, 109, 52, 1, 109, 53, 1, 109, 55, 1, 109,
-                    56, 1, 109, 59, 1, 109, 0, 1, 17, 25, 1, 17, 31, 1, 17, 32, 1, 17,
-                    39, 1, 17, 40, 1, 17, 41, 1, 17, 42, 1, 17, 43, 1, 17, 44, 1, 17, 45,
-                    1, 17, 46, 1, 17, 47, 1, 17, 49, 1, 17, 52, 1, 17, 53, 1, 17, 55, 1,
-                    17, 56, 1, 17, 59, 1, 17, 0, 1, 11, 25, 1, 11, 31, 1, 11, 32, 1, 11,
-                    39, 1, 11, 40, 1, 11, 41, 1, 11, 42, 1, 11, 43, 1, 11, 44, 1, 11, 45,
-                    1, 11, 46, 1, 11, 47, 1, 11, 49, 1, 11, 52, 1, 11, 53, 1, 11, 55, 1,
-                    11, 56, 1, 11, 59, 1, 11, 41, 1, 101, 43, 1, 101, 41, 1, 95, 42, 1,
-                    95, 43, 1, 95, 53, 1, 95, 41, 1, 18, 42, 1, 18, 43, 1, 18, 41, 1, 98,
-                    42, 1, 98, 43, 1, 98, 41, 1, 100, 43, 1, 100, 41, 1, 99, 42, 1, 99,
-                    43, 1, 99, 43, 1, 104, 43, 1, 95, 53, 1, 95, 43, 1, 102, 43, 1, 103,
-                    0, 1, 12, 25, 1, 12, 31, 1, 12, 32, 1, 12, 39, 1, 12, 40, 1, 12, 41,
-                    1, 12, 42, 1, 12, 43, 1, 12, 44, 1, 12, 45, 1, 12, 46, 1, 12, 47, 1,
-                    12, 49, 1, 12, 52, 1, 12, 53, 1, 12, 55, 1, 12, 56, 1, 12, 59, 1, 12,
-                    28, 1, 79, 32, 1, 79, 34, 1, 79, 28, 1, 80, 32, 1, 80, 34, 1, 80, 59,
-                    1, 0, 59, 1, 1,
+                    9, 53, 1, 9, 55, 1, 9, 56, 1, 9, 59, 1, 9, 40, 1, 112, 40, 1, 110,
+                    40, 1, 111, 43, 1, 100, 53, 1, 100, 0, 1, 13, 25, 1, 13, 31, 1, 13,
+                    32, 1, 13, 39, 1, 13, 40, 1, 13, 41, 1, 13, 42, 1, 13, 43, 1, 13, 44,
+                    1, 13, 45, 1, 13, 46, 1, 13, 47, 1, 13, 49, 1, 13, 52, 1, 13, 53, 1,
+                    13, 55, 1, 13, 56, 1, 13, 59, 1, 13, 43, 1, 100, 53, 1, 100, 0, 1,
+                    14, 25, 1, 14, 31, 1, 14, 32, 1, 14, 39, 1, 14, 40, 1, 14, 41, 1, 14,
+                    42, 1, 14, 43, 1, 14, 44, 1, 14, 45, 1, 14, 46, 1, 14, 47, 1, 14, 49,
+                    1, 14, 52, 1, 14, 53, 1, 14, 55, 1, 14, 56, 1, 14, 59, 1, 14, 0, 1,
+                    15, 25, 1, 15, 31, 1, 15, 32, 1, 15, 39, 1, 15, 40, 1, 15, 41, 1, 15,
+                    42, 1, 15, 43, 1, 15, 44, 1, 15, 45, 1, 15, 46, 1, 15, 47, 1, 15, 49,
+                    1, 15, 52, 1, 15, 53, 1, 15, 55, 1, 15, 56, 1, 15, 59, 1, 15, 41, 1,
+                    100, 42, 1, 100, 43, 1, 100, 53, 1, 100, 0, 1, 113, 25, 1, 113, 31,
+                    1, 113, 32, 1, 113, 39, 1, 113, 40, 1, 113, 41, 1, 113, 42, 1, 113,
+                    43, 1, 113, 44, 1, 113, 45, 1, 113, 46, 1, 113, 47, 1, 113, 49, 1,
+                    113, 52, 1, 113, 53, 1, 113, 55, 1, 113, 56, 1, 113, 59, 1, 113, 0,
+                    1, 40, 24, 1, 40, 25, 1, 40, 31, 1, 40, 32, 1, 40, 34, 1, 40, 39, 1,
+                    40, 40, 1, 40, 41, 1, 40, 42, 1, 40, 43, 1, 40, 44, 1, 40, 45, 1, 40,
+                    46, 1, 40, 47, 1, 40, 49, 1, 40, 52, 1, 40, 53, 1, 40, 55, 1, 40, 56,
+                    1, 40, 59, 1, 40, 0, 1, 114, 25, 1, 114, 31, 1, 114, 32, 1, 114, 39,
+                    1, 114, 40, 1, 114, 41, 1, 114, 42, 1, 114, 43, 1, 114, 44, 1, 114,
+                    45, 1, 114, 46, 1, 114, 47, 1, 114, 49, 1, 114, 52, 1, 114, 53, 1,
+                    114, 55, 1, 114, 56, 1, 114, 59, 1, 114, 0, 1, 17, 25, 1, 17, 31, 1,
+                    17, 32, 1, 17, 39, 1, 17, 40, 1, 17, 41, 1, 17, 42, 1, 17, 43, 1, 17,
+                    44, 1, 17, 45, 1, 17, 46, 1, 17, 47, 1, 17, 49, 1, 17, 52, 1, 17, 53,
+                    1, 17, 55, 1, 17, 56, 1, 17, 59, 1, 17, 0, 1, 11, 25, 1, 11, 31, 1,
+                    11, 32, 1, 11, 39, 1, 11, 40, 1, 11, 41, 1, 11, 42, 1, 11, 43, 1, 11,
+                    44, 1, 11, 45, 1, 11, 46, 1, 11, 47, 1, 11, 49, 1, 11, 52, 1, 11, 53,
+                    1, 11, 55, 1, 11, 56, 1, 11, 59, 1, 11, 41, 1, 106, 43, 1, 106, 41,
+                    1, 100, 42, 1, 100, 43, 1, 100, 53, 1, 100, 41, 1, 18, 42, 1, 18, 43,
+                    1, 18, 41, 1, 103, 42, 1, 103, 43, 1, 103, 41, 1, 105, 43, 1, 105,
+                    41, 1, 104, 42, 1, 104, 43, 1, 104, 43, 1, 109, 43, 1, 100, 53, 1,
+                    100, 43, 1, 107, 43, 1, 108, 0, 1, 12, 25, 1, 12, 31, 1, 12, 32, 1,
+                    12, 39, 1, 12, 40, 1, 12, 41, 1, 12, 42, 1, 12, 43, 1, 12, 44, 1, 12,
+                    45, 1, 12, 46, 1, 12, 47, 1, 12, 49, 1, 12, 52, 1, 12, 53, 1, 12, 55,
+                    1, 12, 56, 1, 12, 59, 1, 12, 28, 1, 86, 32, 1, 86, 34, 1, 86, 28, 1,
+                    87, 32, 1, 87, 34, 1, 87, 59, 1, 0, 59, 1, 1,
                 ];
                 static REDUCE_OFFSETS: &[u32] = &[
                     0, 6, 159, 294, 429, 564, 699, 699, 699, 699, 699, 699, 702, 792,
@@ -7954,18 +8106,18 @@ impl ::rusty_lr::parser::Parser for ChunkOrExpressionsParser {
                     3216, 3216, 3312, 3312, 3408, 3408, 3504, 3504, 3600, 3600, 3696,
                     3696, 3792, 3942, 3942, 4020, 4020, 4095, 4095, 4095, 4095, 4152,
                     4209, 4266, 4272, 4272, 4278, 4278, 4278, 4287, 4290, 4290, 4293,
-                    4293, 4302, 4302, 4302, 4359, 4359, 4368, 4377, 4380, 4380, 4389,
-                    4389, 4539, 4539, 4602, 4602, 4602, 4665, 4728, 4728, 4728, 4785,
-                    4848, 4905, 4905, 4911, 4911, 4911, 5046, 5103, 5194, 5194, 5215,
-                    5215, 5278, 5278, 5428, 5491, 5491, 5631, 5631, 5631, 5631, 5784,
-                    5784, 5784, 5934, 6084, 6084, 6237, 6387, 6522, 6579, 6579, 6603,
-                    6621, 6678, 6693, 6711, 6846, 6981, 7116, 7251, 7386, 7401, 7416,
-                    7431, 7446, 7461, 7461, 7467, 7467, 7524, 7524, 7581, 7581, 7581,
-                    7584, 7584, 7587, 7590, 7590, 7596, 7596, 7653, 7653, 7653, 7653,
-                    7653, 7659, 7659, 7716, 7773, 7773, 7785, 7842, 7842, 7905, 7962,
-                    8019, 8019, 8019, 8076, 8082, 8082, 8082, 8094, 8103, 8112, 8118,
-                    8127, 8130, 8136, 8139, 8142, 8142, 8199, 8199, 8199, 8199, 8208,
-                    8217, 8217, 8217, 8217, 8220, 8223,
+                    4293, 4302, 4302, 4302, 4359, 4359, 4368, 4368, 4518, 4521, 4524,
+                    4533, 4536, 4545, 4554, 4554, 4617, 4617, 4617, 4680, 4743, 4743,
+                    4743, 4800, 4863, 4920, 4920, 4926, 4926, 4926, 5061, 5118, 5209,
+                    5209, 5230, 5230, 5293, 5293, 5443, 5506, 5506, 5646, 5646, 5646,
+                    5646, 5799, 5799, 5799, 5949, 6099, 6099, 6252, 6402, 6537, 6594,
+                    6594, 6618, 6636, 6693, 6708, 6726, 6861, 6996, 7131, 7266, 7401,
+                    7416, 7431, 7446, 7461, 7476, 7476, 7482, 7482, 7539, 7539, 7596,
+                    7596, 7596, 7599, 7599, 7602, 7605, 7605, 7611, 7611, 7668, 7668,
+                    7668, 7668, 7668, 7674, 7674, 7731, 7788, 7788, 7800, 7857, 7857,
+                    7920, 7977, 8034, 8034, 8034, 8091, 8097, 8097, 8097, 8109, 8118,
+                    8127, 8133, 8142, 8145, 8151, 8154, 8157, 8157, 8214, 8214, 8214,
+                    8214, 8223, 8232, 8232, 8232, 8232, 8235, 8238,
                 ];
                 static CAN_ACCEPT_ERROR: &[u8] = &[
                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -7977,9 +8129,9 @@ impl ::rusty_lr::parser::Parser for ChunkOrExpressionsParser {
                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 ];
-                let num_rules = 123usize;
+                let num_rules = 124usize;
                 let mut rules = Vec::with_capacity(num_rules);
                 for i in 0..num_rules {
                     let lhs = ChunkOrExpressionsNonTerminals::from_usize(
@@ -7991,7 +8143,7 @@ impl ::rusty_lr::parser::Parser for ChunkOrExpressionsParser {
                             len: RULE_LENGTHS[i] as usize,
                         });
                 }
-                let num_states = 221usize;
+                let num_states = 223usize;
                 let mut state_rows = Vec::with_capacity(num_states);
                 for i in 0..num_states {
                     let term_start = SHIFT_TERM_OFFSETS[i] as usize;

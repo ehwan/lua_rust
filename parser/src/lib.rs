@@ -160,3 +160,17 @@ pub fn parse_bytes(source: &[u8]) -> Result<Block, ParseError> {
         Err(ParseError::Ambiguous)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn parses_table_constructor_with_trailing_field_separator() {
+        let source = r#"
+            local a = {}
+            local b = { 1, 2, }
+            local c = { name = "lua"; [1] = true; }
+        "#;
+
+        assert!(crate::parse_str(source).is_ok());
+    }
+}

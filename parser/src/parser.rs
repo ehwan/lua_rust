@@ -536,7 +536,33 @@ TableConstructor(expression::ExprTable)
 
 // zero or more separated Fields, with optional trailing separator
 FieldList(Vec<expression::TableField>)
-    : $sep( Field, FieldSep, * );
+    : FieldList1 {
+        FieldList1
+    }
+    | FieldList1 comma {
+        FieldList1
+    }
+    | FieldList1 semicolon {
+        FieldList1
+    }
+    | {
+        vec![]
+    }
+    ;
+
+FieldList1(Vec<expression::TableField>)
+    : FieldList1 comma Field {
+        FieldList1.push(Field);
+        FieldList1
+    }
+    | FieldList1 semicolon Field {
+        FieldList1.push(Field);
+        FieldList1
+    }
+    | Field {
+        vec![Field]
+    }
+    ;
 
 Field(expression::TableField)
     : lbracket k=Exp rbracket! equal! v=Exp {
@@ -557,9 +583,6 @@ Field(expression::TableField)
         )
     }
     ;
-
-FieldSep: comma | semicolon ;
-
 
 FunctionDef(expression::ExprFunction)
     : function_ FuncBody {
