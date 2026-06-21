@@ -37,10 +37,6 @@ macro_rules! new_unary_node {
     }};
 }
 
-fn filter( token: &Token ) -> &TokenType {
-    &token.token_type
-}
-
 // @TODO Block span
 
 %%
@@ -48,70 +44,69 @@ fn filter( token: &Token ) -> &TokenType {
 %glr;
 %lalr;
 %tokentype Token;
-%err ParseError;
-%filter filter;
+%error ParseError;
 
 
-%token ident TokenType::Ident(_);
+%token ident Token { token_type: TokenType::Ident(_), .. };
 
-%token string_literal TokenType::String(_);
-%token numeric_literal TokenType::Numeric(_);
-%token nil TokenType::Nil;
-%token bool_ TokenType::Bool(_);
+%token string_literal Token { token_type: TokenType::String(_), .. };
+%token numeric_literal Token { token_type: TokenType::Numeric(_), .. };
+%token nil Token { token_type: TokenType::Nil, .. };
+%token bool_ Token { token_type: TokenType::Bool(_), .. };
 
-%token plus TokenType::Plus;
-%token minus TokenType::Minus;
-%token asterisk TokenType::Asterisk;
-%token slash TokenType::Slash;
-%token percent TokenType::Percent;
-%token caret TokenType::Caret;
-%token hash TokenType::Hash;
-%token ampersand TokenType::Ampersand;
-%token tilde TokenType::Tilde;
-%token pipe TokenType::Pipe;
-%token lessless TokenType::LessLess;
-%token greatergreater TokenType::GreaterGreater;
-%token slashslash TokenType::SlashSlash;
-%token equalequal TokenType::EqualEqual;
-%token tildeequal TokenType::TildeEqual;
-%token lessequal TokenType::LessEqual;
-%token greaterequal TokenType::GreaterEqual;
-%token less TokenType::Less;
-%token greater TokenType::Greater;
-%token equal TokenType::Equal;
-%token lparen TokenType::LParen;
-%token rparen TokenType::RParen;
-%token lbrace TokenType::LBrace;
-%token rbrace TokenType::RBrace;
-%token lbracket TokenType::LBracket;
-%token rbracket TokenType::RBracket;
-%token coloncolon TokenType::ColonColon;
-%token semicolon TokenType::Semicolon;
-%token colon TokenType::Colon;
-%token comma TokenType::Comma;
-%token dot TokenType::Dot;
-%token dotdot TokenType::DotDot;
-%token dotdotdot TokenType::DotDotDot;
+%token plus Token { token_type: TokenType::Plus, .. };
+%token minus Token { token_type: TokenType::Minus, .. };
+%token asterisk Token { token_type: TokenType::Asterisk, .. };
+%token slash Token { token_type: TokenType::Slash, .. };
+%token percent Token { token_type: TokenType::Percent, .. };
+%token caret Token { token_type: TokenType::Caret, .. };
+%token hash Token { token_type: TokenType::Hash, .. };
+%token ampersand Token { token_type: TokenType::Ampersand, .. };
+%token tilde Token { token_type: TokenType::Tilde, .. };
+%token pipe Token { token_type: TokenType::Pipe, .. };
+%token lessless Token { token_type: TokenType::LessLess, .. };
+%token greatergreater Token { token_type: TokenType::GreaterGreater, .. };
+%token slashslash Token { token_type: TokenType::SlashSlash, .. };
+%token equalequal Token { token_type: TokenType::EqualEqual, .. };
+%token tildeequal Token { token_type: TokenType::TildeEqual, .. };
+%token lessequal Token { token_type: TokenType::LessEqual, .. };
+%token greaterequal Token { token_type: TokenType::GreaterEqual, .. };
+%token less Token { token_type: TokenType::Less, .. };
+%token greater Token { token_type: TokenType::Greater, .. };
+%token equal Token { token_type: TokenType::Equal, .. };
+%token lparen Token { token_type: TokenType::LParen, .. };
+%token rparen Token { token_type: TokenType::RParen, .. };
+%token lbrace Token { token_type: TokenType::LBrace, .. };
+%token rbrace Token { token_type: TokenType::RBrace, .. };
+%token lbracket Token { token_type: TokenType::LBracket, .. };
+%token rbracket Token { token_type: TokenType::RBracket, .. };
+%token coloncolon Token { token_type: TokenType::ColonColon, .. };
+%token semicolon Token { token_type: TokenType::Semicolon, .. };
+%token colon Token { token_type: TokenType::Colon, .. };
+%token comma Token { token_type: TokenType::Comma, .. };
+%token dot Token { token_type: TokenType::Dot, .. };
+%token dotdot Token { token_type: TokenType::DotDot, .. };
+%token dotdotdot Token { token_type: TokenType::DotDotDot, .. };
 
-%token and_ TokenType::And;
-%token break_ TokenType::Break;
-%token do_ TokenType::Do;
-%token else_ TokenType::Else;
-%token elseif_ TokenType::Elseif;
-%token end_ TokenType::End;
-%token for_ TokenType::For;
-%token function_ TokenType::Function;
-%token goto_ TokenType::Goto;
-%token if_ TokenType::If;
-%token in_ TokenType::In;
-%token local_ TokenType::Local;
-%token not_ TokenType::Not;
-%token or_ TokenType::Or;
-%token repeat_ TokenType::Repeat;
-%token return_ TokenType::Return;
-%token then_ TokenType::Then;
-%token until_ TokenType::Until;
-%token while_ TokenType::While;
+%token and_ Token { token_type: TokenType::And, .. };
+%token break_ Token { token_type: TokenType::Break, .. };
+%token do_ Token { token_type: TokenType::Do, .. };
+%token else_ Token { token_type: TokenType::Else, .. };
+%token elseif_ Token { token_type: TokenType::Elseif, .. };
+%token end_ Token { token_type: TokenType::End, .. };
+%token for_ Token { token_type: TokenType::For, .. };
+%token function_ Token { token_type: TokenType::Function, .. };
+%token goto_ Token { token_type: TokenType::Goto, .. };
+%token if_ Token { token_type: TokenType::If, .. };
+%token in_ Token { token_type: TokenType::In, .. };
+%token local_ Token { token_type: TokenType::Local, .. };
+%token not_ Token { token_type: TokenType::Not, .. };
+%token or_ Token { token_type: TokenType::Or, .. };
+%token repeat_ Token { token_type: TokenType::Repeat, .. };
+%token return_ Token { token_type: TokenType::Return, .. };
+%token then_ Token { token_type: TokenType::Then, .. };
+%token until_ Token { token_type: TokenType::Until, .. };
+%token while_ Token { token_type: TokenType::While, .. };
 
 %start ChunkOrExpressions;
 

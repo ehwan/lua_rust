@@ -99,8 +99,7 @@ pub fn parse_str(source: &str) -> Result<Block, ParseError> {
 /// parse lua source code to AST
 pub fn parse_bytes(source: &[u8]) -> Result<Block, ParseError> {
     let tokenizer = Tokenizer::from_bytes(source);
-    let parser = parser::ChunkOrExpressionsParser::new();
-    let mut context = parser::ChunkOrExpressionsContext::new();
+    let mut context = parser::ChunkOrExpressionsContext::new(());
 
     for token in tokenizer.into_iter() {
         let token = match token {
@@ -110,10 +109,10 @@ pub fn parse_bytes(source: &[u8]) -> Result<Block, ParseError> {
             }
         };
 
-        match context.feed(&parser, token, &mut ()) {
+        match context.feed(token) {
             Ok(_) => {}
             Err(err) => {
-                let (expected_terms, expected_nonterms) = context.expected_token_str(&parser);
+                let (expected_terms, expected_nonterms) = context.expected_token_str();
                 let error = InvalidToken {
                     token: Some(err.term.into_term().unwrap()),
                     expected: expected_terms.collect(),
@@ -129,11 +128,11 @@ pub fn parse_bytes(source: &[u8]) -> Result<Block, ParseError> {
 
     let mut block = None;
 
-    let (expected_terms, expected_nonterms) = context.expected_token_str(&parser);
-    let res = context.accept(&parser, &mut ());
+    let (expected_terms, expected_nonterms) = context.expected_token_str();
+    let res = context.accept_all();
     match res {
         Ok(matched) => {
-            for matched in matched {
+            for (matched, _) in matched {
                 match matched {
                     ChunkOrExpressions::Chunk(block_) => {
                         if block.is_some() {

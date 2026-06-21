@@ -1,4 +1,4 @@
-//! ```rust
+//! ```rust,ignore
 //! // type of `lua_parser::Block`
 //! let block = lua_parser::parse_str( ... )?;
 //!

@@ -33,7 +33,6 @@ pub struct LuaEnv {
     /// last operation (for error message)
     pub(crate) last_op: String,
 
-    pub(crate) parser: lua_parser::Parser,
     pub(crate) parser_context: Option<lua_parser::Context>,
     pub(crate) semantic_context: lua_semantics::Context,
 }
@@ -59,7 +58,6 @@ impl LuaEnv {
             coroutines: vec![],
             last_op: "last_op".to_string(),
 
-            parser: lua_parser::Parser::new(),
             parser_context: None,
             semantic_context,
         }
@@ -86,7 +84,7 @@ impl LuaEnv {
     /// If `source` can be evaluated as a `Expression`, it will be evaluated and `print`ed.
     pub fn feed_line(&mut self, source: &[u8]) -> Result<(), RuntimeError> {
         if self.parser_context.is_none() {
-            self.parser_context = Some(lua_parser::Context::new());
+            self.parser_context = Some(lua_parser::Context::new(()));
         }
         for token in lua_tokenizer::Tokenizer::from_bytes(source) {
             match token {
@@ -95,7 +93,7 @@ impl LuaEnv {
                         .parser_context
                         .as_mut()
                         .unwrap()
-                        .feed(&self.parser, token, &mut ())
+                        .feed(token)
                     {
                         Ok(_) => {}
                         Err(err) => {
@@ -111,12 +109,7 @@ impl LuaEnv {
             }
         }
 
-        if !self
-            .parser_context
-            .as_ref()
-            .unwrap()
-            .can_accept(&self.parser)
-        {
+        if !self.parser_context.as_ref().unwrap().can_accept() {
             return Ok(());
         }
 
@@ -124,13 +117,13 @@ impl LuaEnv {
             .parser_context
             .take()
             .unwrap()
-            .accept(&self.parser, &mut ())
+            .accept_all()
             .ok()
             .unwrap();
 
         let mut matched_stmt = None;
         let mut matched_expr = None;
-        for m in res {
+        for (m, _) in res {
             match m {
                 lua_parser::ChunkOrExpressions::Chunk(chunk) => {
                     if matched_stmt.is_some() {
@@ -218,7 +211,7 @@ impl LuaEnv {
     }
 
     pub(crate) fn load_chunk(&mut self, source: &[u8]) -> Result<Chunk, RuntimeError> {
-        self.parser_context = Some(lua_parser::Context::new());
+        self.parser_context = Some(lua_parser::Context::new(()));
 
         for token in lua_tokenizer::Tokenizer::from_bytes(source) {
             match token {
@@ -227,7 +220,7 @@ impl LuaEnv {
                         .parser_context
                         .as_mut()
                         .unwrap()
-                        .feed(&self.parser, token, &mut ())
+                        .feed(token)
                     {
                         Ok(_) => {}
                         Err(err) => {
@@ -247,11 +240,11 @@ impl LuaEnv {
             .parser_context
             .take()
             .unwrap()
-            .accept(&self.parser, &mut ())
+            .accept_all()
         {
             Ok(matched) => {
                 let mut matched_stmt = None;
-                for m in matched {
+                for (m, _) in matched {
                     match m {
                         lua_parser::ChunkOrExpressions::Chunk(chunk) => {
                             if matched_stmt.is_some() {
@@ -364,10 +357,10 @@ impl LuaEnv {
         let idx = thread.data_stack.len() - i - 1;
         thread.data_stack.get(idx).unwrap().clone()
     }
-    pub(crate) fn borrow_running_thread(&self) -> std::cell::Ref<LuaThread> {
+    pub(crate) fn borrow_running_thread(&self) -> std::cell::Ref<'_, LuaThread> {
         self.running_thread().borrow()
     }
-    pub(crate) fn borrow_running_thread_mut(&self) -> std::cell::RefMut<LuaThread> {
+    pub(crate) fn borrow_running_thread_mut(&self) -> std::cell::RefMut<'_, LuaThread> {
         self.running_thread().borrow_mut()
     }
 
